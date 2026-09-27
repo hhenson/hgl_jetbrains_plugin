@@ -1,0 +1,451 @@
+/*
+ * HGL grammar for the JetBrains plugin.
+ *
+ * This is a transliteration of the compiler's declarative grammar,
+ * `language/src/syntax/token_grammar.cpp` in hgraph, which implements
+ * "Compilation-unit grammar", "Types", "Blocks and expressions" and "Tests
+ * and the evaluation harness" of the hgraph_spec developer guide
+ * (syntax-and-semantics.md). Rule names follow the guide's EBNF where the
+ * two agree. Where the guide is ahead of the compiler (native contract
+ * bodies, `native const fn`, body-less native declarations) the guide wins.
+ *
+ * Newlines are tokens. `nls` is the compiler's `newlines` (zero or more) and
+ * appears exactly where that grammar places `dsl::p<newlines>`; a binary,
+ * arrow or fat-arrow operator may be preceded and followed by newlines
+ * (`continued_operator`). Statement and declaration lines end at a NEWLINE
+ * or the closing brace / end of file. See docs/design.md, "Parser".
+ */
+{
+  parserClass="io.github.hhenson.hgl.parser.HglParser"
+  parserUtilClass="io.github.hhenson.hgl.parser.HglParserUtil"
+
+  extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+
+  psiClassPrefix="Hgl"
+  psiImplClassSuffix="Impl"
+  psiPackage="io.github.hhenson.hgl.psi"
+  psiImplPackage="io.github.hhenson.hgl.psi.impl"
+
+  elementTypeHolderClass="io.github.hhenson.hgl.psi.HglTypes"
+  elementTypeClass="io.github.hhenson.hgl.psi.HglElementType"
+  tokenTypeClass="io.github.hhenson.hgl.psi.HglTokenType"
+
+  generateTokenAccessors=true
+
+  extends(".*_expr")=expr
+
+  implements("function_decl|native_function_decl|operator_decl|struct_decl|test_decl|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|import_item|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.HglNamedElement"
+  mixin("function_decl|native_function_decl|operator_decl|struct_decl|test_decl|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.impl.HglNamedElementImpl"
+  mixin("import_item")="io.github.hhenson.hgl.psi.impl.HglImportItemMixin"
+  mixin("qualified_name")="io.github.hhenson.hgl.psi.impl.HglQualifiedNameMixin"
+  mixin("module_path")="io.github.hhenson.hgl.psi.impl.HglModulePathMixin"
+
+  tokens=[
+    NEWLINE='regexp:\n'
+    LINE_COMMENT='regexp:#[^\n]*'
+    BLOCK_COMMENT='regexp:/\*.*\*/'
+
+    IDENTIFIER='regexp:[A-Za-z_][A-Za-z0-9_]*'
+    PLACEHOLDER='_'
+    INT_LITERAL='regexp:[0-9]+'
+    FLOAT_LITERAL='regexp:[0-9]+\.[0-9]+'
+    STRING_LITERAL='regexp:"[^"]*"'
+    TEMPORAL_LITERAL='regexp:@[^ ]+'
+    CPP_HEADER='regexp:<[^>]+>'
+    CPP_PARAMETER_LIST='regexp:\([^)]*\)'
+    CPP_BODY='regexp:\{[^}]*\}'
+
+    // Hard reserved words (token.cpp keyword table).
+    MODULE_KW='module'
+    PART_KW='part'
+    USE_KW='use'
+    AS_KW='as'
+    EXPORT_KW='export'
+    ABSTRACT_KW='abstract'
+    IMPL_KW='impl'
+    INSTANTIATE_KW='instantiate'
+    OPERATOR_KW='operator'
+    FN_KW='fn'
+    CPP_KW='cpp'
+    STRUCT_KW='struct'
+    CONST_KW='const'
+    REQUIRES_KW='requires'
+    IS_KW='is'
+    LET_KW='let'
+    VAR_KW='var'
+    STATE_KW='state'
+    CACHE_KW='cache'
+    INJECT_KW='inject'
+    RETURN_KW='return'
+    IF_KW='if'
+    ELSE_KW='else'
+    START_KW='start'
+    WHEN_KW='when'
+    STOP_KW='stop'
+    FOR_KW='for'
+    TEST_KW='test'
+    ASSERT_KW='assert'
+    EVAL_KW='eval'
+    TRUE_KW='true'
+    FALSE_KW='false'
+    NULL_KW='null'
+    BOOL_KW='bool'
+    I64_KW='i64'
+    F64_KW='f64'
+    STR_KW='str'
+    DATE_KW='date'
+    TIME_KW='time'
+    DATETIME_KW='datetime'
+    DURATION_KW='duration'
+    CIVIL_DATETIME_KW='civil_datetime'
+    ZONED_DATETIME_KW='zoned_datetime'
+    ZONED_TIME_KW='zoned_time'
+    TIMEZONE_KW='timezone'
+
+    // Contextual keywords. The lexer emits IDENTIFIER; the parser remaps the
+    // token to one of these where the grammar demands the word
+    // (HglParserUtil.kw / typeKw / kwBeforeLt, which take the token name).
+    IN_KW='in'
+    NATIVE_KW='native'
+    THROWS_KW='throws'
+    EACH_KW='each'
+    PROPERTIES_KW='properties'
+    UNBOUNDED_KW='unbounded'
+    DELTA_KW='delta'
+    ATOMIC_KW='atomic'
+    TUPLE_KW='tuple'
+    LIST_KW='list'
+    SET_KW='set'
+    MAP_KW='map'
+    ROLLING_KW='rolling'
+    REF_KW='ref'
+    SIGNAL_KW='signal'
+    SCHEMA_KW='schema'
+    CPP_INCLUDE='include'
+
+    LPAREN='('
+    RPAREN=')'
+    LBRACE='{'
+    RBRACE='}'
+    LBRACKET='['
+    RBRACKET=']'
+    LT='<'
+    GT='>'
+    COMMA=','
+    COLON=':'
+    COLONCOLON='::'
+    DOT='.'
+    ELLIPSIS='...'
+    ARROW='->'
+    FAT_ARROW='=>'
+    EQ='='
+    PLUS_EQ='+='
+    MINUS_EQ='-='
+    STAR_EQ='*='
+    SLASH_EQ='/='
+    EQEQ='=='
+    NEQ='!='
+    LE='<='
+    GE='>='
+    PLUS='+'
+    MINUS='-'
+    STAR='*'
+    SLASH='/'
+    FLOOR_SLASH='//'
+    PERCENT='%'
+    BANG='!'
+    ANDAND='&&'
+    OROR='||'
+    SEMICOLON=';'
+  ]
+}
+
+// ---------------------------------------------------------------------------
+// Compilation unit
+// ---------------------------------------------------------------------------
+
+hglFile ::= nls module_line? top_item*
+
+private module_line ::= module_decl &(NEWLINE | <<eof>>) {pin=1}
+private top_item ::= !<<eof>> (NEWLINE | declaration_item)
+private declaration_item ::= !NEWLINE declaration_body {pin=1 recoverWhile=line_recover}
+private declaration_body ::= declaration &(NEWLINE | <<eof>>) {pin=1}
+// Recovery stops at the line end or at a word that can only start a
+// declaration, so a broken declaration never swallows the next one.
+private line_recover ::= !(NEWLINE | USE_KW | CPP_KW | FN_KW | OPERATOR_KW | INSTANTIATE_KW | STRUCT_KW
+                          | TEST_KW | EXPORT_KW | IMPL_KW | ABSTRACT_KW | CONST_KW | MODULE_KW | <<isKw "NATIVE_KW">>)
+
+private nls ::= NEWLINE*
+private comma_sep ::= nls COMMA nls
+private trailing_comma ::= nls COMMA
+private meta list_of ::= <<p>> (comma_sep <<p>>)* trailing_comma?
+
+module_decl ::= MODULE_KW module_path (PART_KW ident)? {pin=1}
+module_path ::= ident (DOT ident)*
+
+private declaration ::= use_decl
+              | cpp_include_decl
+              | native_function_decl
+              | function_decl
+              | operator_decl
+              | instantiate_decl
+              | struct_decl
+              | test_context
+              | test_decl
+
+use_decl ::= USE_KW module_path (import_set | use_alias) {pin=1}
+import_set ::= COLONCOLON LBRACE nls <<list_of import_item>>? nls RBRACE {pin=2}
+import_item ::= ident
+use_alias ::= AS_KW ident {pin=1}
+
+cpp_include_decl ::= CPP_KW CPP_INCLUDE CPP_HEADER {pin=2}
+
+// A name (`ident`) in a declared or referenced position. As in the compiler grammar,
+// the hard keywords are admitted here: `use hgraph.time::{...}` names a
+// module segment with a reserved word, and rejecting `let state = ...` is a
+// name-resolution diagnostic, not a parse error.
+ident ::= IDENTIFIER | keyword_name
+private keyword_name ::= MODULE_KW | PART_KW | USE_KW | AS_KW | EXPORT_KW | ABSTRACT_KW | IMPL_KW
+                       | INSTANTIATE_KW | OPERATOR_KW | FN_KW | CPP_KW | STRUCT_KW | CONST_KW
+                       | REQUIRES_KW | IS_KW | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
+                       | RETURN_KW | IF_KW | ELSE_KW | START_KW | WHEN_KW | STOP_KW | FOR_KW
+                       | TEST_KW | ASSERT_KW | EVAL_KW | TRUE_KW | FALSE_KW | NULL_KW
+                       | scalar_type_keyword
+private scalar_type_keyword ::= BOOL_KW | I64_KW | F64_KW | STR_KW | DATE_KW | TIME_KW | DATETIME_KW
+                              | DURATION_KW | CIVIL_DATETIME_KW | ZONED_DATETIME_KW | ZONED_TIME_KW
+                              | TIMEZONE_KW
+
+qualified_name ::= ident (COLONCOLON ident)?
+
+// ---------------------------------------------------------------------------
+// Declarations
+// ---------------------------------------------------------------------------
+
+struct_decl ::= EXPORT_KW? ABSTRACT_KW? STRUCT_KW ident generic_parameters? struct_parents? opt_requires struct_body {pin=3}
+struct_parents ::= COLON nls <<list_of type>> {pin=1}
+struct_body ::= nls LBRACE struct_body_item* RBRACE {pin=2}
+private struct_body_item ::= !RBRACE (NEWLINE | struct_member_item)
+private struct_member_item ::= !(NEWLINE | RBRACE) struct_member_body {pin=1 recoverWhile=statement_recover}
+private struct_member_body ::= struct_member &(NEWLINE | RBRACE) {pin=1}
+struct_member ::= ident (COLON nls type (EQ nls expr)? | EQ nls expr) {pin=1}
+
+operator_decl ::= OPERATOR_KW ident generic_parameters? function_signature opt_requires operator_properties* operator_body? {pin=1}
+operator_properties ::= nls <<typeKw "PROPERTIES_KW">> LT nls <<list_of type>> nls GT nls
+                        LBRACE nls <<list_of operator_property>> nls RBRACE {pin=2}
+operator_property ::= ident (EQ expr)?
+private operator_body ::= fat_arrow_body | block
+
+instantiate_decl ::= INSTANTIATE_KW <<list_of instantiation>> {pin=1}
+instantiation ::= ident generic_arguments {pin=2}
+
+function_decl ::= (EXPORT_KW | IMPL_KW)? CONST_KW? FN_KW ident generic_parameters? function_signature opt_requires function_body {pin=3}
+private function_body ::= nls (fat_arrow_body | block)
+// Pinned after `=>` so a missing body reads "expression expected".
+private fat_arrow_body ::= fat_arrow_op expr {pin=1}
+
+native_function_decl ::= <<kw "NATIVE_KW">> CONST_KW? FN_KW ident generic_parameters? function_signature throws_clause? opt_requires native_contract_body? {pin=1}
+throws_clause ::= <<kw "THROWS_KW">>
+native_contract_body ::= nls LBRACE native_body_item* RBRACE {pin=2}
+private native_body_item ::= !RBRACE (NEWLINE | native_member_item)
+private native_member_item ::= !(NEWLINE | RBRACE) native_member_body {pin=1 recoverWhile=statement_recover}
+private native_member_body ::= inject_decl SEMICOLON? | native_hook | cpp_implementation
+native_hook ::= (START_KW | WHEN_KW | STOP_KW) SEMICOLON {pin=1}
+cpp_implementation ::= CPP_KW CPP_PARAMETER_LIST CPP_BODY {pin=1}
+
+test_context ::= TEST_KW LBRACE test_context_item* RBRACE {pin=2}
+private test_context_item ::= !RBRACE (NEWLINE | test_member_item)
+private test_member_item ::= !(NEWLINE | RBRACE) test_member_body {pin=1 recoverWhile=statement_recover}
+private test_member_body ::= (function_decl | test_decl) &(NEWLINE | RBRACE) {pin=1}
+test_decl ::= TEST_KW ident block {pin=2}
+
+// ---------------------------------------------------------------------------
+// Generics, signatures and constraints
+// ---------------------------------------------------------------------------
+
+generic_parameters ::= LT nls <<list_of generic_parameter>> nls GT {pin=1}
+generic_parameter ::= CONST_KW ident COLON nls type | ELLIPSIS ident | ident
+
+function_signature ::= LPAREN nls <<list_of parameter>>? nls RPAREN (arrow_op type)? {pin=1}
+parameter ::= CONST_KW? ident COLON nls parameter_type (EQ nls expr)? {pin=3}
+private parameter_type ::= ELLIPSIS pack_type pack_cardinality? | type
+private pack_type ::= LBRACE nls type nls RBRACE | type
+pack_cardinality ::= LBRACE nls INT_LITERAL nls (COLON nls (INT_LITERAL | STAR) nls)? RBRACE {pin=1}
+
+private arrow_op ::= nls ARROW nls
+private fat_arrow_op ::= nls FAT_ARROW nls
+
+private opt_requires ::= (nls requires_clause)?
+requires_clause ::= REQUIRES_KW nls constraint {pin=1}
+
+constraint ::= constraint_and (or_op constraint_and)*
+constraint_and ::= constraint_term (and_op constraint_term)*
+constraint_term ::= constraint_atom (constraint_requirement | constraint_relation)?
+private constraint_atom ::= constraint_each
+                          | BANG constraint_term
+                          | LPAREN nls constraint nls RPAREN
+                          | constraint_operand
+constraint_requirement ::= ARROW nls type {pin=1}
+constraint_relation ::= EQEQ constraint_operand
+                      | <<kw "IN_KW">> constraint_operand
+                      | IS_KW (STRUCT_KW | ident)
+constraint_each ::= <<kw "EACH_KW">> ident <<kw "IN_KW">> constraint_operand LBRACE nls constraint nls RBRACE {pin=1}
+constraint_set ::= LBRACE nls <<list_of constraint_operand>> nls RBRACE {pin=1}
+constraint_call ::= &(ident (COLONCOLON ident)? LPAREN) qualified_name LPAREN nls <<list_of constraint_operand>>? nls RPAREN {pin=2}
+constraint_operand ::= constraint_set
+                     | container_type
+                     | scalar_type
+                     | constraint_call
+                     | &(ident (LT | COLONCOLON)) named_type
+                     | &constraint_value_start size_expression
+                     | constraint_name
+constraint_name ::= qualified_name
+private constraint_value_start ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
+                                 | TRUE_KW | FALSE_KW | NULL_KW | MINUS
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type ::= scalar_type | container_type | named_type
+scalar_type ::= scalar_type_keyword
+private container_type ::= tuple_type | list_type | set_type | map_type | rolling_type
+                         | atomic_type | ref_type | signal_type | schema_type
+tuple_type ::= <<typeKw "TUPLE_KW">> LT nls <<list_of type>>? nls GT {pin=1}
+list_type ::= <<typeKw "LIST_KW">> LT nls type (comma_sep list_size nls)? GT {pin=1}
+list_size ::= <<kw "UNBOUNDED_KW">> | size_expression
+set_type ::= <<typeKw "SET_KW">> LT nls type nls GT {pin=1}
+map_type ::= <<typeKw "MAP_KW">> LT nls type comma_sep type nls GT {pin=1}
+rolling_type ::= <<typeKw "ROLLING_KW">> LT nls type comma_sep size_expression (comma_sep size_expression)? nls GT {pin=1}
+atomic_type ::= <<typeKw "ATOMIC_KW">> LT nls type nls GT {pin=1}
+ref_type ::= <<typeKw "REF_KW">> LT nls type nls GT {pin=1}
+signal_type ::= <<kw "SIGNAL_KW">>
+schema_type ::= <<kw "SCHEMA_KW">>
+named_type ::= qualified_name generic_arguments?
+
+generic_arguments ::= LT nls <<list_of generic_argument>> nls GT {pin=1}
+generic_argument ::= container_type
+                   | scalar_type
+                   | &(ident (LT | COLONCOLON)) named_type
+                   | size_expression
+
+// A size expression is parsed at additive precedence and above, so a `>`
+// closes the enclosing list instead of starting a comparison.
+private size_expression ::= <<sizeExpr>>
+
+// ---------------------------------------------------------------------------
+// Blocks and statements
+// ---------------------------------------------------------------------------
+
+block ::= LBRACE block_item* RBRACE {pin=1}
+private block_item ::= !RBRACE (NEWLINE | statement_item)
+private statement_item ::= !(NEWLINE | RBRACE) statement_body {pin=1 recoverWhile=statement_recover}
+private statement_body ::= statement &(NEWLINE | RBRACE) {pin=1}
+private statement_recover ::= !(NEWLINE | RBRACE | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
+                               | START_KW | STOP_KW | WHEN_KW | FOR_KW | RETURN_KW | ASSERT_KW)
+
+private statement ::= local_decl
+            | state_decl
+            | cache_decl
+            | inject_decl
+            | lifecycle_stmt
+            | when_stmt
+            | for_stmt
+            | return_stmt
+            | assert_stmt
+            | expression_stmt
+
+local_decl ::= (LET_KW | VAR_KW) ident (COLON nls type)? initializer? {pin=1}
+state_decl ::= STATE_KW ident (COLON nls type)? initializer {pin=1}
+cache_decl ::= CACHE_KW ident (COLON nls type)? initializer {pin=1}
+// Pinned after `=` so `let x =` reads "expression expected" at the line end.
+private initializer ::= EQ nls expr {pin=1}
+inject_decl ::= INJECT_KW nls inject_item (&(nls COMMA nls IDENTIFIER) nls COMMA nls inject_item)* (nls COMMA)? {pin=1}
+inject_item ::= ident
+lifecycle_stmt ::= (START_KW | STOP_KW) block {pin=1}
+when_stmt ::= WHEN_KW (!LBRACE expr)? block {pin=1}
+for_stmt ::= FOR_KW for_binding (COMMA for_binding)? <<kw "IN_KW">> expr block {pin=1}
+for_binding ::= ident
+return_stmt ::= RETURN_KW expr? {pin=1}
+assert_stmt ::= ASSERT_KW expr {pin=1}
+expression_stmt ::= expr assignment_tail?
+assignment_tail ::= assign_op nls expr {pin=1}
+private assign_op ::= EQ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ
+
+// ---------------------------------------------------------------------------
+// Expressions (Grammar-Kit expression group; later alternatives bind tighter)
+// ---------------------------------------------------------------------------
+
+expr ::= or_expr
+       | and_expr
+       | equality_expr
+       | comparison_expr
+       | add_expr
+       | mul_expr
+       | unary_expr
+       | postfix_group
+       | primary_group
+
+private postfix_group ::= call_expr | index_expr | field_expr
+private primary_group ::= applied_constructor_expr
+                        | delta_expr
+                        | literal_expr
+                        | tuple_or_group_expr
+                        | sequence_expr
+                        | fn_expr
+                        | if_expr
+                        | eval_expr
+                        | value_selector_expr
+                        | block_expr
+                        | reference_expr
+
+or_expr ::= expr or_op expr
+and_expr ::= expr and_op expr
+equality_expr ::= expr equality_op expr
+comparison_expr ::= expr comparison_op expr
+add_expr ::= expr add_op expr
+mul_expr ::= expr mul_op expr
+unary_expr ::= (MINUS | BANG) expr
+
+// A binary operator may end a line or begin the next one (continued_operator).
+private or_op ::= nls OROR nls
+private and_op ::= nls ANDAND nls
+private equality_op ::= nls (EQEQ | NEQ) nls
+private comparison_op ::= nls (LT | LE | GT | GE) nls
+private add_op ::= nls (PLUS | MINUS) nls
+private mul_op ::= nls (STAR | SLASH | FLOOR_SLASH | PERCENT) nls
+
+// Postfix forms never cross a newline. The index suffix is a private rule so
+// Grammar-Kit sees one operand and classifies the rule as postfix; written
+// inline it would be a binary operator and parse the index at index priority.
+call_expr ::= expr arguments
+index_expr ::= expr index_suffix
+private index_suffix ::= LBRACKET nls expr nls RBRACKET
+field_expr ::= expr DOT ident
+
+literal_expr ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
+               | TRUE_KW | FALSE_KW | NULL_KW | PLACEHOLDER
+// One production for a parenthesised group and a tuple literal, as in the
+// compiler (`tuple_or_group`): `(a)` groups, `()`, `(a,)` and `(a, b)` are
+// tuples. Grammar-Kit would pin a separate `'(' expr ')'` rule after the
+// opening parenthesis and never try the tuple alternative.
+tuple_or_group_expr ::= LPAREN nls <<list_of expr>>? nls RPAREN
+sequence_expr ::= LBRACKET nls <<list_of sequence_element>>? nls RBRACKET {pin=1}
+sequence_element ::= timed_element | expr
+timed_element ::= TEMPORAL_LITERAL COLON nls expr {pin=2}
+fn_expr ::= FN_KW LPAREN nls <<list_of anonymous_parameter>>? nls RPAREN (arrow_op type)? fat_arrow_op expr {pin=1}
+anonymous_parameter ::= ident (COLON nls type)?
+if_expr ::= IF_KW expr block (nls else_arm)? {pin=1}
+else_arm ::= ELSE_KW (if_expr | block) {pin=1}
+eval_expr ::= EVAL_KW LPAREN nls expr (comma_sep argument)* trailing_comma? nls RPAREN {pin=1}
+value_selector_expr ::= CONST_KW LPAREN ident RPAREN {pin=2}
+block_expr ::= block
+reference_expr ::= &IDENTIFIER qualified_name
+
+// `name<...>(...)` is an applied struct constructor only when the token
+// look-ahead says so (looks_like_applied_constructor in the compiler).
+applied_constructor_expr ::= <<appliedConstructorAhead>> qualified_name generic_arguments arguments {pin=1}
+delta_expr ::= <<kwBeforeLt "DELTA_KW">> LT nls type nls GT arguments {pin=1}
+
+arguments ::= LPAREN nls <<list_of argument>>? nls RPAREN {pin=1}
+argument ::= named_argument | expr
+named_argument ::= ident COLON nls expr {pin=2}

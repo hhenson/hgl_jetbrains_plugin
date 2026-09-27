@@ -1,0 +1,5 @@
+# line comment
+module examples.comments # trailing comment
+/* block
+   comment */ fn f() => 1 /* inline */ + 2
+/* unterminated

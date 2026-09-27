@@ -1,0 +1,56 @@
+# Newline continuation rules (developer guide, "Lexical rules").
+module examples.continuations
+
+use hgraph.std::{
+    mean,
+    total,
+}
+
+operator summarize<
+    T,
+    const max_size: i64,
+>(window: rolling<T, max_size>) -> T
+
+export struct Range<T>
+requires T in {i64, f64}
+{
+    lower: T
+    upper: T
+}
+
+fn long_expression(a: f64, b: f64, c: f64) -> f64 =>
+    a
+    + b
+    - c
+
+fn long_condition(a: f64, b: f64) -> bool {
+    let both = a > 0.0 &&
+        b > 0.0
+    let either = a > 0.0
+        || b > 0.0
+    if both {
+        both
+    }
+    else {
+        either
+    }
+}
+
+fn arrow_on_next_line(a: f64)
+    -> f64
+{
+    a
+}
+
+fn requires_on_next_line<T>(value: T) -> T
+requires T in {f64}
+=> value
+
+fn total_of(values: list<f64>) -> f64 => total(
+    values,
+)
+
+test continued_assert {
+    assert eval(long_expression, a: [1.0], b: [2.0], c: [0.5])
+        == [2.5]
+}

@@ -1,0 +1,30 @@
+module examples.temporal_literals
+
+const fn spellings() -> bool {
+    let d = @2026-09-03
+    let t = @09:30
+    let t2 = @09:30:15.250
+    let i = @2026-09-03T09:30Z
+    let i2 = @2026-09-03T10:30:00+01:00
+    let i3 = @2026-09-03T10:30+01
+    let c = @2026-09-03T10:30
+    let z = @2026-09-03T10:30+01:00[Europe/London]
+    let zt = @09:30[America/New_York]
+    let tz = @[Europe/London]
+    let m = 5m
+    let hm = 1h30m
+    let frac = 1.5h
+    let neg = -250ms
+    let sum = 1h + 30m
+    let diff = @2026-09-03-1d
+    let diff2 = @2026-09-03T09:30Z-1d
+    let e = 1e5
+    let f = 2.5e-3
+    return d == d && t == t
+}
+
+fn windows(prices: rolling<f64, 5m, 1m>, ticks: rolling<f64, 20, 5>) -> f64 => 1.0
+
+test timed {
+    assert eval(windows, prices: [0s: 1.0, 2m: 3.0, 5m: 5.0], ticks: [1.0]) == [5m: 3.0]
+}

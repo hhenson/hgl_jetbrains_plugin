@@ -1,0 +1,16 @@
+cpp include <hgraph/types/time_series/ts_input/list_view.h>
+cpp include "native/helpers.h"
+cpp include HEADER
+native fn len<T, const size: i64>(value: list<T, size>) -> i64 {
+    cpp(const hgraph::TSLInputView &value, std::pair<int, int> pair) {
+        // Braces in strings, comments, and raw strings remain inside C++: { }
+        constexpr auto ignored = R"hgl({ native })hgl";
+        const char *text = "{ not a brace }"; char c = '}';
+        /* block } comment */
+        if (value.size() > 0) { return static_cast<hgraph::Int>(value.size()); }
+        return 0;
+    }
+}
+cpp
+(int x) { return x; }
+cpp(unterminated {

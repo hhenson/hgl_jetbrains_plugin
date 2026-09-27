@@ -1,0 +1,43 @@
+<idea-plugin>
+    <id>io.github.hhenson.hgl</id>
+    <name>HGL</name>
+    <vendor url="https://github.com/hhenson">Howard Henson</vendor>
+
+    <description><![CDATA[
+    Language support for HGL, the temporal programming language of the
+    <a href="https://github.com/hhenson/hgraph">hgraph</a> project:
+    syntax highlighting, brace matching, comments, code folding, structure
+    view, keyword completion and in-file navigation for <code>.hgl</code> modules.
+    The language is specified in
+    <a href="https://github.com/hhenson/hgraph_spec">hgraph_spec</a>.
+    ]]></description>
+
+    <!-- Only platform and language APIs are used, so one build installs on
+         CLion, PyCharm, RustRover and IntelliJ IDEA. -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType name="HGL"
+                  implementationClass="io.github.hhenson.hgl.HglFileType"
+                  fieldName="INSTANCE"
+                  language="HGL"
+                  extensions="hgl"/>
+        <lang.parserDefinition language="HGL"
+                               implementationClass="io.github.hhenson.hgl.parser.HglParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="HGL"
+                                       implementationClass="io.github.hhenson.hgl.highlighting.HglSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementation="io.github.hhenson.hgl.highlighting.HglColorSettingsPage"/>
+        <annotator language="HGL" implementationClass="io.github.hhenson.hgl.highlighting.HglAnnotator"/>
+        <lang.braceMatcher language="HGL" implementationClass="io.github.hhenson.hgl.editor.HglBraceMatcher"/>
+        <lang.commenter language="HGL" implementationClass="io.github.hhenson.hgl.editor.HglCommenter"/>
+        <lang.foldingBuilder language="HGL" implementationClass="io.github.hhenson.hgl.editor.HglFoldingBuilder"/>
+        <lang.psiStructureViewFactory language="HGL"
+                                      implementationClass="io.github.hhenson.hgl.structure.HglStructureViewFactory"/>
+        <lang.findUsagesProvider language="HGL" implementationClass="io.github.hhenson.hgl.reference.HglFindUsagesProvider"/>
+        <lang.refactoringSupport language="HGL" implementationClass="io.github.hhenson.hgl.reference.HglRefactoringSupportProvider"/>
+        <completion.contributor language="HGL"
+                                implementationClass="io.github.hhenson.hgl.completion.HglCompletionContributor"/>
+        <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglModuleIndex"/>
+    </extensions>
+</idea-plugin>

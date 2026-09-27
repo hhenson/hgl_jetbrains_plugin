@@ -1,0 +1,8 @@
+5m 1h30m 2m30.5s 1.5h 250ms 10us 3d 0s
+5min 1e5m 2x
+1e5 2.5e-3 1.0 42 007
+@2026-09-03 @09:30 @09:30:15.250 @2026-09-03T09:30Z @2026-09-03T10:30:00+01:00 @2026-09-03T10:30+01
+@2026-09-03T10:30 @2026-09-03T10:30+01:00[Europe/London] @09:30[America/New_York] @[Europe/London]
+@2026-09-03-1d @2026-09-03T09:30Z-1d @bad @
+"plain" "with \"escapes\" \n \t \\" "unknown \q escape" "unterminated
+_ _x x_ __
