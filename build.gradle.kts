@@ -20,7 +20,16 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdea(providers.gradleProperty("platformVersion"))
+        // CLion is the platform the plugin is compiled and tested against; only
+        // platform and lang APIs are used, so the same build installs on PyCharm,
+        // RustRover and IntelliJ IDEA (the plugin verifier covers them). The
+        // unified IntelliJ IDEA distribution cannot open a light test project
+        // (its Ultimate licensing startup activity fails to instantiate), so it
+        // is not used here. Set -PplatformLocalPath=/path/to/CLion.app (or put it
+        // in ~/.gradle/gradle.properties) to build against an installed IDE
+        // instead of downloading one.
+        val localPath = providers.gradleProperty("platformLocalPath")
+        if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
         testFramework(TestFrameworkType.Platform)
     }
     testImplementation("junit:junit:4.13.2")

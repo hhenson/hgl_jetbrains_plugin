@@ -33,42 +33,42 @@ import io.github.hhenson.hgl.psi.HglUseDecl
  */
 object HglScope {
 
-    /** Names visible from `from`, innermost scope first. */
-    fun visibleDeclarations(from: PsiElement): Sequence<HglNamedElement> = sequence {
+    /** The declarations of each enclosing scope of `from`, innermost scope first. */
+    fun scopes(from: PsiElement): Sequence<List<HglNamedElement>> = sequence {
         val useOffset = from.textOffset
         var scope: PsiElement? = from.parent
         while (scope != null) {
-            when (scope) {
-                is HglBlock -> yieldAll(blockDeclarations(scope, useOffset))
-                is HglForStmt -> yieldAll(scope.forBindingList)
-                is HglFnExpr -> yieldAll(scope.anonymousParameterList)
-                is HglFunctionDecl -> {
-                    yieldAll(scope.functionSignature?.parameterList ?: emptyList())
-                    yieldAll(genericParameters(scope.genericParameters))
-                }
-                is HglNativeFunctionDecl -> {
-                    yieldAll(scope.functionSignature?.parameterList ?: emptyList())
-                    yieldAll(genericParameters(scope.genericParameters))
-                }
-                is HglOperatorDecl -> {
-                    yieldAll(scope.functionSignature?.parameterList ?: emptyList())
-                    yieldAll(genericParameters(scope.genericParameters))
-                }
-                is HglStructDecl -> yieldAll(genericParameters(scope.genericParameters))
-                is HglTestContext -> {
-                    yieldAll(scope.functionDeclList)
-                    yieldAll(scope.testDeclList)
-                }
-                is HglFile -> yieldAll(moduleDeclarations(scope))
+            val declared: List<HglNamedElement> = when (scope) {
+                is HglBlock -> blockDeclarations(scope, useOffset)
+                is HglForStmt -> scope.forBindingList
+                is HglFnExpr -> scope.anonymousParameterList
+                is HglFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
+                is HglNativeFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
+                is HglOperatorDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
+                is HglStructDecl -> genericParameters(scope.genericParameters)
+                is HglTestContext -> scope.functionDeclList + scope.testDeclList
+                is HglFile -> moduleDeclarations(scope)
+                else -> emptyList()
             }
+            if (declared.isNotEmpty()) yield(declared)
             scope = scope.parent
         }
     }
 
-    /** Every declaration visible from `from` whose name is `name`. Imports expand to what they import. */
+    /** Names visible from `from`, innermost scope first. */
+    fun visibleDeclarations(from: PsiElement): Sequence<HglNamedElement> = scopes(from).flatten()
+
+    /**
+     * The declarations `name` refers to from `from`: those of the innermost
+     * scope that declares the name, so an inner binding shadows an outer one,
+     * while overloads declared side by side in one scope are all returned.
+     * An import expands to what it imports.
+     */
     fun resolve(from: PsiElement, name: String): List<PsiElement> {
-        val direct = visibleDeclarations(from).filter { it.name == name }.toList()
-        if (direct.isEmpty()) return emptyList()
+        val direct = scopes(from)
+            .map { scope -> scope.filter { it.name == name } }
+            .firstOrNull { it.isNotEmpty() }
+            ?: return emptyList()
         return direct.flatMap { declaration ->
             if (declaration is HglImportItem) declaration.importedDeclarations().ifEmpty { listOf(declaration) }
             else listOf(declaration)
@@ -112,6 +112,11 @@ object HglScope {
 
     private fun genericParameters(parameters: HglGenericParameters?): List<HglNamedElement> =
         parameters?.genericParameterList ?: emptyList()
+
+    private fun signatureDeclarations(
+        signature: io.github.hhenson.hgl.psi.HglFunctionSignature?,
+        generics: HglGenericParameters?,
+    ): List<HglNamedElement> = (signature?.parameterList ?: emptyList()) + genericParameters(generics)
 
     private fun blockDeclarations(block: HglBlock, useOffset: Int): List<HglNamedElement> {
         val result = ArrayList<HglNamedElement>()

@@ -14,6 +14,14 @@ on `com.intellij.modules.platform` and `com.intellij.modules.lang`, so the
 same build installs on every JetBrains IDE of the targeted platform
 generation (2026.2, build 262 and later).
 
+The build compiles and tests against CLion. The unified IntelliJ IDEA
+distribution (the only IDEA artifact since 2025.3) cannot open a light test
+project, because its obfuscated Ultimate licensing startup activity fails
+to instantiate under the test framework, so it is not used. Any IDE would
+do for compilation since only platform APIs are referenced; the Plugin
+Verifier checks the other three. `-PplatformLocalPath=<IDE app>` builds
+against an installed IDE instead of downloading one.
+
 Out of scope for v0.1, and deliberately so:
 
 - **Diagnostics.** The plugin reports parse errors only. Type checking,
@@ -155,10 +163,11 @@ References:
   use; state, cache and injected names), the enclosing `for`, anonymous
   function, function, operator or struct (parameters and generics), the
   enclosing test context (helpers and tests), then the module's
-  declarations, import items and aliases. An import item expands to the
-  declarations of that name in the imported module. Resolution is
-  poly-variant because operator overloads and `impl fn` candidates share a
-  name.
+  declarations, import items and aliases. The innermost scope that declares
+  the name wins, so a `state total` shadows a module-level `fn total`;
+  within one scope every declaration of the name is returned, which is how
+  operator overloads and `impl fn` candidates are found. An import item
+  expands to the declarations of that name in the imported module.
 - `alias::x` resolves the alias to its `use ... as alias` and looks `x` up
   in that module.
 - A module path in `use` resolves to the file (or part files) declaring it.
@@ -206,6 +215,11 @@ variants; find usages and in-place rename for every named element.
   `language/stdlib/hgl`) must parse with no error element. The copies are
   refreshed by `tools/refresh_test_data.sh` and their revisions recorded in
   `src/test/testData/parser/SOURCES.md`.
+- `HglPlatformTest`: a headless IDE (`BasePlatformTestCase`) exercising the
+  registered extensions end to end: resolution of parameters, locals, state
+  and overloads, shadowing, imports and aliases across two module files
+  through the index, module-path navigation, rename, find usages,
+  completion, error highlighting and the structure view model.
 
 ## Future work
 

@@ -32,7 +32,10 @@ The plugin targets platform build 262 (2026.2) and later.
 
 Requirements: a JDK 21 or newer on `JAVA_HOME` (the JBR bundled inside any
 JetBrains IDE works: `<IDE>.app/Contents/jbr/Contents/Home` on macOS) and
-network access for the first build, which downloads the IntelliJ Platform.
+network access for the first build, which downloads CLion as the platform
+to compile and test against. To use an installed IDE instead, pass
+`-PplatformLocalPath=/path/to/CLion.app` or put `platformLocalPath=...` in
+`~/.gradle/gradle.properties`.
 
 ```sh
 ./gradlew buildPlugin          # build/distributions/hgl-jetbrains-plugin-<version>.zip

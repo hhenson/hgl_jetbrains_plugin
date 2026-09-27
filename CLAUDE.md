@@ -42,7 +42,8 @@ compiler's grammar wins on the exact newline positions.
 
 ```sh
 export JAVA_HOME=<any JDK 21+; the JBR inside a JetBrains IDE works>
-./gradlew test            # lexer goldens, parser goldens, all example modules
+# optional: -PplatformLocalPath=<installed CLion.app> avoids the SDK download
+./gradlew test            # lexer, parser and example-module tests, headless IDE tests
 ./gradlew buildPlugin     # build/distributions/hgl-jetbrains-plugin-<version>.zip
 ./gradlew verifyPlugin    # Plugin Verifier against CLion, PyCharm, RustRover (downloads them)
 ./gradlew runIde          # sandboxed IDE with the plugin
@@ -52,6 +53,7 @@ Golden files (`src/test/testData/**/*.txt`) are written on the first run
 when missing and compared afterwards; delete one to regenerate it, then
 review the diff. `src/main/gen` is generated and not committed.
 
-The IDE SDK is resolved by the IntelliJ Platform Gradle Plugin from
-`platformVersion` in `gradle.properties`; Community-edition artifacts no
-longer exist, so it uses `intellijIdea(...)`.
+The platform is CLion (`platformVersion` in `gradle.properties`). The
+unified IntelliJ IDEA distribution breaks light test projects (its Ultimate
+licensing startup activity cannot be instantiated), and the Community
+artifact no longer exists, so do not switch the build to `intellijIdea`.
