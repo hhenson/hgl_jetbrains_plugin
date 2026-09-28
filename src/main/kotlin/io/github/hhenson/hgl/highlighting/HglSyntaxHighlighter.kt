@@ -27,6 +27,7 @@ object HglColors {
     @JvmField val STRING: TextAttributesKey = createTextAttributesKey("HGL_STRING", DefaultLanguageHighlighterColors.STRING)
     @JvmField val PLACEHOLDER: TextAttributesKey = createTextAttributesKey("HGL_PLACEHOLDER", DefaultLanguageHighlighterColors.KEYWORD)
     @JvmField val LINE_COMMENT: TextAttributesKey = createTextAttributesKey("HGL_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT)
+    @JvmField val DOC_COMMENT: TextAttributesKey = createTextAttributesKey("HGL_DOC_COMMENT", DefaultLanguageHighlighterColors.DOC_COMMENT)
     @JvmField val BLOCK_COMMENT: TextAttributesKey = createTextAttributesKey("HGL_BLOCK_COMMENT", DefaultLanguageHighlighterColors.BLOCK_COMMENT)
     @JvmField val OPERATOR: TextAttributesKey = createTextAttributesKey("HGL_OPERATOR", DefaultLanguageHighlighterColors.OPERATION_SIGN)
     @JvmField val PARENTHESES: TextAttributesKey = createTextAttributesKey("HGL_PARENTHESES", DefaultLanguageHighlighterColors.PARENTHESES)
@@ -72,6 +73,7 @@ class HglSyntaxHighlighter : SyntaxHighlighterBase() {
             tokenType == HglTypes.STRING_LITERAL -> HglColors.STRING
             tokenType == HglTypes.PLACEHOLDER -> HglColors.PLACEHOLDER
             tokenType == HglTypes.LINE_COMMENT -> HglColors.LINE_COMMENT
+            tokenType == HglTypes.DOC_COMMENT -> HglColors.DOC_COMMENT
             tokenType == HglTypes.BLOCK_COMMENT -> HglColors.BLOCK_COMMENT
             tokenType == HglTypes.LPAREN || tokenType == HglTypes.RPAREN -> HglColors.PARENTHESES
             tokenType == HglTypes.LBRACE || tokenType == HglTypes.RBRACE -> HglColors.BRACES

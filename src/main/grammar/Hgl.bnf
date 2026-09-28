@@ -43,6 +43,7 @@
   tokens=[
     NEWLINE='regexp:\n'
     LINE_COMMENT='regexp:#[^\n]*'
+    DOC_COMMENT='regexp:/\*\*.*\*/'
     BLOCK_COMMENT='regexp:/\*.*\*/'
 
     IDENTIFIER='regexp:[A-Za-z_][A-Za-z0-9_]*'

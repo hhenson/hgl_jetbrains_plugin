@@ -34,6 +34,7 @@ class HglColorSettingsPage : ColorSettingsPage {
             AttributesDescriptor("Literals//String", HglColors.STRING),
             AttributesDescriptor("Literals//Placeholder _", HglColors.PLACEHOLDER),
             AttributesDescriptor("Comments//Line comment", HglColors.LINE_COMMENT),
+            AttributesDescriptor("Comments//Documentation", HglColors.DOC_COMMENT),
             AttributesDescriptor("Comments//Block comment", HglColors.BLOCK_COMMENT),
             AttributesDescriptor("Punctuation//Operator", HglColors.OPERATOR),
             AttributesDescriptor("Punctuation//Parentheses", HglColors.PARENTHESES),

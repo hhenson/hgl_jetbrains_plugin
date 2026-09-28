@@ -35,6 +35,45 @@ class HglPlatformTest : BasePlatformTestCase() {
         }
     }
 
+    fun testDocumentationAtDeclarationAndReference() {
+        myFixture.configureByText("docs.hgl", """
+            module docs
+            /**
+            Preserve α and <tag>.
+
+            Args:
+                value: Input.
+
+            Notes:
+                .. math::
+
+                    y = x
+            */
+            fn keep(value: i64) -> i64 => value
+            fn use(value: i64) -> i64 => ke<caret>ep(value)
+        """.trimIndent())
+        val target = resolveAtCaret().single()
+        val text = io.github.hhenson.hgl.documentation.HglDocumentation.attached(target)
+        assertNotNull(text)
+        assertTrue(text!!.contains("        y = x"))
+        val html = io.github.hhenson.hgl.documentation.HglDocumentation.html(target)!!
+        assertTrue(html.contains("&lt;tag&gt;"))
+        assertFalse(html.contains("<tag>"))
+        assertTrue(com.intellij.platform.backend.documentation.DocumentationTargetProvider.EP_NAME.extensionList
+            .any { it is io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider })
+        val provider = io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider()
+        val targets = provider.documentationTargets(myFixture.file, myFixture.caretOffset)
+        assertEquals(1, targets.size)
+        assertNotNull(targets.single().computeDocumentation())
+        assertNotNull(targets.single().createPointer().dereference())
+    }
+
+    fun testOrdinaryCommentsDoNotAttachDocumentation() {
+        myFixture.configureByText("docs.hgl", "module docs\n/** Hidden. */\n# barrier\nfn f() {}\n")
+        val function = com.intellij.psi.util.PsiTreeUtil.findChildOfType(myFixture.file, HglFunctionDecl::class.java)!!
+        assertNull(io.github.hhenson.hgl.documentation.HglDocumentation.attached(function))
+    }
+
     private val marketData = """
         module examples.market_data
 

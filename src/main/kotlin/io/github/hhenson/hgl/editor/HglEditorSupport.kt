@@ -55,7 +55,7 @@ class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
             val foldable = when {
                 element is HglBlock || element is HglStructBody || element is HglNativeContractBody ||
                     element is HglTestContext || element is HglImportSet -> braceRange(node)
-                node.elementType == HglTypes.BLOCK_COMMENT || node.elementType == HglTypes.CPP_BODY -> node.textRange
+                node.elementType == HglTypes.DOC_COMMENT || node.elementType == HglTypes.BLOCK_COMMENT || node.elementType == HglTypes.CPP_BODY -> node.textRange
                 else -> null
             }
             if (foldable != null && spansLines(document, foldable.startOffset, foldable.endOffset)) {
@@ -67,6 +67,7 @@ class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
     }
 
     override fun getPlaceholderText(node: ASTNode): String = when (node.elementType) {
+        HglTypes.DOC_COMMENT -> "/**...*/"
         HglTypes.BLOCK_COMMENT -> "/*...*/"
         else -> "{...}"
     }

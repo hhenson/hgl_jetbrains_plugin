@@ -121,7 +121,7 @@ CPP_RAW_OPEN = "R\"" [^ ()\\\t\r\n\"]{0,16} "("
   {WHITE_SPACE}                  { return WHITE_SPACE; }
   {NEWLINE}                      { return NEWLINE; }
   {LINE_COMMENT}                 { return LINE_COMMENT; }
-  {BLOCK_COMMENT}                { return BLOCK_COMMENT; }
+  {BLOCK_COMMENT}                { return yytext().toString().startsWith("/**") && yylength() >= 5 ? DOC_COMMENT : BLOCK_COMMENT; }
   {UNTERMINATED_BLOCK_COMMENT}   { return BLOCK_COMMENT; }
 
   // Hard reserved words: the keyword table of the compiler's token.cpp.
