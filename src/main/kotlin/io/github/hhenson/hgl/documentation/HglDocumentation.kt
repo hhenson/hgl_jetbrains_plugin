@@ -25,7 +25,9 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider {
             val leaf = file.findElementAt(offset) ?: return emptyList()
             generateSequence(leaf) { it.parent }.takeWhile { it !is PsiFile }.toList()
         }
-        return candidates.filter { HglDocumentation.attached(it) != null }
+        return candidates.mapNotNull {
+            if (it is HglFile) PsiTreeUtil.findChildOfType(it, HglModuleDecl::class.java) else it
+        }.filter { HglDocumentation.attached(it) != null }
             .distinct().map { HglDocumentationTarget(it) }
     }
 }
@@ -52,10 +54,10 @@ object HglDocumentation {
         if (leaf?.node?.elementType != HglTypes.DOC_COMMENT) return null
         val raw = leaf.text
         val lines = raw.substring(3, raw.length - 2).replace("\r\n", "\n").split('\n').toMutableList()
-        if (lines.isNotEmpty()) lines[0] = lines[0].trim()
-        val indent = lines.drop(1).filter { it.isNotBlank() }.minOfOrNull { it.length - it.trimStart().length } ?: 0
+        if (lines.isNotEmpty()) lines[0] = lines[0].trim(' ', '\t')
+        val indent = lines.drop(1).filter { it.trim(' ', '\t').isNotEmpty() }.minOfOrNull { it.length - it.trimStart(' ', '\t').length } ?: 0
         for (i in 1 until lines.size) lines[i] = lines[i].drop(indent)
-        return lines.dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }.joinToString("\n")
+        return lines.dropWhile { it.trim(' ', '\t').isEmpty() }.dropLastWhile { it.trim(' ', '\t').isEmpty() }.joinToString("\n")
     }
 
     fun html(element: PsiElement): String? {

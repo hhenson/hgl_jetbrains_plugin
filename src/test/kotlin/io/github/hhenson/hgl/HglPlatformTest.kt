@@ -68,6 +68,23 @@ class HglPlatformTest : BasePlatformTestCase() {
         assertNotNull(targets.single().createPointer().dereference())
     }
 
+    fun testDocumentationPreservesMultibyteLeadingText() {
+        myFixture.configureByText("docs.hgl", "module docs\n/**\n a\n　b\n*/\nfn f() {}")
+        val function = com.intellij.psi.util.PsiTreeUtil.findChildOfType(myFixture.file, HglFunctionDecl::class.java)!!
+        assertEquals(" a\n　b", io.github.hhenson.hgl.documentation.HglDocumentation.attached(function))
+    }
+
+    fun testModuleDocumentationFromAnImport() {
+        myFixture.addFileToProject("foo/bar.hgl", "/** Module overview. */\nmodule foo.bar\n")
+        myFixture.configureByText("consumer.hgl", "module consumer\nuse foo.b<caret>ar\n")
+        assertTrue(resolveAtCaret().single() is HglFile)
+        val targets = io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider()
+            .documentationTargets(myFixture.file, myFixture.caretOffset)
+        assertEquals(1, targets.size)
+        assertNotNull(targets.single().computeDocumentation())
+        assertNotNull(targets.single().createPointer().dereference())
+    }
+
     fun testOrdinaryCommentsDoNotAttachDocumentation() {
         myFixture.configureByText("docs.hgl", "module docs\n/** Hidden. */\n# barrier\nfn f() {}\n")
         val function = com.intellij.psi.util.PsiTreeUtil.findChildOfType(myFixture.file, HglFunctionDecl::class.java)!!
