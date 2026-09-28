@@ -8,6 +8,7 @@ Features:
 
 - syntax highlighting, with a colour settings page;
 - brace matching, `#` line and `/* */` block comments, code folding;
+- `/** ... */` documentation highlighting, folding and Quick Documentation for declarations and resolved references;
 - structure view of a module's structs, functions, operators and tests;
 - go to declaration, find usages and rename for functions, structs,
   operators, parameters, locals, state and imports, including
@@ -63,3 +64,11 @@ checkouts and records the revisions in `src/test/testData/parser/SOURCES.md`.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Source documentation
+
+Use the [agreed Google-style/reST format](https://github.com/hhenson/hgraph_spec/blob/main/language/docs/design/documentation.md).
+Quick Documentation preserves section layout, math and Mermaid source as escaped
+text. It does not execute reST directives or render diagrams. Use the compiler's
+reST documentation export with Sphinx for publication. Ordinary comments do not
+attach, and public declarations and native implementation parts retain their own docs.

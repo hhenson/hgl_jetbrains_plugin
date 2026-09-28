@@ -54,7 +54,7 @@ object HglTokenSets {
     val NAME_TOKENS: TokenSet = TokenSet.orSet(TokenSet.create(HglTypes.IDENTIFIER), KEYWORDS)
 
     @JvmField
-    val COMMENTS: TokenSet = TokenSet.create(HglTypes.LINE_COMMENT, HglTypes.BLOCK_COMMENT)
+    val COMMENTS: TokenSet = TokenSet.create(HglTypes.LINE_COMMENT, HglTypes.BLOCK_COMMENT, HglTypes.DOC_COMMENT)
 
     @JvmField
     val STRINGS: TokenSet = TokenSet.create(HglTypes.STRING_LITERAL)

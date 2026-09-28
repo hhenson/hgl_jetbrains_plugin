@@ -1,0 +1,79 @@
+package io.github.hhenson.hgl.documentation
+
+import com.intellij.model.Pointer
+import com.intellij.platform.backend.documentation.DocumentationResult
+import com.intellij.platform.backend.documentation.DocumentationTarget
+import com.intellij.platform.backend.documentation.DocumentationTargetProvider
+import com.intellij.platform.backend.presentation.TargetPresentation
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiPolyVariantReference
+import com.intellij.psi.SmartPointerManager
+import com.intellij.psi.util.PsiTreeUtil
+import io.github.hhenson.hgl.psi.*
+
+class HglDocumentationTargetProvider : DocumentationTargetProvider {
+    override fun documentationTargets(file: PsiFile, offset: Int): List<DocumentationTarget> {
+        if (file !is HglFile) return emptyList()
+        val reference = file.findReferenceAt(offset)
+        val resolved = when (reference) {
+            is PsiPolyVariantReference -> reference.multiResolve(false).mapNotNull { it.element }
+            null -> emptyList()
+            else -> listOfNotNull(reference.resolve())
+        }
+        val candidates = if (resolved.isNotEmpty()) resolved else {
+            val leaf = file.findElementAt(offset) ?: return emptyList()
+            val declaration = generateSequence(leaf) { it.parent }
+                .firstOrNull { it is HglNamedElement || it is HglModuleDecl }
+            // Only a declaration's own name supplies fallback documentation.
+            // Expressions, locals and parameters must not inherit an enclosing declaration's docs.
+            listOfNotNull(declaration?.takeIf {
+                it is HglModuleDecl ||
+                    (it as? HglNamedElement)?.nameIdentifier?.textRange?.containsOffset(offset) == true
+            })
+        }
+        return candidates.mapNotNull {
+            if (it is HglFile) PsiTreeUtil.findChildOfType(it, HglModuleDecl::class.java) else it
+        }.filter { HglDocumentation.attached(it) != null }
+            .distinct().map { HglDocumentationTarget(it) }
+    }
+}
+
+private class HglDocumentationTarget(private val element: PsiElement) : DocumentationTarget {
+    override fun createPointer(): Pointer<out DocumentationTarget> {
+        val pointer = SmartPointerManager.createPointer(element)
+        return Pointer { pointer.element?.let { HglDocumentationTarget(it) } }
+    }
+    override fun computePresentation(): TargetPresentation =
+        TargetPresentation.builder((element as? HglNamedElement)?.name ?: "HGL module").presentation()
+    override fun computeDocumentation(): DocumentationResult? =
+        HglDocumentation.html(element)?.let { DocumentationResult.documentation(it) }
+}
+
+/** reST stays literal in the editor; the compiler's reST export is the publication input. */
+object HglDocumentation {
+    fun attached(element: PsiElement): String? {
+        if (element !is HglFunctionDecl && element !is HglNativeFunctionDecl &&
+            element !is HglOperatorDecl && element !is HglStructDecl &&
+            element !is HglStructMember && element !is HglTestDecl && element !is HglModuleDecl) return null
+        var leaf = PsiTreeUtil.prevLeaf(element)
+        while (leaf != null && leaf.text.isBlank()) leaf = PsiTreeUtil.prevLeaf(leaf)
+        if (leaf?.node?.elementType != HglTypes.DOC_COMMENT) return null
+        val raw = leaf.text
+        val lines = raw.substring(3, raw.length - 2).replace("\r\n", "\n").split('\n').toMutableList()
+        if (lines.isNotEmpty()) lines[0] = lines[0].trim(' ', '\t')
+        val indent = lines.drop(1).filter { it.trim(' ', '\t').isNotEmpty() }.minOfOrNull { it.length - it.trimStart(' ', '\t').length } ?: 0
+        for (i in 1 until lines.size) lines[i] = lines[i].drop(indent)
+        return lines.dropWhile { it.trim(' ', '\t').isEmpty() }.dropLastWhile { it.trim(' ', '\t').isEmpty() }.joinToString("\n")
+    }
+
+    fun html(element: PsiElement): String? {
+        val text = attached(element) ?: return null
+        val name = (element as? HglNamedElement)?.name ?: "HGL module"
+        return "<div class='definition'><pre>${escape(name)}</pre></div>" +
+            "<div class='content'><pre>${escape(text)}</pre></div>"
+    }
+
+    private fun escape(text: String): String = text.replace("&", "&amp;")
+        .replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+}
