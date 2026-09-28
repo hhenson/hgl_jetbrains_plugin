@@ -56,7 +56,7 @@ class HglCompletionContributor : CompletionContributor() {
         )
         val STATEMENT_KEYWORDS = listOf(
             "let", "var", "state", "cache", "inject", "return", "if", "else", "start", "when", "stop",
-            "for", "in", "assert",
+            "for", "while", "yield", "in", "assert",
         )
         val EXPRESSION_KEYWORDS = listOf("fn", "eval", "const", "true", "false", "null", "delta")
         val TYPE_KEYWORDS = listOf(

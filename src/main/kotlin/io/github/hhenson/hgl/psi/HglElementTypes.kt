@@ -22,8 +22,8 @@ object HglTokenSets {
         HglTypes.FN_KW, HglTypes.CPP_KW, HglTypes.STRUCT_KW, HglTypes.CONST_KW, HglTypes.REQUIRES_KW,
         HglTypes.IS_KW, HglTypes.LET_KW, HglTypes.VAR_KW, HglTypes.STATE_KW, HglTypes.CACHE_KW,
         HglTypes.INJECT_KW, HglTypes.RETURN_KW, HglTypes.IF_KW, HglTypes.ELSE_KW, HglTypes.START_KW,
-        HglTypes.WHEN_KW, HglTypes.STOP_KW, HglTypes.FOR_KW, HglTypes.TEST_KW, HglTypes.ASSERT_KW,
-        HglTypes.EVAL_KW,
+        HglTypes.WHEN_KW, HglTypes.STOP_KW, HglTypes.FOR_KW, HglTypes.WHILE_KW, HglTypes.YIELD_KW,
+        HglTypes.TEST_KW, HglTypes.ASSERT_KW, HglTypes.EVAL_KW,
     )
 
     @JvmField

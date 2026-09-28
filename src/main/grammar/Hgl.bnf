@@ -84,6 +84,8 @@
     WHEN_KW='when'
     STOP_KW='stop'
     FOR_KW='for'
+    WHILE_KW='while'
+    YIELD_KW='yield'
     TEST_KW='test'
     ASSERT_KW='assert'
     EVAL_KW='eval'
@@ -210,6 +212,7 @@ private keyword_name ::= MODULE_KW | PART_KW | USE_KW | AS_KW | EXPORT_KW | ABST
                        | INSTANTIATE_KW | OPERATOR_KW | FN_KW | CPP_KW | STRUCT_KW | CONST_KW
                        | REQUIRES_KW | IS_KW | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
                        | RETURN_KW | IF_KW | ELSE_KW | START_KW | WHEN_KW | STOP_KW | FOR_KW
+                       | WHILE_KW | YIELD_KW
                        | TEST_KW | ASSERT_KW | EVAL_KW | TRUE_KW | FALSE_KW | NULL_KW
                        | scalar_type_keyword
 private scalar_type_keyword ::= BOOL_KW | I64_KW | F64_KW | STR_KW | DATE_KW | TIME_KW | DATETIME_KW
@@ -342,7 +345,8 @@ private block_item ::= !RBRACE (NEWLINE | statement_item)
 private statement_item ::= !(NEWLINE | RBRACE) statement_body {pin=1 recoverWhile=statement_recover}
 private statement_body ::= statement &(NEWLINE | RBRACE) {pin=1}
 private statement_recover ::= !(NEWLINE | RBRACE | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
-                               | START_KW | STOP_KW | WHEN_KW | FOR_KW | RETURN_KW | ASSERT_KW)
+                               | START_KW | STOP_KW | WHEN_KW | FOR_KW | WHILE_KW | YIELD_KW
+                               | RETURN_KW | ASSERT_KW)
 
 private statement ::= local_decl
             | state_decl
@@ -351,6 +355,8 @@ private statement ::= local_decl
             | lifecycle_stmt
             | when_stmt
             | for_stmt
+            | while_stmt
+            | yield_stmt
             | return_stmt
             | assert_stmt
             | expression_stmt
@@ -366,6 +372,9 @@ lifecycle_stmt ::= (START_KW | STOP_KW) block {pin=1}
 when_stmt ::= WHEN_KW (!LBRACE expr)? block {pin=1}
 for_stmt ::= FOR_KW for_binding (COMMA for_binding)? <<kw "IN_KW">> expr block {pin=1}
 for_binding ::= ident
+// ADR 0015: an omitted condition is an unbounded loop; `yield time: value`.
+while_stmt ::= WHILE_KW (!LBRACE expr)? block {pin=1}
+yield_stmt ::= YIELD_KW expr COLON nls expr {pin=1}
 return_stmt ::= RETURN_KW expr? {pin=1}
 assert_stmt ::= ASSERT_KW expr {pin=1}
 expression_stmt ::= expr assignment_tail?

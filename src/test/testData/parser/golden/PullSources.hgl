@@ -1,0 +1,83 @@
+# Pull sources (ADR 0015): the stateless alarm, `while`, and `yield`
+# generator sources. Sources have no temporal input, so each example pairs
+# one with a sink that consumes the harness input bounding the run.
+
+module examples.pull_sources
+
+operator sink(ts: signal)
+impl fn sink(ts: signal) { when { } }
+
+# `inject alarm` binds the stateless one-shot scheduler: one wake-up,
+# nothing recorded. `scheduled()` is true on every evaluation of a source
+# that only the alarm wakes.
+export fn constant_after(const value: i64, const delay: duration = 0s) -> i64 {
+    inject alarm
+    start { alarm.schedule(delay) }
+    when scheduled() { return value }
+}
+
+# `yield time: value` makes a runtime function a generator source. A
+# duration counts from the time the body is running; `0s` publishes in the
+# same cycle, and a body that ends is finished.
+export fn constant(const value: i64) -> i64 {
+    yield 0s: value
+}
+
+# A local lives across the suspensions; `while` is the conditional loop.
+export fn count_to(const n: i64) -> i64 {
+    var i = 0
+    while i < n {
+        yield 1us: i
+        i += 1
+    }
+}
+
+# An omitted condition is an unbounded loop; a bare `return` finishes the
+# source.
+export fn heartbeat(const beats: i64) -> bool {
+    var sent = 0
+    while {
+        if sent >= beats { return }
+        yield 1us: true
+        sent += 1
+    }
+}
+
+# A datetime is absolute; a time already past is skipped.
+export fn at_time(const at: datetime) -> i64 {
+    yield @1969-01-01T00:00:00Z: 0
+    yield at: 1
+}
+
+fn drive_constant_after(tick: i64) -> i64 {
+    sink(tick)
+    constant_after(7, delay: 2us)
+}
+fn drive_constant(tick: i64) -> i64 {
+    sink(tick)
+    constant(42)
+}
+fn drive_count(tick: i64) -> i64 {
+    sink(tick)
+    count_to(3)
+}
+fn drive_heartbeat(tick: i64) -> bool {
+    sink(tick)
+    heartbeat(2)
+}
+# The harness starts at 1970-01-01T00:00:00.000001Z and steps one
+# microsecond per cycle, so this is the third cycle.
+fn drive_at_time(tick: i64) -> i64 {
+    sink(tick)
+    at_time(@1970-01-01T00:00:00.000003Z)
+}
+
+test alarm_source {
+    assert eval(drive_constant_after, tick: [1, 1, 1]) == [_, _, 7]
+}
+test generator_sources {
+    assert eval(drive_constant, tick: [1, 1]) == [42, _]
+    assert eval(drive_count, tick: [1, 1, 1, 1, 1]) == [_, 0, 1, 2, _]
+    assert eval(drive_heartbeat, tick: [1, 1, 1, 1]) == [_, true, true, _]
+    assert eval(drive_at_time, tick: [1, 1, 1, 1]) == [_, _, 1, _]
+}

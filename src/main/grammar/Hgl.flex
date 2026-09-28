@@ -152,6 +152,8 @@ CPP_RAW_OPEN = "R\"" [^ ()\\\t\r\n\"]{0,16} "("
   "when"                         { return WHEN_KW; }
   "stop"                         { return STOP_KW; }
   "for"                          { return FOR_KW; }
+  "while"                        { return WHILE_KW; }
+  "yield"                        { return YIELD_KW; }
   "test"                         { return TEST_KW; }
   "assert"                       { return ASSERT_KW; }
   "eval"                         { return EVAL_KW; }

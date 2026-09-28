@@ -32,6 +32,9 @@ class HglParserTest : ParsingTestCase("parser/golden", "hgl", HglParserDefinitio
 
     fun testExpressions() = doTest(true, true)
 
+    /** ADR 0015: `inject alarm`, `while` with and without a condition, `yield`. */
+    fun testPullSources() = doTest(true, true)
+
     /** Broken input: the errors must stay confined to their lines. */
     fun testRecovery() = doTest(true, false)
 }
