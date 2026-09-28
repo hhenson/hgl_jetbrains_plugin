@@ -23,7 +23,14 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider {
         }
         val candidates = if (resolved.isNotEmpty()) resolved else {
             val leaf = file.findElementAt(offset) ?: return emptyList()
-            generateSequence(leaf) { it.parent }.takeWhile { it !is PsiFile }.toList()
+            val declaration = generateSequence(leaf) { it.parent }
+                .firstOrNull { it is HglNamedElement || it is HglModuleDecl }
+            // Only a declaration's own name supplies fallback documentation.
+            // Expressions, locals and parameters must not inherit an enclosing declaration's docs.
+            listOfNotNull(declaration?.takeIf {
+                it is HglModuleDecl ||
+                    (it as? HglNamedElement)?.nameIdentifier?.textRange?.containsOffset(offset) == true
+            })
         }
         return candidates.mapNotNull {
             if (it is HglFile) PsiTreeUtil.findChildOfType(it, HglModuleDecl::class.java) else it
