@@ -1,0 +1,9 @@
+module examples.handlers
+
+fn manual_forward(value: i64) -> i64 {
+    inject out
+    when modified() && valid([]) {
+        if valid(value) { return value }
+        invalidate(out)
+    }
+}

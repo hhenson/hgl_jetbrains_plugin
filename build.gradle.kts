@@ -1,3 +1,4 @@
+import java.time.Duration
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
@@ -20,14 +21,8 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        // CLion is the platform the plugin is compiled and tested against; only
-        // platform and lang APIs are used, so the same build installs on PyCharm,
-        // RustRover and IntelliJ IDEA (the plugin verifier covers them). The
-        // unified IntelliJ IDEA distribution cannot open a light test project
-        // (its Ultimate licensing startup activity fails to instantiate), so it
-        // is not used here. Set -PplatformLocalPath=/path/to/CLion.app (or put it
-        // in ~/.gradle/gradle.properties) to build against an installed IDE
-        // instead of downloading one.
+        // Compile against CLion; test and verify the same plugin on RustRover.
+        // Use -PplatformLocalPath=<CLion installation> to avoid downloading it.
         val localPath = providers.gradleProperty("platformLocalPath")
         if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
         testFramework(TestFrameworkType.Platform)
@@ -48,7 +43,8 @@ sourceSets {
 tasks {
     generateLexer {
         sourceFile = file("src/main/grammar/Hgl.flex")
-        targetOutputDir = file("src/main/gen/io/github/hhenson/hgl/lexer")
+        targetRootOutputDir = file("src/main/gen")
+        pathToClass = "io/github/hhenson/hgl/lexer/_HglLexer.java"
         purgeOldFiles = true
     }
     generateParser {
@@ -83,8 +79,23 @@ intellijPlatform {
     pluginVerification {
         ides {
             create(IntelliJPlatformType.CLion, "2026.2")
-            create(IntelliJPlatformType.PyCharm, "2026.2")
             create(IntelliJPlatformType.RustRover, "2026.2")
         }
     }
+}
+
+// The same editor suite runs in each product's headless platform fixture.
+intellijPlatformTesting {
+    testIde {
+        register("testRustRover") {
+            type = IntelliJPlatformType.RustRover
+            version = providers.gradleProperty("platformVersion")
+            testFramework(TestFrameworkType.Platform)
+        }
+    }
+}
+
+// A parser regression must fail CI instead of leaving an editor test spinning.
+tasks.withType<Test>().configureEach {
+    timeout = Duration.ofMinutes(5)
 }

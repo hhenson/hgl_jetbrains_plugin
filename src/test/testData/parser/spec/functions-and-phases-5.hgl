@@ -1,0 +1,8 @@
+module examples.functions
+
+const fn scale(value: f64, factor: f64 = 2.0) -> f64 => value * factor
+fn doubled(value: f64) -> f64 => scale(value)
+
+test lifted_helper {
+    assert eval(doubled, value: [1.0, _, 3.0]) == [2.0, _, 6.0]
+}

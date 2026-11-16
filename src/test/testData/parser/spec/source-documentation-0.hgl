@@ -1,0 +1,20 @@
+module examples.documented
+
+/**
+Double a value.
+
+Args:
+    value: Input value.
+
+Returns:
+    Twice the input.
+*/
+const fn doubled(value: i64) -> i64 => value * 2
+
+/** A side of the order book. */
+export enum Side {
+    /** The bid side. */
+    buy,
+    /** The offer side. */
+    sell,
+}

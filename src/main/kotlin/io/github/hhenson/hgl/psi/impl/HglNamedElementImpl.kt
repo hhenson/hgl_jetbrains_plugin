@@ -5,6 +5,7 @@ import com.intellij.lang.ASTNode
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.psi.HglElementFactory
+import io.github.hhenson.hgl.psi.HglMemberName
 import io.github.hhenson.hgl.psi.HglIdent
 import io.github.hhenson.hgl.psi.HglNamedElement
 
@@ -17,6 +18,7 @@ import io.github.hhenson.hgl.psi.HglNamedElement
 abstract class HglNamedElementImpl(node: ASTNode) : ASTWrapperPsiElement(node), HglNamedElement {
 
     override fun getNameIdentifier(): PsiElement? = PsiTreeUtil.getChildOfType(this, HglIdent::class.java)
+        ?: PsiTreeUtil.getChildOfType(this, HglMemberName::class.java)
 
     override fun getName(): String? = nameIdentifier?.text
 

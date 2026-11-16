@@ -18,6 +18,8 @@ import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
 import io.github.hhenson.hgl.psi.HglOperatorDecl
+import io.github.hhenson.hgl.psi.HglEnumDecl
+import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglStructMember
 import io.github.hhenson.hgl.psi.HglTestContext
@@ -42,7 +44,7 @@ class HglStructureViewModel(file: HglFile, editor: Editor?) :
     override fun isAlwaysShowsPlus(element: StructureViewTreeElement): Boolean = element.value is HglFile
 
     override fun isAlwaysLeaf(element: StructureViewTreeElement): Boolean =
-        element.value !is HglFile && element.value !is HglStructDecl && element.value !is HglTestContext
+        element.value !is HglFile && element.value !is HglEnumDecl && element.value !is HglStructDecl && element.value !is HglTestContext
 }
 
 class HglStructureViewElement(private val element: NavigatablePsiElement) :
@@ -74,9 +76,10 @@ class HglStructureViewElement(private val element: NavigatablePsiElement) :
     override fun getChildren(): Array<TreeElement> {
         val children: List<PsiElement> = when (element) {
             is HglFile -> element.children.filter {
-                it is HglStructDecl || it is HglFunctionDecl || it is HglNativeFunctionDecl ||
+                it is HglEnumDecl || it is HglNativeTypeDecl || it is HglStructDecl || it is HglFunctionDecl || it is HglNativeFunctionDecl ||
                     it is HglOperatorDecl || it is HglTestDecl || it is HglTestContext
             }
+            is HglEnumDecl -> element.enumMemberList
             is HglStructDecl -> element.structBody?.structMemberList ?: emptyList()
             is HglTestContext -> element.children.filter { it is HglFunctionDecl || it is HglTestDecl }
             else -> emptyList()

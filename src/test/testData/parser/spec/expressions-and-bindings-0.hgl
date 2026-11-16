@@ -1,0 +1,9 @@
+module examples.bindings
+
+const fn doubled(value: i64) -> i64 {
+    var total: i64 = value
+    total += value
+    return total
+}
+
+test arithmetic { assert doubled(3) == 6 }

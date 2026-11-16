@@ -12,9 +12,11 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.psi.HglBlock
+import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglImportSet
 import io.github.hhenson.hgl.psi.HglNativeContractBody
 import io.github.hhenson.hgl.psi.HglStructBody
+import io.github.hhenson.hgl.psi.HglSwitchStmt
 import io.github.hhenson.hgl.psi.HglTestContext
 import io.github.hhenson.hgl.psi.HglTypes
 
@@ -46,7 +48,7 @@ class HglCommenter : Commenter {
     override fun getCommentedBlockCommentSuffix(): String? = null
 }
 
-/** Folds brace-delimited bodies, block comments and opaque C++ bodies. */
+/** Folds brace-delimited bodies and block comments. */
 class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
     override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<FoldingDescriptor> {
         val descriptors = ArrayList<FoldingDescriptor>()
@@ -54,8 +56,9 @@ class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
             val node = element.node
             val foldable = when {
                 element is HglBlock || element is HglStructBody || element is HglNativeContractBody ||
-                    element is HglTestContext || element is HglImportSet -> braceRange(node)
-                node.elementType == HglTypes.DOC_COMMENT || node.elementType == HglTypes.BLOCK_COMMENT || node.elementType == HglTypes.CPP_BODY -> node.textRange
+                    element is HglTestContext || element is HglImportSet || element is HglEnumDecl ||
+                    element is HglSwitchStmt -> braceRange(node)
+                node.elementType == HglTypes.DOC_COMMENT || node.elementType == HglTypes.BLOCK_COMMENT -> node.textRange
                 else -> null
             }
             if (foldable != null && spansLines(document, foldable.startOffset, foldable.endOffset)) {

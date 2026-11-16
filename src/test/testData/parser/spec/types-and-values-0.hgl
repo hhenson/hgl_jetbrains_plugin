@@ -1,0 +1,10 @@
+module examples.types
+
+struct Quote {
+    bid: f64
+    ask: f64
+}
+
+fn quote(bid: f64, ask: f64) -> Quote {
+    when { return Quote(bid: bid, ask: ask) }
+}

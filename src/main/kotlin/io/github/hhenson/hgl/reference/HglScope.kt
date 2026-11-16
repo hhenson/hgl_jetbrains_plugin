@@ -17,6 +17,8 @@ import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
 import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglStateDecl
+import io.github.hhenson.hgl.psi.HglEnumDecl
+import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglTestContext
 import io.github.hhenson.hgl.psi.HglTestDecl
@@ -80,7 +82,7 @@ object HglScope {
         val result = ArrayList<HglNamedElement>()
         for (child in file.children) {
             when (child) {
-                is HglFunctionDecl, is HglNativeFunctionDecl, is HglOperatorDecl, is HglStructDecl, is HglTestDecl ->
+                is HglFunctionDecl, is HglNativeFunctionDecl, is HglOperatorDecl, is HglEnumDecl, is HglNativeTypeDecl, is HglStructDecl, is HglTestDecl ->
                     result.add(child as HglNamedElement)
                 is HglUseDecl -> {
                     child.importSet?.importItemList?.let(result::addAll)

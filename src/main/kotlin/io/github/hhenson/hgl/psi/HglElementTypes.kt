@@ -19,7 +19,7 @@ object HglTokenSets {
     val HARD_KEYWORDS: TokenSet = TokenSet.create(
         HglTypes.MODULE_KW, HglTypes.PART_KW, HglTypes.USE_KW, HglTypes.AS_KW, HglTypes.EXPORT_KW,
         HglTypes.ABSTRACT_KW, HglTypes.IMPL_KW, HglTypes.INSTANTIATE_KW, HglTypes.OPERATOR_KW,
-        HglTypes.FN_KW, HglTypes.CPP_KW, HglTypes.STRUCT_KW, HglTypes.CONST_KW, HglTypes.REQUIRES_KW,
+        HglTypes.ENUM_KW, HglTypes.FN_KW, HglTypes.STRUCT_KW, HglTypes.REQUIRES_KW,
         HglTypes.IS_KW, HglTypes.LET_KW, HglTypes.VAR_KW, HglTypes.STATE_KW, HglTypes.CACHE_KW,
         HglTypes.INJECT_KW, HglTypes.RETURN_KW, HglTypes.IF_KW, HglTypes.ELSE_KW, HglTypes.START_KW,
         HglTypes.WHEN_KW, HglTypes.STOP_KW, HglTypes.FOR_KW, HglTypes.WHILE_KW, HglTypes.YIELD_KW,
@@ -31,7 +31,9 @@ object HglTokenSets {
 
     @JvmField
     val TYPE_KEYWORDS: TokenSet = TokenSet.create(
-        HglTypes.BOOL_KW, HglTypes.I64_KW, HglTypes.F64_KW, HglTypes.STR_KW, HglTypes.DATE_KW,
+        HglTypes.BYTES_KW, HglTypes.ANY_KW, HglTypes.DICT_KW, HglTypes.RESULT_KW, HglTypes.ERROR_KW,
+        HglTypes.ATOMIC_KW, HglTypes.TUPLE_KW, HglTypes.LIST_KW, HglTypes.SET_KW,
+        HglTypes.ROLLING_KW, HglTypes.REF_KW, HglTypes.SIGNAL_KW, HglTypes.DELTA_KW, HglTypes.BOOL_KW, HglTypes.I64_KW, HglTypes.F64_KW, HglTypes.STR_KW, HglTypes.DATE_KW,
         HglTypes.TIME_KW, HglTypes.DATETIME_KW, HglTypes.DURATION_KW, HglTypes.CIVIL_DATETIME_KW,
         HglTypes.ZONED_DATETIME_KW, HglTypes.ZONED_TIME_KW, HglTypes.TIMEZONE_KW,
     )
@@ -39,10 +41,9 @@ object HglTokenSets {
     /** Identifiers the parser remaps when the grammar demands the word. */
     @JvmField
     val CONTEXTUAL_KEYWORDS: TokenSet = TokenSet.create(
-        HglTypes.IN_KW, HglTypes.NATIVE_KW, HglTypes.THROWS_KW, HglTypes.EACH_KW, HglTypes.PROPERTIES_KW,
-        HglTypes.UNBOUNDED_KW, HglTypes.DELTA_KW, HglTypes.ATOMIC_KW, HglTypes.TUPLE_KW, HglTypes.LIST_KW,
-        HglTypes.SET_KW, HglTypes.MAP_KW, HglTypes.ROLLING_KW, HglTypes.REF_KW, HglTypes.SIGNAL_KW,
-        HglTypes.SCHEMA_KW, HglTypes.CPP_INCLUDE,
+        HglTypes.CONST_KW, HglTypes.TYPE_KW, HglTypes.SWITCH_KW, HglTypes.CASE_KW,
+        HglTypes.DEFAULT_KW, HglTypes.RAISES_KW, HglTypes.IN_KW, HglTypes.NATIVE_KW, HglTypes.EACH_KW, HglTypes.PROPERTIES_KW,
+        HglTypes.UNBOUNDED_KW,
     )
 
     /** Every token the lexer can emit for a reserved word. */
@@ -64,6 +65,7 @@ object HglTokenSets {
 
     @JvmField
     val OPERATORS: TokenSet = TokenSet.create(
+        HglTypes.QUESTION, HglTypes.SPACESHIP, HglTypes.FLOOR_SLASH_EQ, HglTypes.PERCENT_EQ,
         HglTypes.LT, HglTypes.GT, HglTypes.LE, HglTypes.GE, HglTypes.EQEQ, HglTypes.NEQ,
         HglTypes.PLUS, HglTypes.MINUS, HglTypes.STAR, HglTypes.SLASH, HglTypes.FLOOR_SLASH,
         HglTypes.PERCENT, HglTypes.BANG, HglTypes.ANDAND, HglTypes.OROR, HglTypes.EQ,
@@ -71,6 +73,4 @@ object HglTokenSets {
         HglTypes.ARROW, HglTypes.FAT_ARROW, HglTypes.COLONCOLON, HglTypes.ELLIPSIS, HglTypes.COLON,
     )
 
-    @JvmField
-    val EMBEDDED_CPP: TokenSet = TokenSet.create(HglTypes.CPP_HEADER, HglTypes.CPP_PARAMETER_LIST, HglTypes.CPP_BODY)
 }

@@ -1,0 +1,14 @@
+module examples.enums
+
+export enum Side { buy, sell }
+
+const fn opposite(side: Side) -> Side {
+    if side == .buy { return .sell }
+    return .buy
+}
+
+test members {
+    assert Side.buy != Side.sell
+    assert str(Side.sell) == "sell"
+    assert opposite(.buy) == Side.sell
+}

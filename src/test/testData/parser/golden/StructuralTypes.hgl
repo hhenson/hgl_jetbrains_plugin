@@ -8,7 +8,7 @@ export struct Quote {
     bid: f64
     ask: f64
     currency: str = "USD"
-    venue: str = null
+    venue: str? = null
 }
 
 export struct Box<T> {
@@ -39,7 +39,7 @@ export struct Swap<X, Y>: Pair<Y, X> {}
 
 export abstract struct Instrument {
     symbol: str
-    venue: str = null
+    venue: str? = null
 }
 
 export struct Future: Instrument {
@@ -63,9 +63,9 @@ fn bid_delta(value: f64) -> Quote {
 }
 
 fn notionals(
-    prices: map<str, f64>,
-    quantities: map<str, i64>
-) -> map<str, f64> =>
+    prices: dict<str, f64>,
+    quantities: dict<str, i64>
+) -> dict<str, f64> =>
     map(
         prices,
         quantities,

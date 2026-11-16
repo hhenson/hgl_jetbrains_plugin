@@ -8,12 +8,7 @@ import com.intellij.psi.tree.TokenSet;
 import java.util.Map;
 import io.github.hhenson.hgl.psi.HglTypes;
 
-/**
- * External rules used by {@code Hgl.bnf}. Each one mirrors a contextual
- * decision the compiler's grammar makes while encoding its token stream
- * ({@code token_grammar.cpp}, {@code encode} and
- * {@code looks_like_applied_constructor}).
- */
+/** Contextual names and bounded generic look-ahead used by Hgl.bnf. */
 @SuppressWarnings("unused")
 public final class HglParserUtil extends GeneratedParserUtilBase {
 
@@ -31,14 +26,17 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
 
     /** Tokens a generic-argument list may contain (can_occur_in_generic_arguments). */
     private static final TokenSet GENERIC_ARGUMENT_TOKENS = TokenSet.create(
-            HglTypes.IDENTIFIER, HglTypes.COLONCOLON, HglTypes.LT, HglTypes.GT, HglTypes.COMMA,
+            HglTypes.IDENTIFIER, HglTypes.COLONCOLON, HglTypes.DOT, HglTypes.LT, HglTypes.GT, HglTypes.COMMA,
             HglTypes.NEWLINE, HglTypes.INT_LITERAL, HglTypes.FLOAT_LITERAL, HglTypes.STRING_LITERAL,
             HglTypes.TEMPORAL_LITERAL, HglTypes.PLACEHOLDER, HglTypes.TRUE_KW, HglTypes.FALSE_KW,
             HglTypes.NULL_KW, HglTypes.LPAREN, HglTypes.RPAREN, HglTypes.PLUS, HglTypes.MINUS,
             HglTypes.STAR, HglTypes.SLASH, HglTypes.FLOOR_SLASH, HglTypes.PERCENT,
             HglTypes.BOOL_KW, HglTypes.I64_KW, HglTypes.F64_KW, HglTypes.STR_KW, HglTypes.DATE_KW,
             HglTypes.TIME_KW, HglTypes.DATETIME_KW, HglTypes.DURATION_KW, HglTypes.CIVIL_DATETIME_KW,
-            HglTypes.ZONED_DATETIME_KW, HglTypes.ZONED_TIME_KW, HglTypes.TIMEZONE_KW);
+            HglTypes.ZONED_DATETIME_KW, HglTypes.ZONED_TIME_KW, HglTypes.TIMEZONE_KW, HglTypes.QUESTION, HglTypes.BYTES_KW, HglTypes.ANY_KW,
+            HglTypes.DICT_KW, HglTypes.RESULT_KW, HglTypes.ATOMIC_KW, HglTypes.TUPLE_KW,
+            HglTypes.LIST_KW, HglTypes.SET_KW, HglTypes.ROLLING_KW, HglTypes.REF_KW,
+            HglTypes.SIGNAL_KW, HglTypes.DELTA_KW, HglTypes.ERROR_KW);
 
     private static final TokenSet TRIVIA = TokenSet.create(
             TokenType.WHITE_SPACE, HglTypes.LINE_COMMENT, HglTypes.BLOCK_COMMENT);
@@ -48,14 +46,16 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
 
     /** Contextual keyword tokens by name; the grammar passes the name because Grammar-Kit passes a token reference as a parser. */
     private static final Map<String, IElementType> CONTEXTUAL_KEYWORDS = Map.ofEntries(
-            Map.entry("IN_KW", HglTypes.IN_KW), Map.entry("NATIVE_KW", HglTypes.NATIVE_KW),
-            Map.entry("THROWS_KW", HglTypes.THROWS_KW), Map.entry("EACH_KW", HglTypes.EACH_KW),
+            Map.entry("CONST_KW", HglTypes.CONST_KW), Map.entry("TYPE_KW", HglTypes.TYPE_KW),
+            Map.entry("SWITCH_KW", HglTypes.SWITCH_KW), Map.entry("CASE_KW", HglTypes.CASE_KW),
+            Map.entry("DEFAULT_KW", HglTypes.DEFAULT_KW), Map.entry("RAISES_KW", HglTypes.RAISES_KW),
+            Map.entry("IN_KW", HglTypes.IN_KW), Map.entry("NATIVE_KW", HglTypes.NATIVE_KW), Map.entry("EACH_KW", HglTypes.EACH_KW),
             Map.entry("PROPERTIES_KW", HglTypes.PROPERTIES_KW), Map.entry("UNBOUNDED_KW", HglTypes.UNBOUNDED_KW),
             Map.entry("DELTA_KW", HglTypes.DELTA_KW), Map.entry("ATOMIC_KW", HglTypes.ATOMIC_KW),
             Map.entry("TUPLE_KW", HglTypes.TUPLE_KW), Map.entry("LIST_KW", HglTypes.LIST_KW),
-            Map.entry("SET_KW", HglTypes.SET_KW), Map.entry("MAP_KW", HglTypes.MAP_KW),
+            Map.entry("SET_KW", HglTypes.SET_KW),
             Map.entry("ROLLING_KW", HglTypes.ROLLING_KW), Map.entry("REF_KW", HglTypes.REF_KW),
-            Map.entry("SIGNAL_KW", HglTypes.SIGNAL_KW), Map.entry("SCHEMA_KW", HglTypes.SCHEMA_KW));
+            Map.entry("SIGNAL_KW", HglTypes.SIGNAL_KW));
 
     private static IElementType keywordType(String name) {
         IElementType type = CONTEXTUAL_KEYWORDS.get(name);
@@ -64,6 +64,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
     }
 
     private static boolean isIdentifierWithText(PsiBuilder b, IElementType keyword) {
+        if (b.getTokenType() == keyword) return true;
         if (b.getTokenType() != HglTypes.IDENTIFIER) return false;
         String text = b.getTokenText();
         return text != null && text.contentEquals(keyword.toString());
@@ -79,6 +80,8 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
     public static boolean kw(PsiBuilder b, int level, String keywordToken) {
         IElementType keyword = keywordType(keywordToken);
         if (!isIdentifierWithText(b, keyword)) return false;
+        if (keyword == HglTypes.CONST_KW && b.lookAhead(1) != HglTypes.FN_KW &&
+                b.lookAhead(1) != HglTypes.IDENTIFIER) return false;
         return remapAndAdvance(b, keyword);
     }
 
@@ -98,6 +101,28 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
     /** Predicate: the current token is the identifier spelled like {@code keyword}. Consumes nothing. */
     public static boolean isKw(PsiBuilder b, int level, String keywordToken) {
         return isIdentifierWithText(b, keywordType(keywordToken));
+    }
+
+    /** LEX-27: an opening delimiter touches the name or expression before it. */
+    public static boolean adjacent(PsiBuilder b, int level) {
+        IElementType previous = b.rawLookup(-1);
+        return previous != null && previous != HglTypes.NEWLINE &&
+                previous != HglTypes.DOC_COMMENT && !TRIVIA.contains(previous);
+    }
+
+    /** EXPR-1/10: configured unary operators bind above multiplicative operators. */
+    public static boolean unaryExpression(PsiBuilder b, int level) {
+        if (b.getTokenType() != HglTypes.MINUS && b.getTokenType() != HglTypes.BANG) return false;
+        b.advanceLexer();
+        operatorOptions(b, level + 1);
+        HglParser.nls(b, level + 1);
+        if (!HglParser.expr(b, level + 1, 5)) b.error("operand expected");
+        return true;
+    }
+
+    /** Keep configured operands outside Grammar-Kit's expression-group expansion. */
+    public static boolean operatorOptions(PsiBuilder b, int level) {
+        return HglParser.operator_configuration(b, level + 1);
     }
 
     /** Parse an expression at additive precedence and above (size_expression). */

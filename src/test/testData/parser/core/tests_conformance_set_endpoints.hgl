@@ -1,0 +1,26 @@
+module conformance part set_endpoints
+
+# END-5 is agreed. Set delta syntax and publication semantics are proposed.
+
+fn change_members(command: i64) -> set<i64> {
+    inject out
+    when {
+        if command == 1 { return delta<set<i64>>(added: [1]) }
+        out = delta<set<i64>>(added: [2, 3])
+        out = delta<set<i64>>(removed: [1, 2])
+    }
+}
+
+fn read_delta(input: set<i64>) -> set<i64> {
+    when { return delta_value(input) }
+}
+
+fn observe_set_updates(command: i64) -> set<i64> =>
+    read_delta(change_members(command))
+
+test set_writes_coalesce {
+    assert eval(observe_set_updates, command: [1, 2]) == [
+        delta<set<i64>>(added: [1]),
+        delta<set<i64>>(added: [3], removed: [1])
+    ]
+}

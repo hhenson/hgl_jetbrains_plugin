@@ -50,7 +50,7 @@ class HglPlatformTest : BasePlatformTestCase() {
                     y = x
             */
             fn keep(value: i64) -> i64 => value
-            fn use(value: i64) -> i64 => ke<caret>ep(value)
+            fn consume(value: i64) -> i64 => ke<caret>ep(value)
         """.trimIndent())
         val target = resolveAtCaret().single()
         val text = io.github.hhenson.hgl.documentation.HglDocumentation.attached(target)

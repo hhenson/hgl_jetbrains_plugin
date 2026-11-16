@@ -18,6 +18,8 @@ import io.github.hhenson.hgl.psi.HglInjectItem
 import io.github.hhenson.hgl.psi.HglLocalDecl
 import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglIdent
+import io.github.hhenson.hgl.psi.HglMemberName
+import io.github.hhenson.hgl.psi.HglEnumMember
 import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglNamedType
 import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
@@ -26,6 +28,8 @@ import io.github.hhenson.hgl.psi.HglParameter
 import io.github.hhenson.hgl.psi.HglQualifiedName
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStateDecl
+import io.github.hhenson.hgl.psi.HglEnumDecl
+import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglStructMember
 import io.github.hhenson.hgl.psi.HglTestDecl
@@ -45,16 +49,23 @@ class HglAnnotator : Annotator {
         when (element) {
             is LeafPsiElement -> annotateLeaf(element, holder)
             is HglIdent -> annotateName(element, holder)
+            is HglMemberName -> colour(holder, element, when (element.parent) {
+                is HglNamedArgument -> HglColors.NAMED_ARGUMENT
+                is HglModulePath -> HglColors.MODULE_PATH
+                else -> HglColors.FIELD
+            })
             is HglQualifiedName -> annotateReference(element, holder)
         }
     }
 
     private fun annotateLeaf(leaf: LeafPsiElement, holder: AnnotationHolder) {
         val type = leaf.elementType
-        if (HglTokenSets.CONTEXTUAL_KEYWORDS.contains(type)) {
+        if (leaf.parent is HglMemberName) {
+            return // The member annotator colours keyword spellings as names.
+        } else if (HglTokenSets.CONTEXTUAL_KEYWORDS.contains(type)) {
             colour(holder, leaf, HglColors.CONTEXTUAL_KEYWORD)
         } else if (HglTokenSets.KEYWORDS.contains(type) && leaf.parent is HglIdent) {
-            // A reserved word in a name position (`use hgraph.time::{...}`) is a name, not a keyword.
+            // A keyword spelling in a name position is a name.
             colour(holder, leaf, HglColors.IDENTIFIER)
         }
     }
@@ -65,6 +76,7 @@ class HglAnnotator : Annotator {
             is HglFunctionDecl -> if (owner.nameIdentifier === name) HglColors.FUNCTION_DECLARATION else null
             is HglNativeFunctionDecl -> if (owner.nameIdentifier === name) HglColors.FUNCTION_DECLARATION else null
             is HglOperatorDecl -> if (owner.nameIdentifier === name) HglColors.OPERATOR_DECLARATION else null
+            is HglEnumDecl, is HglNativeTypeDecl -> HglColors.STRUCT_NAME
             is HglStructDecl -> if (owner.nameIdentifier === name) HglColors.STRUCT_NAME else null
             is HglTestDecl -> HglColors.TEST_NAME
             is HglParameter, is HglAnonymousParameter -> HglColors.PARAMETER
@@ -107,7 +119,8 @@ class HglAnnotator : Annotator {
     private fun keyForTargets(targets: List<PsiElement>): TextAttributesKey? {
         val target = targets.firstOrNull() ?: return null
         return when (target) {
-            is HglStructDecl -> HglColors.STRUCT_REFERENCE
+            is HglStructDecl, is HglEnumDecl, is HglNativeTypeDecl -> HglColors.STRUCT_REFERENCE
+            is HglEnumMember -> HglColors.FIELD
             is HglFunctionDecl, is HglNativeFunctionDecl -> HglColors.FUNCTION_CALL
             is HglOperatorDecl -> HglColors.FUNCTION_CALL
             is HglParameter, is HglAnonymousParameter -> HglColors.PARAMETER

@@ -16,6 +16,8 @@ import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
 import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglParameter
 import io.github.hhenson.hgl.psi.HglStateDecl
+import io.github.hhenson.hgl.psi.HglEnumDecl
+import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglStructMember
 import io.github.hhenson.hgl.psi.HglTestContext
@@ -43,19 +45,21 @@ object HglPresentation {
     }
 
     fun kindOf(element: PsiElement): String = when (element) {
+        is HglEnumDecl -> "enum"
+        is HglNativeTypeDecl -> "native type"
         is HglStructDecl -> if (element.abstractKw != null) "abstract struct" else "struct"
         is HglFunctionDecl -> when {
-            element.constKw != null -> "const fn"
+            element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null -> "const fn"
             element.implKw != null -> "impl fn"
             element.exportKw != null -> "export fn"
             else -> "fn"
         }
-        is HglNativeFunctionDecl -> if (element.constKw != null) "native const fn" else "native fn"
+        is HglNativeFunctionDecl -> if (element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null) "native const fn" else "native fn"
         is HglOperatorDecl -> "operator"
         is HglTestDecl -> "test"
-        is HglParameter -> if (element.constKw != null) "const parameter" else "parameter"
+        is HglParameter -> if (element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null) "const parameter" else "parameter"
         is HglAnonymousParameter -> "parameter"
-        is HglGenericParameter -> if (element.constKw != null) "const generic" else "type parameter"
+        is HglGenericParameter -> if (element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null) "const generic" else "type parameter"
         is HglLocalDecl -> if (element.varKw != null) "var" else "let"
         is HglForBinding -> "loop binding"
         is HglStateDecl -> "state"

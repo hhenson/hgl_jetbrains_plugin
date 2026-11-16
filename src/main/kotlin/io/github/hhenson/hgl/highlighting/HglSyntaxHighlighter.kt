@@ -36,7 +36,6 @@ object HglColors {
     @JvmField val COMMA: TextAttributesKey = createTextAttributesKey("HGL_COMMA", DefaultLanguageHighlighterColors.COMMA)
     @JvmField val DOT: TextAttributesKey = createTextAttributesKey("HGL_DOT", DefaultLanguageHighlighterColors.DOT)
     @JvmField val SEMICOLON: TextAttributesKey = createTextAttributesKey("HGL_SEMICOLON", DefaultLanguageHighlighterColors.SEMICOLON)
-    @JvmField val EMBEDDED_CPP: TextAttributesKey = createTextAttributesKey("HGL_EMBEDDED_CPP", DefaultLanguageHighlighterColors.TEMPLATE_LANGUAGE_COLOR)
     @JvmField val BAD_CHARACTER: TextAttributesKey = createTextAttributesKey("HGL_BAD_CHARACTER", HighlighterColors.BAD_CHARACTER)
 
     // Semantic keys (annotator).
@@ -82,7 +81,6 @@ class HglSyntaxHighlighter : SyntaxHighlighterBase() {
             tokenType == HglTypes.DOT -> HglColors.DOT
             tokenType == HglTypes.SEMICOLON -> HglColors.SEMICOLON
             HglTokenSets.OPERATORS.contains(tokenType) -> HglColors.OPERATOR
-            HglTokenSets.EMBEDDED_CPP.contains(tokenType) -> HglColors.EMBEDDED_CPP
             tokenType == TokenType.BAD_CHARACTER -> HglColors.BAD_CHARACTER
             else -> return emptyArray()
         }

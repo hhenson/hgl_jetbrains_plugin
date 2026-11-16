@@ -1,0 +1,31 @@
+name: Plugin
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: |
+          tools/refresh_test_data.sh
+          test -z "$(git status --porcelain -- src/test/testData/parser)"
+      - run: ./gradlew test testRustRover buildPlugin verifyPlugin
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hgl-jetbrains-plugin
+          path: |
+            build/distributions/*.zip
+            build/reports/tests/
+            build/reports/pluginVerifier/
