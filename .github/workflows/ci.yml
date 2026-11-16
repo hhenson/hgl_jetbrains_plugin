@@ -17,7 +17,8 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@v6
-      - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Check release guards and packaged Markdown notes
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
       - run: |
           tools/refresh_test_data.sh
           test -z "$(git status --porcelain -- src/test/testData/parser)"

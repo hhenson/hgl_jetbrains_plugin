@@ -1,10 +1,12 @@
 import java.time.Duration
+import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.4.20"
+    id("org.jetbrains.changelog") version "2.5.0"
     id("org.jetbrains.intellij.platform") version "2.19.0"
     id("org.jetbrains.intellij.platform.grammarkit") version "2.19.0"
 }
@@ -84,7 +86,7 @@ intellijPlatform {
         name = providers.gradleProperty("pluginName")
         version = providers.gradleProperty("pluginVersion")
         changeNotes = providers.environmentVariable("RELEASE_NOTES").filter { it.isNotBlank() }.map {
-            "<pre>" + it.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") + "</pre>"
+            markdownToHTML(it)
         }
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
