@@ -1,0 +1,12 @@
+module examples.tests
+
+fn pass_through_i64(value: i64) -> i64 {
+    when { return delta_value(value) }
+}
+
+test repeated_ticks {
+    assert eval(pass_through_i64, value: [7, _, 7, 9]) == [7, _, 7, 9]
+    assert eval(pass_through_i64, value: [_, _, _]) == []
+    assert eval(pass_through_i64, value: [_, 7, _, _]) == [_, 7]
+    assert eval(pass_through_i64, value: []) == []
+}

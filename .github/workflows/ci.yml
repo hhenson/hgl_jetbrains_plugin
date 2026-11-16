@@ -1,0 +1,36 @@
+name: Plugin
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - run: |
+          tools/refresh_test_data.sh
+          test -z "$(git status --porcelain -- src/test/testData/parser)"
+      - run: ./gradlew prepareMarketplaceRelease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hgl-plugin-zip
+          path: build/marketplace/*.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: hgl-test-reports
+          path: |
+            build/reports/tests/
+            build/reports/pluginVerifier/

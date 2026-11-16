@@ -1,0 +1,7 @@
+module examples.recovery
+
+const fn price_or_zero(book: dict<str, i64>, key: str) -> i64 {
+    let price = get(book, key)
+    if price == null { return 0 }
+    return price
+}

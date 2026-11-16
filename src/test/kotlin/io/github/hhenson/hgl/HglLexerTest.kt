@@ -18,18 +18,36 @@ class HglLexerTest : LexerTestCase() {
 
     fun testLiterals() = doGoldenTest("literals")
 
-    fun testCppForms() = doGoldenTest("cppForms")
+    fun testNativeForms() = doGoldenTest("nativeForms")
 
     fun testComments() = doGoldenTest("comments")
 
     fun testPunctuation() = doGoldenTest("punctuation")
 
     fun testRestartOnEveryTokenOfEveryExample() {
-        val roots = listOf("spec", "hgraph", "stdlib").map { File("src/test/testData/parser/$it") }
+        val roots = listOf("spec", "core").map { File("src/test/testData/parser/$it") }
         val files = roots.flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "hgl" }.toList() }
         assertTrue("no example modules found", files.isNotEmpty())
         for (file in files) {
             checkCorrectRestart(file.readText())
+        }
+    }
+
+    /** LEX-9/10: changes to the pinned reserved words must change the editor. */
+    fun testReservedWordsMatchPinnedSpec() {
+        val text = File("spec/hgl_spec/spec/language/source-text.md").readText()
+        val words = text.substringAfter("Hard reserved words:").substringAfter("```text")
+            .substringBefore("```").trim().split(Regex("\\s+"))
+        for (word in words) {
+            val lexer = createLexer()
+            lexer.start(word)
+            assertTrue(word, io.github.hhenson.hgl.psi.HglTokenSets.KEYWORDS.contains(lexer.tokenType))
+            assertEquals(word.length, lexer.tokenEnd)
+        }
+        for (word in listOf("const", "native", "type", "switch", "case", "default", "raises")) {
+            val lexer = createLexer()
+            lexer.start(word)
+            assertEquals(word, io.github.hhenson.hgl.psi.HglTypes.IDENTIFIER, lexer.tokenType)
         }
     }
 

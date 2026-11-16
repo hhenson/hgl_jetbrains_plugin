@@ -1,0 +1,8 @@
+module examples.entry
+
+export fn heartbeat(const every: duration = 1s) -> datetime {
+    inject clock
+    while {
+        yield every: clock.evaluation_time
+    }
+}

@@ -1,0 +1,8 @@
+module examples.defaults
+
+const fn seed() -> i64 => 7
+const fn choose(base: i64, value: i64 = seed()) -> i64 => base + value
+
+test defining_closure {
+    assert choose(1) == 8
+}

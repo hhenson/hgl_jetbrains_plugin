@@ -59,7 +59,6 @@ class HglColorSettingsPage : ColorSettingsPage {
             AttributesDescriptor("References//Named argument", HglColors.NAMED_ARGUMENT),
             AttributesDescriptor("References//Module path", HglColors.MODULE_PATH),
             AttributesDescriptor("References//Identifier", HglColors.IDENTIFIER),
-            AttributesDescriptor("Embedded C++", HglColors.EMBEDDED_CPP),
             AttributesDescriptor("Bad character", HglColors.BAD_CHARACTER),
         )
 
@@ -86,12 +85,12 @@ class HglColorSettingsPage : ColorSettingsPage {
             # A helper, an export, state and a test.
             module <mod>examples.prices</mod>
 
-            use <mod>hgraph.analytics</mod>::{<call>rolling_mean</call>}
+            use <mod>analytics</mod>::{<call>rolling_mean</call>}
 
             export struct <struct>Quote</struct> {
                 <field>bid</field>: f64
                 <field>ask</field>: f64
-                <field>venue</field>: str = null
+                <field>venue</field>: str? = null
             }
 
             operator <op>summarize</op><<tparam>T</tparam>>(<param>window</param>: <ckw>rolling</ckw><<tparam>T</tparam>, 20>) -> <tparam>T</tparam>
@@ -114,9 +113,9 @@ class HglColorSettingsPage : ColorSettingsPage {
                 }
             }
 
-            /* Native code stays opaque. */
+            /* Native interfaces name the required hooks. */
             native fn <fn>increment</fn>(<param>value</param>: f64) -> f64 {
-                cpp(hgraph::Float value) { return value + 1.0; }
+                when;
             }
 
             test <test>midpoint_ticks</test> {

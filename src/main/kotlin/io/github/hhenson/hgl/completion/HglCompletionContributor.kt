@@ -52,17 +52,17 @@ class HglCompletionContributor : CompletionContributor() {
     companion object {
         val DECLARATION_KEYWORDS = listOf(
             "module", "part", "use", "as", "export", "abstract", "impl", "instantiate", "operator", "fn",
-            "const", "cpp", "struct", "requires", "test", "native", "throws", "properties", "each", "in", "is",
+            "const", "struct", "enum", "requires", "test", "native", "type", "properties", "each", "in", "is",
         )
         val STATEMENT_KEYWORDS = listOf(
             "let", "var", "state", "cache", "inject", "return", "if", "else", "start", "when", "stop",
-            "for", "while", "yield", "in", "assert",
+            "for", "while", "yield", "in", "assert", "switch", "case", "default", "raises",
         )
         val EXPRESSION_KEYWORDS = listOf("fn", "eval", "const", "true", "false", "null", "delta")
         val TYPE_KEYWORDS = listOf(
             "bool", "i64", "f64", "str", "date", "time", "datetime", "duration", "civil_datetime",
-            "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "map", "rolling",
-            "ref", "signal", "unbounded",
+            "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling",
+            "ref", "signal", "unbounded", "bytes", "any", "result", "error",
         )
     }
 }

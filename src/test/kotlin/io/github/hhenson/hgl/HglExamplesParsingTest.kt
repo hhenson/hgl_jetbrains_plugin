@@ -8,8 +8,8 @@ import io.github.hhenson.hgl.parser.HglParserDefinition
 import java.io.File
 
 /**
- * Every example module shipped with the language specification and the C++
- * compiler must parse without a single error element. The files are copied
+ * Complete specification modules and every core HGL file must parse without
+ * a single error element. The files are copied
  * by tools/refresh_test_data.sh; src/test/testData/parser/SOURCES.md records
  * the revisions.
  */
@@ -20,7 +20,7 @@ class HglExamplesParsingTest : ParsingTestCase("parser", "hgl", HglParserDefinit
     fun testAllExampleModulesParseWithoutErrors() {
         val failures = ArrayList<String>()
         var count = 0
-        for (directory in listOf("spec", "hgraph", "stdlib")) {
+        for (directory in listOf("spec", "core")) {
             val root = File(testDataPath, "parser/$directory")
             val files = root.walkTopDown().filter { it.isFile && it.extension == "hgl" }.sortedBy { it.path }.toList()
             assertTrue("no .hgl files under $root; run tools/refresh_test_data.sh", files.isNotEmpty())

@@ -1,0 +1,5 @@
+module examples.branch
+
+fn choose(condition: bool, left: i64, right: i64) -> i64 {
+    if condition { left + 1 } else { right - 1 }
+}

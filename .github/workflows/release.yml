@@ -1,0 +1,82 @@
+name: Marketplace release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to check without publishing (vX.Y.Z)'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: marketplace-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+      - name: Check release tag and sources
+        run: |
+          python3 tools/check_release.py "$RELEASE_TAG"
+          tools/refresh_test_data.sh
+          test -z "$(git status --porcelain -- src/test/testData/parser)"
+      - name: Check publishing credential
+        if: github.event_name == 'release'
+        env:
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        run: |
+          if [ -z "$PUBLISH_TOKEN" ]; then
+            echo '::error::Add the repository Actions secret PUBLISH_TOKEN.'
+            exit 1
+          fi
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test, verify and publish (or dry run)
+        env:
+          RELEASE_NOTES: ${{ github.event.release.body }}
+          PUBLISH_TOKEN: ${{ github.event_name == 'release' && secrets.PUBLISH_TOKEN || '' }}
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          PUBLISH: ${{ github.event_name == 'release' }}
+        run: |
+          task=prepareMarketplaceRelease
+          if [ "$PUBLISH" = true ]; then task=publishPlugin; fi
+          ./gradlew --no-daemon "$task"
+      - name: Attach installable ZIP to GitHub release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" build/marketplace/*.zip
+      - name: Record archive checksum
+        run: sha256sum build/marketplace/*.zip >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: marketplace-plugin
+          path: build/marketplace/*.zip
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: marketplace-reports
+          path: |
+            build/reports/tests/
+            build/reports/pluginVerifier/

@@ -1,0 +1,27 @@
+module conformance part record_eval
+
+# CEVAL-4 is agreed. The set delta profile used by this fixture is proposed.
+
+fn update_members(command: i64) -> set<i64> {
+    when {
+        if command == 1 {
+            return delta<set<i64>>(added: [1, 2])
+        }
+        if command == 2 {
+            return delta<set<i64>>(added: [3], removed: [1])
+        }
+    }
+}
+
+test record_retains_each_delta {
+    assert eval(update_members, command: [1, _, 2]) == [
+        delta<set<i64>>(added: [1, 2]),
+        _,
+        delta<set<i64>>(added: [3], removed: [1])
+    ]
+}
+
+test record_can_be_empty {
+    assert eval(update_members, command: []) == []
+    assert eval(update_members, command: [0]) == []
+}

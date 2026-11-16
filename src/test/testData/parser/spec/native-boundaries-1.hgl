@@ -1,0 +1,11 @@
+module examples.native part provider
+
+native fn accumulate(value: i64) -> i64 {
+    inject out
+    start;
+    when;
+    stop;
+}
+native const fn describe(value: i64) -> str {}
+native impl const fn total(lhs: i64, rhs: i64) -> i64 {}
+native impl const fn total(lhs: f64, rhs: f64) -> f64 {}

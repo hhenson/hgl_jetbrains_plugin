@@ -1,3 +1,4 @@
+import java.time.Duration
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
@@ -11,6 +12,17 @@ plugins {
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
+val signingKey = providers.environmentVariable("PRIVATE_KEY").filter { it.isNotBlank() }
+val signingCertificate = providers.environmentVariable("CERTIFICATE_CHAIN").filter { it.isNotBlank() }
+val signingPassword = providers.environmentVariable("PRIVATE_KEY_PASSWORD").filter { it.isNotEmpty() }
+require(signingKey.isPresent == signingCertificate.isPresent) {
+    "Set both PRIVATE_KEY and CERTIFICATE_CHAIN, or omit both to publish without author signing."
+}
+val authorSigning = signingKey.isPresent
+require(!signingPassword.isPresent || authorSigning) {
+    "PRIVATE_KEY_PASSWORD requires PRIVATE_KEY and CERTIFICATE_CHAIN."
+}
+
 repositories {
     mavenCentral()
     intellijPlatform {
@@ -20,17 +32,12 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        // CLion is the platform the plugin is compiled and tested against; only
-        // platform and lang APIs are used, so the same build installs on PyCharm,
-        // RustRover and IntelliJ IDEA (the plugin verifier covers them). The
-        // unified IntelliJ IDEA distribution cannot open a light test project
-        // (its Ultimate licensing startup activity fails to instantiate), so it
-        // is not used here. Set -PplatformLocalPath=/path/to/CLion.app (or put it
-        // in ~/.gradle/gradle.properties) to build against an installed IDE
-        // instead of downloading one.
+        // Compile against CLion; test and verify the same plugin on RustRover.
+        // Use -PplatformLocalPath=<CLion installation> to avoid downloading it.
         val localPath = providers.gradleProperty("platformLocalPath")
         if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
         testFramework(TestFrameworkType.Platform)
+        zipSigner()
     }
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.opentest4j:opentest4j:1.3.0")
@@ -48,7 +55,8 @@ sourceSets {
 tasks {
     generateLexer {
         sourceFile = file("src/main/grammar/Hgl.flex")
-        targetOutputDir = file("src/main/gen/io/github/hhenson/hgl/lexer")
+        targetRootOutputDir = file("src/main/gen")
+        pathToClass = "io/github/hhenson/hgl/lexer/_HglLexer.java"
         purgeOldFiles = true
     }
     generateParser {
@@ -75,6 +83,9 @@ intellijPlatform {
         id = providers.gradleProperty("pluginGroup")
         name = providers.gradleProperty("pluginName")
         version = providers.gradleProperty("pluginVersion")
+        changeNotes = providers.environmentVariable("RELEASE_NOTES").filter { it.isNotBlank() }.map {
+            "<pre>" + it.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") + "</pre>"
+        }
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
             untilBuild = provider { null }
@@ -83,8 +94,55 @@ intellijPlatform {
     pluginVerification {
         ides {
             create(IntelliJPlatformType.CLion, "2026.2")
-            create(IntelliJPlatformType.PyCharm, "2026.2")
             create(IntelliJPlatformType.RustRover, "2026.2")
         }
     }
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN").filter { it.isNotBlank() }
+        channels = listOf("default")
+    }
+    signing {
+        privateKey = signingKey
+        certificateChain = signingCertificate
+        password = signingPassword
+    }
+}
+
+// The same editor suite runs in each product's headless platform fixture.
+intellijPlatformTesting {
+    testIde {
+        register("testRustRover") {
+            type = IntelliJPlatformType.RustRover
+            version = providers.gradleProperty("platformVersion")
+            testFramework(TestFrameworkType.Platform)
+        }
+    }
+}
+
+// A parser regression must fail CI instead of leaving an editor test spinning.
+tasks.withType<Test>().configureEach {
+    timeout = Duration.ofMinutes(5)
+}
+
+// Select by configuration, including when signPlugin is already up to date.
+val marketplaceArchive = if (authorSigning) tasks.signPlugin.flatMap { it.signedArchiveFile }
+    else tasks.buildPlugin.flatMap { it.archiveFile }
+tasks.verifyPlugin {
+    archiveFile = marketplaceArchive
+}
+tasks.verifyPluginSignature {
+    dependsOn(tasks.signPlugin)
+}
+val readyArchive = layout.buildDirectory.file("marketplace/${rootProject.name}-${version}.zip")
+val prepareMarketplaceRelease by tasks.registering(Sync::class) {
+    group = "publishing"
+    description = "Tests and verifies the exact ZIP prepared for Marketplace."
+    dependsOn(tasks.test, tasks.named("testRustRover"), tasks.verifyPlugin)
+    if (authorSigning) dependsOn(tasks.verifyPluginSignature)
+    from(marketplaceArchive) { rename { readyArchive.get().asFile.name } }
+    into(readyArchive.map { it.asFile.parentFile })
+}
+tasks.publishPlugin {
+    dependsOn(prepareMarketplaceRelease)
+    archiveFiles.setFrom(readyArchive)
 }

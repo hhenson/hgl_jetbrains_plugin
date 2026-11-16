@@ -1,74 +1,59 @@
 # HGL for JetBrains IDEs
 
-Language support for [HGL](https://github.com/hhenson/hgraph_spec), the
-temporal programming language of the [hgraph](https://github.com/hhenson/hgraph)
-project, as one plugin for CLion, PyCharm, RustRover and IntelliJ IDEA.
+Review HGL code in CLion and RustRover with one plugin. The plugin provides
+highlighting, folding, documentation, a structure view, completion and
+navigation for `.hgl` files.
 
-Features:
+## Language sources
 
-- syntax highlighting, with a colour settings page;
-- brace matching, `#` line and `/* */` block comments, code folding;
-- `/** ... */` documentation highlighting, folding and Quick Documentation for declarations and resolved references;
-- structure view of a module's structs, functions, operators and tests;
-- go to declaration, find usages and rename for functions, structs,
-  operators, parameters, locals, state and imports, including
-  `use module::{name}` and `alias::name` across modules;
-- keyword completion and completion of names in scope;
-- parse errors, recovered line by line, from a grammar transliterated from
-  the compiler's.
+[hgl_spec](https://github.com/hhenson/hgl_spec) owns the language rules.
+[hgl_core](https://github.com/hhenson/hgl_core) owns core declarations and
+conformance fixtures. Both are pinned under `spec/` at revisions selected by
+[hgl-compiler](https://github.com/hhenson/hgl-compiler).
 
-The plugin is syntax-level only. Type checking and the language's
-diagnostics remain the compiler's; see [docs/design.md](docs/design.md).
+Run `tools/refresh_test_data.sh` after changing the pins. The parser corpus
+includes complete specification examples and every core HGL file.
+[Fixture sources](src/test/testData/parser/SOURCES.md) records their revisions.
 
-## Install
+## Build and install
 
-Build the distribution (below) and install it from disk:
-*Settings | Plugins | ⚙ | Install Plugin from Disk...*, choosing
-`build/distributions/hgl-jetbrains-plugin-<version>.zip`. Restart the IDE.
-Files named `*.hgl` open with HGL support.
-
-The plugin targets platform build 262 (2026.2) and later.
-
-## Build
-
-Requirements: a JDK 21 or newer on `JAVA_HOME` (the JBR bundled inside any
-JetBrains IDE works: `<IDE>.app/Contents/jbr/Contents/Home` on macOS) and
-network access for the first build, which downloads CLion as the platform
-to compile and test against. To use an installed IDE instead, pass
-`-PplatformLocalPath=/path/to/CLion.app` or put `platformLocalPath=...` in
-`~/.gradle/gradle.properties`.
+Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
+2026.2. To use an installed IDE, pass `-PplatformLocalPath=/path/to/IDE`.
 
 ```sh
-./gradlew buildPlugin          # build/distributions/hgl-jetbrains-plugin-<version>.zip
-./gradlew test                 # lexer, parser and example-module tests
-./gradlew runIde               # a sandboxed IDE with the plugin installed
-./gradlew verifyPlugin         # IntelliJ Plugin Verifier against CLion, PyCharm, RustRover
+./gradlew test testRustRover buildPlugin
+./gradlew verifyPlugin
 ```
 
-The lexer (`src/main/grammar/Hgl.flex`) and grammar (`src/main/grammar/Hgl.bnf`)
-are regenerated into `src/main/gen` on every build.
+Install `build/distributions/hgl-jetbrains-plugin-0.2.0.zip` through
+Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
+requires platform build 262 or later.
 
-## Relationship to the other repositories
+## Marketplace releases
 
-| Repository | Owns |
-|---|---|
-| [hgraph_spec](https://github.com/hhenson/hgraph_spec) | the language and runtime specification the grammar follows |
-| [hgraph](https://github.com/hhenson/hgraph) | the C++ compiler whose lexer and grammar this plugin mirrors |
-| [hgraph_std](https://github.com/hhenson/hgraph_std) | the HGL standard library |
-| this repository | the JetBrains plugin only |
+Add `PUBLISH_TOKEN` as a repository Actions secret using a token from
+[Marketplace → My Tokens](https://plugins.jetbrains.com/author/me/tokens).
+The initial Marketplace listing must already exist.
 
-The parser tests hold every example module of the specification and the
-compiler; `tools/refresh_test_data.sh` refreshes them from sibling
-checkouts and records the revisions in `src/test/testData/parser/SOURCES.md`.
+1. Update `pluginVersion` in `gradle.properties` and merge to `main`.
+2. Publish a GitHub release with the matching tag, for example `v0.2.1`.
+3. The workflow tests both IDEs, verifies the ZIP, uploads it to Marketplace,
+   and attaches the installable ZIP directly to the GitHub release.
 
-## License
+GitHub release notes become the plugin's change notes. Drafts and prereleases
+are not published to Marketplace. Each upload needs a new version; `0.2.0`
+was uploaded manually. JetBrains reviews updates before making them available.
 
-MIT, see [LICENSE](LICENSE).
+For a dry run, use **Actions → Marketplace release → Run workflow** with an
+existing version tag on `main`. This runs the checks and produces the ZIP
+without publishing. Locally, run `./gradlew prepareMarketplaceRelease`.
+The resulting ZIP is under `build/marketplace/`; CI stores reports separately.
 
-## Source documentation
+Author signing is optional. To enable it, add both `CERTIFICATE_CHAIN` and
+`PRIVATE_KEY` as Actions secrets, plus `PRIVATE_KEY_PASSWORD` if the key is
+encrypted. A partial signing configuration fails the build. The signed ZIP
+is signature-checked and compatibility-checked before publication.
+See [JetBrains signing](https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
 
-Use the [agreed Google-style/reST format](https://github.com/hhenson/hgraph_spec/blob/main/language/docs/design/documentation.md).
-Quick Documentation preserves section layout, math and Mermaid source as escaped
-text. It does not execute reST directives or render diagrams. Use the compiler's
-reST documentation export with Sphinx for publication. Ordinary comments do not
-attach, and public declarations and native implementation parts retain their own docs.
+[Design](docs/design.md) describes the editor/compiler boundary.
+[Project rules](AGENTS.md) apply to development. Licensed under [MIT](LICENSE).
