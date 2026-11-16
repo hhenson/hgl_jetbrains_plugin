@@ -9,23 +9,28 @@ jobs:
   plugin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '25'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
+      - run: python3 -m unittest discover -s tools -p 'test_*.py'
       - run: |
           tools/refresh_test_data.sh
           test -z "$(git status --porcelain -- src/test/testData/parser)"
-      - run: ./gradlew test testRustRover buildPlugin verifyPlugin
-      - uses: actions/upload-artifact@v4
+      - run: ./gradlew prepareMarketplaceRelease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hgl-plugin-zip
+          path: build/marketplace/*.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: hgl-jetbrains-plugin
+          name: hgl-test-reports
           path: |
-            build/distributions/*.zip
             build/reports/tests/
             build/reports/pluginVerifier/

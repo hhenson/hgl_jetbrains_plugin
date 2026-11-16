@@ -43,3 +43,15 @@ Run the lexer, parser and platform tests against each supported IDE. Build the
 distribution once, then pass that ZIP to Plugin Verifier for both products.
 These checks validate editor integration. Execution conformance runs through
 the compiler and runtime.
+
+## Releases
+
+A published stable GitHub release triggers Marketplace publishing. Its tag
+must match `pluginVersion`, the checkout, and a commit on `main`. Manual
+workflow runs validate an existing tag without publishing.
+
+`prepareMarketplaceRelease` runs both IDE suites and verifies the chosen ZIP,
+including its signature when author signing is configured. `publishPlugin`
+depends on that task and uploads the same bytes. GitHub release assets expose
+the installable ZIP directly; CI reports are separate artifacts. Credentials
+come from Actions secrets and are not needed by normal builds.
