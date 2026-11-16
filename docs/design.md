@@ -50,6 +50,10 @@ A published stable GitHub release triggers Marketplace publishing. Its tag
 must match `pluginVersion`, the checkout, and a commit on `main`. Manual
 workflow runs validate an existing tag without publishing.
 
+The GitHub release body supplies `RELEASE_NOTES`. JetBrains' Gradle Changelog
+renderer converts its Markdown to HTML in the packaged `plugin.xml` change
+notes. CI checks formatting and omitted notes by inspecting built ZIPs.
+
 `prepareMarketplaceRelease` runs both IDE suites and verifies the chosen ZIP,
 including its signature when author signing is configured. `publishPlugin`
 depends on that task and uploads the same bytes. GitHub release assets expose

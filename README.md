@@ -40,9 +40,15 @@ The initial Marketplace listing must already exist.
 3. The workflow tests both IDEs, verifies the ZIP, uploads it to Marketplace,
    and attaches the installable ZIP directly to the GitHub release.
 
-GitHub release notes become the plugin's change notes. Drafts and prereleases
-are not published to Marketplace. Each upload needs a new version; `0.2.0`
-was uploaded manually. JetBrains reviews updates before making them available.
+Write Markdown in the GitHub release description before publishing. The build
+converts headings, lists, emphasis, links and code to HTML change notes for
+Marketplace and the IDE. Later edits to the release description do not change
+an uploaded ZIP. Local builds can supply Markdown through `RELEASE_NOTES`;
+unset or blank notes are omitted.
+
+Drafts and prereleases are not published to Marketplace. Each upload needs a
+new version; `0.2.0` was uploaded manually. JetBrains reviews updates before
+making them available.
 
 For a dry run, use **Actions → Marketplace release → Run workflow** with an
 existing version tag on `main`. This runs the checks and produces the ZIP
