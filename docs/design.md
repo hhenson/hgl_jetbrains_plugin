@@ -74,7 +74,8 @@ Use a recursive checkout of hgl-project at `9d6b592` and run:
 ```
 
 Each IDE imports the wrapper's 104 tracked HGL files into a fresh headless
-project, including the compiler's copy of core. Cold import measures VFS
+project, including the compiler's copy of core. The CLion fixture disables
+its background C++ backend, which can outlive a temporary project. Cold import measures VFS
 insertion through HGL index readiness. First highlight includes opening
 `collection_ticks.hgl`. The warm measurements use the forwarding `add_` call
 in `core.hgl`, with overloads in `scalar_operators.hgl`. Completion opens
@@ -83,7 +84,7 @@ chooser opens. Both use 3 warmups and 20 samples (nearest-rank p95).
 
 | Linux, JDK 25 | Cold import | First highlight | Completion p95 | Navigation p95 | After unrelated edit p95 | Indexed file visits per navigation |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| CLion 262.8665.262 | 1,038 ms | 1,131 ms | 14.71 ms | 0.23 ms | 0.20 ms | 14 |
+| CLion 262.8665.262 | 619 ms | 1,015 ms | 16.64 ms | 0.31 ms | 0.27 ms | 14 |
 | RustRover 262.8665.323 | 540 ms | 989 ms | 24.37 ms | 0.23 ms | 0.20 ms | 14 |
 
 Both IDEs found 46 declarations across the two copies of core and visited

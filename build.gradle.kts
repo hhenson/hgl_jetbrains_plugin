@@ -122,6 +122,11 @@ intellijPlatformTesting {
     }
 }
 
+// CLion's C++ backend can outlive a headless fixture and access its deleted project.
+tasks.test {
+    systemProperty("rider.disable.resharper.backend", "true")
+}
+
 // A parser regression must fail CI instead of leaving an editor test spinning.
 tasks.withType<Test>().configureEach {
     inputs.dir("src/test/testData").withPathSensitivity(PathSensitivity.RELATIVE)
