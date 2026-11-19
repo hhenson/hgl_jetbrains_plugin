@@ -344,6 +344,61 @@ class HglPlatformTest : HglEditorFixture() {
         assertTrue("got $strings", strings.containsAll(listOf("price", "helper", "scaled", "return", "let", "when")))
     }
 
+    private fun completionsInModule(body: String): List<String> {
+        myFixture.configureByText("arrow.hgl", "module arrow\n$body")
+        myFixture.completeBasic()
+        return myFixture.lookupElementStrings.orEmpty()
+    }
+
+    fun testArrowExpressionStartersAndNames() {
+        val names = completionsInModule("""
+            fn helper(x: str) -> str => x
+            fn render(value: str) -> str => <caret>
+        """.trimIndent())
+        assertContainsElements(names, "if", "fn", "true", "false", "null", "delta", "str", "bytes", "any", "error",
+            "value", "helper")
+        assertDoesntContain(names, "module", "integration_test", "operator", "native", "export", "struct", "requires",
+            "const", "eval", "run", "list", "i64", "let", "return")
+    }
+
+    fun testArrowCompletionWithTypedPrefix() {
+        val names = completionsInModule("fn f(truth: bool) -> bool => tr<caret>")
+        assertContainsElements(names, "true", "truth")
+    }
+
+    fun testArrowCompletionInsideOperatorAndAnonymousFunction() {
+        val operand = completionsInModule("operator echo(input: i64) -> i64 => # on the next line\n input + <caret>")
+        assertContainsElements(operand, "if", "null", "input")
+        assertDoesntContain(operand, "module", "return", "i64")
+
+        val argument = completionsInModule("""
+            fn run(x: i64) -> i64 => x
+            fn outer(value: i64) -> i64 {
+                let apply = fn(x: i64) => run(<caret>)
+                return apply(value)
+            }
+        """.trimIndent())
+        assertContainsElements(argument, "if", "false", "x", "value", "run")
+        assertDoesntContain(argument, "let", "return", "state", "eval", "list")
+    }
+
+    fun testArrowCompletionRespectsNestedAndFollowingContexts() {
+        assertContainsElements(completionsInModule("fn f(x: i64) -> i64 => if true { <caret> }"), "let", "return")
+        assertContainsElements(completionsInModule("fn f(x: i64) -> i64 => delta<<caret>>(x)"), "i64", "list")
+        assertContainsElements(completionsInModule("fn f() -> i64 => 1\n<caret>"), "module", "operator")
+        val field = completionsInModule("fn f(x: i64) -> i64 => x.<caret>")
+        assertDoesntContain(field, "if", "null", "module")
+    }
+
+    fun testArrowCompletionInTestBodies() {
+        val unit = completionsInModule("test replay { let probe = fn() => <caret> }")
+        assertContainsElements(unit, "eval", "if")
+        assertDoesntContain(unit, "run", "return")
+        val integration = completionsInModule("integration_test live { let probe = fn() => <caret> }")
+        assertContainsElements(integration, "run", "eval", "if")
+        assertDoesntContain(integration, "return")
+    }
+
     fun testIntegrationTestCompletion() {
         fun suggestions(source: String): List<String> {
             myFixture.configureByText("live.hgl", source)
