@@ -33,7 +33,7 @@ class HglTestSettingsPage(project: Project) : BoundConfigurable("HGL Test Runner
         row("HGL executable:") { textField().bindText(settings::executable).align(AlignX.FILL) }
         row("Source roots:") {
             textArea().bindText(settings::roots).align(AlignX.FILL)
-                .comment("One file or directory per line, relative to the project or absolute. Leave empty to use the test file.")
+                .comment("One file or directory per line, relative to the project or absolute. Leave empty to use the selected source file.")
         }
         row("hgraph Python:") {
             textField().bindText(settings::python).align(AlignX.FILL)

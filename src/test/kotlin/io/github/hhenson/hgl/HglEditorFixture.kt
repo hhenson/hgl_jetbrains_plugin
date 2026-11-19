@@ -5,13 +5,14 @@ import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.actions.RunConfigurationProducer
 import com.intellij.psi.PsiElement
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import io.github.hhenson.hgl.run.HglTestConfiguration
-import io.github.hhenson.hgl.run.HglTestProducer
+import io.github.hhenson.hgl.run.HglRunConfiguration
+import io.github.hhenson.hgl.run.HglRunProducer
 
 abstract class HglEditorFixture : BasePlatformTestCase() {
-    protected fun runConfigurationAt(leaf: PsiElement): HglTestConfiguration {
-        val producer = RunConfigurationProducer.getInstance(HglTestProducer::class.java)
-        return producer.createConfigurationFromContext(ConfigurationContext(leaf))!!.configuration as HglTestConfiguration
+    protected fun runConfigurationAt(leaf: PsiElement): HglRunConfiguration {
+        val context = ConfigurationContext(leaf)
+        return RunConfigurationProducer.getProducers(project).filterIsInstance<HglRunProducer<*>>()
+            .mapNotNull { it.createConfigurationFromContext(context) }.single().configuration as HglRunConfiguration
     }
 
     override fun tearDown() {
