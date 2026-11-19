@@ -9,8 +9,10 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
+import io.github.hhenson.hgl.diagnostics.HglCheckService
 
 @Service(Service.Level.PROJECT)
 @State(name = "HglTestRunner", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
@@ -19,17 +21,26 @@ class HglTestSettings : PersistentStateComponent<HglTestSettings.Options> {
         var executable: String = "hgl",
         var roots: String = "",
         var python: String = "",
-    )
+        var checkOnSave: Boolean = true,
+    ) {
+        fun sourceRoots(): List<String> = roots.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
+    }
 
     private var options = Options()
     override fun getState() = options
     override fun loadState(state: Options) { options = state }
 }
 
-class HglTestSettingsPage(project: Project) : BoundConfigurable("HGL Test Runner") {
+class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL Test Runner") {
     private val settings = project.service<HglTestSettings>().state
 
+    override fun apply() {
+        super.apply()
+        project.getServiceIfCreated(HglCheckService::class.java)?.reset()
+    }
+
     override fun createPanel() = panel {
+        row { checkBox("Check HGL sources on save").bindSelected(settings::checkOnSave) }
         row("HGL executable:") { textField().bindText(settings::executable).align(AlignX.FILL) }
         row("Source roots:") {
             textArea().bindText(settings::roots).align(AlignX.FILL)

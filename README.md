@@ -29,6 +29,15 @@ Install `build/distributions/hgl-jetbrains-plugin-0.4.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
+## Compiler diagnostics on save
+
+Save an HGL file to see compiler errors and warnings in the editor. Hover
+over an underline for its code, message and related locations. In
+**Settings → Languages & Frameworks → HGL Test Runner**, select an `hgl`
+executable that supports `check --json`. Set source roots for multi-file
+programs. **Check HGL sources on save** is enabled by default in trusted
+projects.
+
 ## Run an HGL application or test
 
 Click the gutter triangle beside an `application` header, a named `test`,

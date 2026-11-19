@@ -73,7 +73,7 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
     internal fun commandLine(): GeneralCommandLine {
         checkConfiguration()
         val settings = project.service<HglTestSettings>().state
-        val roots = settings.roots.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
+        val roots = settings.sourceRoots()
         val command = GeneralCommandLine(settings.executable.trim())
             .withParameters(runType.command)
             .withParameters(selector, "--target", "hgraph")
