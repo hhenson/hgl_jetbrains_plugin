@@ -38,8 +38,11 @@ documents whose file and document stamps still match the check. A clean
 report clears previous findings for those roots.
 
 Version 1 uses zero-based UTF-16 positions and half-open ranges. Tooltips
-include the code, rule, notes and related locations. A failed invocation or
-unsupported report raises a project notification.
+include the code, rule, notes and related locations. Bundled-core locations
+such as `<core>/core/core.hgl` appear as plain text. Exit 2 reports an
+invocation failure via stderr, which the IDE shows in a project notification.
+Only exits 0 and 1 carry JSON reports. An unsupported report version also
+raises a project notification.
 
 ## Application and test execution
 
