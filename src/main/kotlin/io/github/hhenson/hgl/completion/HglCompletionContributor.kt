@@ -8,6 +8,7 @@ import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.psi.PsiComment
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import io.github.hhenson.hgl.HglLanguage
@@ -33,12 +34,13 @@ class HglCompletionContributor : CompletionContributor() {
     private object KeywordProvider : CompletionProvider<CompletionParameters>() {
         override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext, result: CompletionResultSet) {
             val position = parameters.position
-            val previous = position.node.treePrev?.elementType
+            val previous = PsiTreeUtil.prevVisibleLeaf(position)?.node?.elementType
             if (previous == HglTypes.DOT || previous == HglTypes.COLONCOLON) return
 
             val inBlock = position.parentOfType<HglBlock>() != null
             val inStruct = position.parentOfType<HglStructBody>() != null
             val words = when {
+                previous == HglTypes.AT && !inBlock && !inStruct -> listOf("timeout", "suppress_warning")
                 inBlock -> STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS +
                     if (position.parentOfType<HglTestDecl>() != null) listOf("run") else emptyList()
                 inStruct -> TYPE_KEYWORDS

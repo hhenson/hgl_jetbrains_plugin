@@ -357,6 +357,17 @@ class HglPlatformTest : BasePlatformTestCase() {
         assertTrue("got $strings", strings.containsAll(listOf("price", "helper", "scaled", "return", "let", "when")))
     }
 
+    fun testIntegrationTestCompletion() {
+        fun suggestions(source: String): List<String> {
+            myFixture.configureByText("live.hgl", source)
+            myFixture.completeBasic()
+            return myFixture.lookupElementStrings.orEmpty()
+        }
+        assertContainsElements(suggestions("module live\n<caret>"), "test", "integration_test")
+        assertContainsElements(suggestions("module live\n@<caret>"), "timeout", "suppress_warning")
+        assertContainsElements(suggestions("module live\nintegration_test pulses { <caret> }"), "run", "assert")
+    }
+
     fun testValidModuleHasNoErrorHighlights() {
         myFixture.configureByText("a.hgl", marketData)
         val errors = myFixture.doHighlighting().filter { it.severity == HighlightSeverity.ERROR }
