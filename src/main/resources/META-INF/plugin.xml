@@ -40,8 +40,10 @@
         <platform.backend.documentation.targetProvider
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglTestType"/>
+        <configurationType implementation="io.github.hhenson.hgl.run.HglApplicationType"/>
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglTestProducer"/>
-        <runLineMarkerContributor language="HGL" implementationClass="io.github.hhenson.hgl.run.HglTestGutter"/>
+        <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglApplicationProducer"/>
+        <runLineMarkerContributor language="HGL" implementationClass="io.github.hhenson.hgl.run.HglRunGutter"/>
         <projectConfigurable parentId="language" id="hgl.test.runner" displayName="HGL Test Runner"
                              instance="io.github.hhenson.hgl.run.HglTestSettingsPage"/>
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglModuleIndex"/>

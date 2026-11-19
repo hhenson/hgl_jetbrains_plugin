@@ -2,7 +2,7 @@
 
 Review HGL code in CLion and RustRover with one plugin. The plugin provides
 highlighting, folding, documentation, a structure view, completion and
-navigation for `.hgl` files. Run a named test from its gutter icon.
+navigation for `.hgl` files. Run a named test or application from its gutter icon.
 
 ## Language sources
 
@@ -29,10 +29,12 @@ Install `build/distributions/hgl-jetbrains-plugin-0.4.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
-## Run one HGL test
+## Run an HGL application or test
 
-Click the gutter triangle beside a named `test` or `integration_test`. The
-Run window shows compiler output and the exit status. Rerun repeats that case.
+Click the gutter triangle beside an `application` header, a named `test`,
+or an `integration_test`. For `application demo.backtest`, the IDE runs
+`hgl run --application demo.backtest` with the configured roots. The Run
+window shows the output and exit status. Rerun repeats the same selection.
 
 Under **Settings → Languages & Frameworks → HGL Test Runner**, set the `hgl`
 executable and, when needed, a Python interpreter with hgraph installed.

@@ -28,18 +28,25 @@ scopes and module index. Module parts share declarations and test helpers.
 Imports stay file-local. Other modules see exported declarations, operators,
 and the public `core` prelude. Applications have their own file scope.
 
-## Single-test execution
+## Application and test execution
 
-The run marker attaches to the name leaf of an HGL test. The context producer
-creates a standard IDE Run configuration with the declaring module and test
-name. A module part contributes to its enclosing module. Each run invokes
-`hgl test --test module.path::name --target hgraph` with the configured roots.
-Naming an integration test opts into that case. The compiler still checks any
-declaration or import rejection cases in the supplied roots.
+The gutter marks the `application` keyword or the name of a test.
+Each context producer records its declaration's selector and source file
+in an IDE Run configuration.
 
-The project stores local executable, interpreter and root settings. Each run
-configuration stores the selector and fallback file. The IDE owns the Run
-console, stop and rerun actions. The compiler owns selection and outcomes.
+| Declaration | Compiler invocation |
+| --- | --- |
+| `application demo.backtest` | `hgl run --application demo.backtest --target hgraph` |
+| `test prices` or `integration_test prices` in module `demo.feed` | `hgl test --test demo.feed::prices --target hgraph` |
+
+A module part contributes to its enclosing module. Naming an integration
+test opts into that case. The compiler still checks declaration and import
+rejection cases in the supplied roots.
+
+Both configurations use the project’s HGL Test Runner settings for the
+executable, Python interpreter and roots. Empty roots select the declaration's
+file. The IDE owns the Run console, stop and rerun actions. The compiler
+owns selection and outcomes.
 
 ## Grammar and PSI
 
@@ -64,7 +71,7 @@ distribution once, then pass that ZIP to Plugin Verifier for both products.
 These checks validate editor integration. Execution conformance runs through
 the compiler and runtime.
 
-The single-test process tests run when `HGL_TEST_CLI` names a compiler and
+The compiler-backed process tests run when `HGL_TEST_CLI` names a compiler and
 `HGL_HGRAPH_PYTHON` names a Python interpreter with hgraph installed. CI
 builds the pinned compiler and exercises both IDEs against hgraph 0.9.3.
 
