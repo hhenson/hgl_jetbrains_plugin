@@ -2,7 +2,7 @@
 
 Review HGL code in CLion and RustRover with one plugin. The plugin provides
 highlighting, folding, documentation, a structure view, completion and
-navigation for `.hgl` files.
+navigation for `.hgl` files. Run a named test from its gutter icon.
 
 ## Language sources
 
@@ -25,9 +25,21 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.3.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.4.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
+
+## Run one HGL test
+
+Click the gutter triangle beside a named `test` or `integration_test`. The
+Run window shows compiler output and the exit status. Rerun repeats that case.
+
+Under **Settings → Languages & Frameworks → HGL Test Runner**, set the `hgl`
+executable and, when needed, a Python interpreter with hgraph installed.
+The default uses `hgl` from the IDE's PATH and the selected source file.
+For a multi-file program, enter its source roots, one per line. For the core
+conformance suite in `hgl-project`, use `hgl_core/hgl` and
+`hgl_core/tests/conformance`. Paths are relative to the project or absolute.
 
 ## Marketplace releases
 

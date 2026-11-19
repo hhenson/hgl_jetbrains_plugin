@@ -44,6 +44,10 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
     companion object {
         val NAME: ID<String, Void> = ID.create("io.github.hhenson.hgl.module")
 
+        // A benchmark samples one synchronous lookup, including repeat visits to a module part.
+        @org.jetbrains.annotations.TestOnly
+        internal val fileVisits = ThreadLocal<(Int) -> Unit>()
+
         /** Index importable module headers, including parts. */
         fun moduleNameOf(text: CharSequence): String? {
             val lexer = HglLexerAdapter()
@@ -71,6 +75,7 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
             if (DumbService.isDumb(project)) return emptyList()
             val virtualFiles: Collection<VirtualFile> =
                 FileBasedIndex.getInstance().getContainingFiles(NAME, modulePath, scope)
+            fileVisits.get()?.invoke(virtualFiles.size)
             val manager = PsiManager.getInstance(project)
             return virtualFiles.mapNotNull { manager.findFile(it) as? HglFile }
         }

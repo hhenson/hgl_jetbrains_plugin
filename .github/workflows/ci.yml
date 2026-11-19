@@ -22,6 +22,23 @@ jobs:
       - run: |
           tools/refresh_test_data.sh
           test -z "$(git status --porcelain -- src/test/testData/parser)"
+      - uses: actions/checkout@v7
+        with:
+          repository: hhenson/hgl-compiler
+          ref: a7650d4f86850c8792fff62386a7b038c8ce49b9
+          path: build/test-compiler
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Prepare the HGL test runner
+        working-directory: build/test-compiler
+        run: |
+          python -m pip install hgraph==0.9.3
+          cargo build --locked --bin hgl
+          echo "HGL_TEST_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
+          echo "HGL_HGRAPH_PYTHON=$(command -v python)" >> "$GITHUB_ENV"
       - run: ./gradlew prepareMarketplaceRelease
       - uses: actions/upload-artifact@v7
         with:
