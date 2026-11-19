@@ -1,8 +1,14 @@
 module examples.native
 
+export native type Handle {
+    size: i64
+}
+
 native fn accumulate(value: i64) -> i64
-native const fn describe(value: i64) -> str
+export native const fn describe(value: i64) -> str
 
 operator total<T>(lhs: T, rhs: T) -> T
 native impl const fn total(lhs: i64, rhs: i64) -> i64
 native impl const fn total(lhs: f64, rhs: f64) -> f64
+
+const fn larger(handle: Handle, limit: i64) -> bool => handle.size > limit

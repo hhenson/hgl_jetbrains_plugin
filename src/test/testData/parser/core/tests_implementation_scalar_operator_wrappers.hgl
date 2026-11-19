@@ -1,0 +1,93 @@
+module core_implementation part scalar_operator_wrappers
+
+# NUM-1: typed operands select the two mixed candidates, not literal coercion.
+test mixed_numeric_arithmetic {
+    let integer: i64 = 2
+    let real: f64 = 0.5
+    assert add_(integer, real) == 2.5
+    assert add_(real, integer) == 2.5
+    assert mul_(integer, real) == 1.0
+    assert mul_(real, integer) == 1.0
+}
+
+# OPS-1: the instant's type and zone are retained in either operand order,
+# and a date gives a civil datetime (OPS-10).
+test reverse_instant_addition {
+    let instant = @2026-09-03T09:30Z
+    let day = @2026-09-03
+    let civil = @2026-09-03T09:30
+    let zoned = @2026-09-03T09:30+01:00[Europe/London]
+    assert add_(instant, 5m) == @2026-09-03T09:35Z
+    assert add_(5m, instant) == @2026-09-03T09:35Z
+    assert add_(day, 24h) == @2026-09-04T00:00
+    assert add_(24h, day) == @2026-09-04T00:00
+    assert add_(day, 36h) == @2026-09-04T12:00
+    assert sub_(day, 1h) == @2026-09-02T23:00
+    assert add_(civil, 5m) == @2026-09-03T09:35
+    assert add_(5m, civil) == @2026-09-03T09:35
+    assert add_(zoned, 5m) == @2026-09-03T09:35+01:00[Europe/London]
+    assert add_(5m, zoned) == @2026-09-03T09:35+01:00[Europe/London]
+}
+
+# OPS-1: date and time form one civil datetime.
+test reverse_date_time_addition {
+    assert add_(@2026-09-03, @09:30) == @2026-09-03T09:30
+    assert add_(@09:30, @2026-09-03) == @2026-09-03T09:30
+}
+
+# OPS-1: both duration scales and string repetition have a reversed candidate.
+test reverse_scaling {
+    let integer: i64 = 2
+    let real: f64 = 0.5
+    assert mul_(5m, integer) == 10m
+    assert mul_(integer, 5m) == 10m
+    assert mul_(10s, real) == 5s
+    assert mul_(real, 10s) == 5s
+    assert mul_("ab", integer) == "abab"
+    assert mul_(integer, "ab") == "abab"
+}
+
+# NUM-2, NUM-4: converting this integer to f64 would erase the distinction.
+test mixed_equality_preserves_integer_precision {
+    let integer: i64 = 9007199254740993
+    let real: f64 = 9007199254740992.0
+    assert eq_(integer, real) == false
+    assert eq_(real, integer) == false
+    assert ne_(integer, real) == true
+    assert ne_(real, integer) == true
+}
+
+# NUM-4: both options reach the native candidate, including their defaults.
+test mixed_equality_forwards_tolerances {
+    let integer: i64 = 3
+    let real: f64 = 3.125
+    assert eq_(integer, real) == false
+    assert eq_(real, integer) == false
+    assert eq_(integer, real, abs: 0.2) == true
+    assert eq_(real, integer, abs: 0.2) == true
+    assert ne_(integer, real, abs: 0.2) == false
+    assert ne_(real, integer, abs: 0.2) == false
+    assert eq_(integer, real, rel: 0.05) == true
+    assert eq_(real, integer, rel: 0.05) == true
+    assert ne_(integer, real, rel: 0.05) == false
+    assert ne_(real, integer, rel: 0.05) == false
+    assert eq_(integer, real, abs: 0.01, rel: 0.01) == false
+    assert eq_(real, integer, abs: 0.01, rel: 0.01) == false
+    assert ne_(integer, real, abs: 0.01, rel: 0.01) == true
+    assert ne_(real, integer, abs: 0.01, rel: 0.01) == true
+}
+
+# NUM-5: NaN remains unequal and the signs of zero do not affect equality.
+test mixed_equality_handles_special_values {
+    let integer: i64 = 0
+    let nan: f64 = 0.0 / 0.0
+    let negative_zero: f64 = -0.0
+    assert eq_(integer, nan) == false
+    assert eq_(nan, integer) == false
+    assert ne_(integer, nan) == true
+    assert ne_(nan, integer) == true
+    assert eq_(integer, negative_zero) == true
+    assert eq_(negative_zero, integer) == true
+    assert ne_(integer, negative_zero) == false
+    assert ne_(negative_zero, integer) == false
+}

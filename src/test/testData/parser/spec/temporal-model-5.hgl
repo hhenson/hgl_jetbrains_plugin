@@ -1,0 +1,23 @@
+module examples.capabilities
+
+const fn stamped(clock: Clock, value: f64) -> tuple<datetime, f64> =>
+    (clock.evaluation_time, value)
+
+fn stamp(value: f64) -> tuple<datetime, f64> {
+    inject clock
+    when { return stamped(clock, value) }
+}
+
+fn poll(const every: duration = 1s) -> i64 {
+    inject alarm, global_state
+    start {
+        put(global_state, "count", 0)
+        schedule(alarm, every)
+    }
+    when scheduled() {
+        schedule(alarm, every)
+        let count = get<i64>(global_state, "count") + 1
+        put(global_state, "count", count)
+        return count
+    }
+}

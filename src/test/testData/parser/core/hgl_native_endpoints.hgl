@@ -1,0 +1,30 @@
+module core part endpoints
+
+# The operations on an endpoint (the language's TIME-9): each takes the
+# endpoint itself. Activity belongs to the receiving node's input. Contract:
+# spec/temporal-endpoints.md.
+
+# END-1, END-4, END-7: whether the endpoint holds a payload.
+export native const fn valid<T>(input: endpoint<T>) -> bool
+
+# END-7: whether every element, field or entry of a list, tuple, struct
+# or dictionary is valid, one level deep.
+export native const fn all_valid<T>(input: endpoint<T>) -> bool
+
+# END-2: whether the endpoint published in the current cycle.
+export native const fn modified<T>(input: endpoint<T>) -> bool
+
+# END-3: what the endpoint published in the current cycle (the language's
+# TYPE-16): the value itself for a scalar.
+export native const fn delta_value<T>(input: endpoint<T>) -> delta<T>
+
+# END-6: when the retained publication was made; null while invalid.
+export native const fn last_modified<T>(input: endpoint<T>) -> datetime?
+
+# END-4: clear validity, modification, payload, and delta.
+export native const fn invalidate<T>(input: endpoint<T>)
+
+# END-5, TIME-9: read or change the receiving node's direct input activity.
+export native const fn is_active<T>(input: endpoint<T>) -> bool
+export native const fn activate<T>(input: endpoint<T>)
+export native const fn passivate<T>(input: endpoint<T>)

@@ -1,0 +1,14 @@
+module examples.sampled
+
+fn sampled(price: f64, const every: duration = 1s) -> f64 {
+    state last: f64 = 0.0
+    inject scheduler
+    start { schedule(scheduler, every) }
+    when modified(price) && valid(price) {
+        last = price
+    }
+    when scheduled() {
+        schedule(scheduler, every)
+        return last
+    }
+}

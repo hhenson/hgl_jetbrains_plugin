@@ -1,7 +1,5 @@
 module conformance part scalar_eval
 
-# Proposed dense scalar eval cases. Status and rule map: README.md.
-
 fn pass_i64(value: i64) -> i64 {
     when { return delta_value(value) }
 }
@@ -14,15 +12,6 @@ fn pass_str(value: str) -> str {
     when { return delta_value(value) }
 }
 
-# Forwards publications of a. A tick from b alone leaves the output silent.
-fn forward_a(a: i64, b: i64) -> i64 {
-    when {
-        if valid(a) && modified(a) {
-            return delta_value(a)
-        }
-    }
-}
-
 # Publishes the number of admitted evaluations in this run.
 fn count_publications(value: i64) -> i64 {
     state count: i64 = 0
@@ -32,41 +21,41 @@ fn count_publications(value: i64) -> i64 {
     }
 }
 
+/**
+Each publication wakes an admitted node, even when its value repeats.
+The counter advances once per tick. A relay forwards the delta for each one.
+
+:Rules: END-2, END-3, END-5, CEVAL-3
+:Status: agreed
+*/
 test replay_preserves_equal_ticks {
-    assert eval(count_publications, value: [7, _, 7, 7, _]) ==
+    assert eval(count_publications(value: [7, _, 7, 7, _])) ==
         [1, _, 2, 3]
+    assert eval(pass_i64(value: [7, _, 7, 9])) == [7, _, 7, 9]
 }
 
-test equal_publications_remain_ticks {
-    assert eval(pass_i64, value: [7, _, 7, 9]) == [7, _, 7, 9]
-}
+/**
+Zero, false and empty text each publish a value and wake their consumers.
+The silent slot separates two identical publications of each value.
 
-test all_silent_input_is_empty {
-    assert eval(pass_i64, value: [_, _, _]) == []
-}
-
-test empty_input_remains_empty {
-    assert eval(pass_i64, value: []) == []
-}
-
-test leading_silence_locates_a_tick {
-    assert eval(pass_i64, value: [_, 7, _, _]) == [_, 7]
-}
-
+:Rules: END-1, END-2, CEVAL-3, TST-9
+:Status: agreed
+*/
 test zero_false_and_empty_text_are_present {
-    assert eval(pass_i64, value: [0, _, 0]) == [0, _, 0]
-    assert eval(pass_bool, value: [false, _, false, true]) == [false, _, false, true]
-    assert eval(pass_str, value: ["", _, "", "a"]) == ["", _, "", "a"]
+    assert eval(pass_i64(value: [0, _, 0])) == [0, _, 0]
+    assert eval(pass_bool(value: [false, _, false, true])) == [false, _, false, true]
+    assert eval(pass_str(value: ["", _, "", "a"])) == ["", _, "", "a"]
 }
 
-test dense_result_ends_at_last_publication {
-    assert eval(forward_a, a: [7], b: [1]) == [7]
-    assert eval(forward_a, a: [7], b: [1, _, _, 2]) == [7]
-    assert eval(forward_a, a: [], b: [1, _, _, 2]) == []
-}
+/**
+Each run starts with fresh node state and a fresh recording.
+The counter starts at one again after an intervening empty run.
 
+:Rules: TIME-5, CEVAL-5
+:Status: agreed
+*/
 test runs_are_independent {
-    assert eval(count_publications, value: [7, _, 7]) == [1, _, 2]
-    assert eval(count_publications, value: []) == []
-    assert eval(count_publications, value: [7, _, 7]) == [1, _, 2]
+    assert eval(count_publications(value: [7, _, 7])) == [1, _, 2]
+    assert eval(count_publications(value: [])) == []
+    assert eval(count_publications(value: [7, _, 7])) == [1, _, 2]
 }

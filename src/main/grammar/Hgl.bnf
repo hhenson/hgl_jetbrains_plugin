@@ -18,8 +18,8 @@
 
   extends(".*_expr")=expr
 
-  implements("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|test_decl|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|import_item|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.HglNamedElement"
-  mixin("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|test_decl|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.impl.HglNamedElementImpl"
+  implements("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|native_property|constant_decl|test_decl|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|import_item|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.HglNamedElement"
+  mixin("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|native_property|constant_decl|test_decl|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.impl.HglNamedElementImpl"
   mixin("import_item")="io.github.hhenson.hgl.psi.impl.HglImportItemMixin"
   mixin("qualified_name")="io.github.hhenson.hgl.psi.impl.HglQualifiedNameMixin"
   mixin("module_path")="io.github.hhenson.hgl.psi.impl.HglModulePathMixin"
@@ -112,7 +112,14 @@
     TUPLE_KW='tuple'
     LIST_KW='list'
     SET_KW='set'
-    ROLLING_KW='rolling'
+    ROLLING_WINDOW_KW='rolling_window'
+    ENDPOINT_KW='endpoint'
+    TENOR_KW='tenor'
+    APPLICATION_KW='application'
+    RUN_KW='run'
+    INTEGRATION_TEST_KW='integration_test'
+    TIMEOUT_KW='timeout'
+    SUPPRESS_WARNING_KW='suppress_warning'
     REF_KW='ref'
     SIGNAL_KW='signal'
 
@@ -159,7 +166,7 @@
 
 hglFile ::= nls module_line? top_item*
 
-private module_line ::= module_decl &(NEWLINE | <<eof>>) {pin=1}
+private module_line ::= (module_decl | application_decl) &(NEWLINE | <<eof>>) {pin=1}
 private top_item ::= !<<eof>> (NEWLINE | declaration_item)
 private declaration_item ::= !NEWLINE declaration_body {pin=1 recoverWhile=line_recover}
 private declaration_body ::= declaration &(NEWLINE | <<eof>>) {pin=1}
@@ -174,9 +181,12 @@ private trailing_comma ::= nls COMMA
 private meta list_of ::= <<p>> (comma_sep <<p>>)* trailing_comma?
 
 module_decl ::= MODULE_KW module_path (PART_KW ident)? {pin=1}
-module_path ::= member_name (DOT member_name)*
+application_decl ::= <<kw "APPLICATION_KW">> module_path {pin=1}
+module_path ::= path_segment (nls DOT nls path_segment)*
+private path_segment ::= &IDENTIFIER member_name
 
 private declaration ::= use_decl
+              | constant_decl
               | native_type_decl
               | enum_decl
               | native_function_decl
@@ -186,6 +196,13 @@ private declaration ::= use_decl
               | struct_decl
               | test_context
               | test_decl
+              | inject_decl
+              | run_statement
+              | store_call
+
+constant_decl ::= EXPORT_KW? <<kw "CONST_KW">> ident COLON nls type initializer {pin=3}
+run_statement ::= EVAL_KW run_arguments | run_form
+store_call ::= &(IDENTIFIER LPAREN) qualified_name arguments
 
 use_decl ::= USE_KW module_path (import_set | use_alias) {pin=1}
 import_set ::= COLONCOLON LBRACE nls <<list_of import_item>>? nls RBRACE {pin=2}
@@ -196,14 +213,14 @@ use_alias ::= AS_KW ident {pin=1}
 // LEX-9: declarations use identifiers; members and labels also admit reserved words.
 ident ::= IDENTIFIER
 member_name ::= ident | keyword_name
-private keyword_name ::= ENUM_KW | RESULT_KW | ERROR_KW | DICT_KW | ATOMIC_KW | TUPLE_KW | LIST_KW | SET_KW | ROLLING_KW | REF_KW | SIGNAL_KW | DELTA_KW | MODULE_KW | PART_KW | USE_KW | AS_KW | EXPORT_KW | ABSTRACT_KW | IMPL_KW
+private keyword_name ::= ENUM_KW | RESULT_KW | ERROR_KW | DICT_KW | ATOMIC_KW | TUPLE_KW | LIST_KW | SET_KW | ROLLING_WINDOW_KW | ENDPOINT_KW | REF_KW | SIGNAL_KW | DELTA_KW | MODULE_KW | PART_KW | USE_KW | AS_KW | EXPORT_KW | ABSTRACT_KW | IMPL_KW
                        | INSTANTIATE_KW | OPERATOR_KW | FN_KW | STRUCT_KW
                        | REQUIRES_KW | IS_KW | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
                        | RETURN_KW | IF_KW | ELSE_KW | START_KW | WHEN_KW | STOP_KW | FOR_KW
                        | WHILE_KW | YIELD_KW
                        | TEST_KW | ASSERT_KW | EVAL_KW | TRUE_KW | FALSE_KW | NULL_KW
                        | scalar_type_keyword
-private scalar_type_keyword ::= BYTES_KW | ANY_KW | BOOL_KW | I64_KW | F64_KW | STR_KW | DATE_KW | TIME_KW | DATETIME_KW
+private scalar_type_keyword ::= TENOR_KW | BYTES_KW | ANY_KW | BOOL_KW | I64_KW | F64_KW | STR_KW | DATE_KW | TIME_KW | DATETIME_KW
                               | DURATION_KW | CIVIL_DATETIME_KW | ZONED_DATETIME_KW | ZONED_TIME_KW
                               | TIMEZONE_KW
 
@@ -235,7 +252,8 @@ private function_body ::= nls (fat_arrow_body | block)
 // Pinned after `=>` so a missing body reads "expression expected".
 private fat_arrow_body ::= fat_arrow_op expr {pin=1}
 
-native_function_decl ::= <<kw "NATIVE_KW">> IMPL_KW? (<<kw "CONST_KW">>)? FN_KW ident generic_parameters? function_signature opt_requires native_contract_body? {pin=1}
+native_function_decl ::= native_function_head ident generic_parameters? function_signature opt_requires native_contract_body? {pin=1}
+private native_function_head ::= (EXPORT_KW <<kw "NATIVE_KW">> | <<kw "NATIVE_KW">> IMPL_KW?) (<<kw "CONST_KW">>)? FN_KW
 native_contract_body ::= nls LBRACE native_body_item* RBRACE {pin=2}
 private native_body_item ::= !RBRACE (NEWLINE | native_member_item)
 private native_member_item ::= !(NEWLINE | RBRACE) native_member_body {pin=1 recoverWhile=statement_recover}
@@ -246,7 +264,9 @@ test_context ::= TEST_KW LBRACE test_context_item* RBRACE {pin=2}
 private test_context_item ::= !RBRACE (NEWLINE | test_member_item)
 private test_member_item ::= !(NEWLINE | RBRACE) test_member_body {pin=1 recoverWhile=statement_recover}
 private test_member_body ::= (function_decl | struct_decl | enum_decl | test_decl) &(NEWLINE | RBRACE) {pin=1}
-test_decl ::= TEST_KW ident block {pin=2}
+test_decl ::= (TEST_KW | integration_test_head) ident <<testBlock block>> {pin=2}
+private integration_test_head ::= timeout_annotation? <<kw "INTEGRATION_TEST_KW">>
+timeout_annotation ::= AT <<kw "TIMEOUT_KW">> <<adjacent>> LPAREN nls TEMPORAL_LITERAL nls RPAREN NEWLINE+ {pin=2}
 
 // ---------------------------------------------------------------------------
 // Generics, signatures and constraints
@@ -256,7 +276,7 @@ generic_parameters ::= <<adjacent>> LT nls <<list_of generic_parameter>> nls GT 
 generic_parameter ::= <<kw "CONST_KW">> ident COLON nls type (EQ nls size_expression)? | ELLIPSIS ident pack_cardinality? | ident
 
 function_signature ::= <<adjacent>> LPAREN nls <<list_of parameter>>? nls RPAREN (arrow_op type)? {pin=2}
-parameter ::= (<<kw "CONST_KW">>)? ident COLON nls parameter_type (EQ nls expr)? {pin=3}
+parameter ::= VAR_KW ident COLON nls type | (<<kw "CONST_KW">>)? ident COLON nls parameter_type (EQ nls expr)? {pin=3}
 private parameter_type ::= ELLIPSIS pack_type pack_cardinality? | type
 private pack_type ::= LBRACE nls type nls RBRACE | type
 pack_cardinality ::= <<adjacent>> LBRACE nls INT_LITERAL nls (COLON nls (INT_LITERAL | STAR) nls)? RBRACE {pin=2}
@@ -299,14 +319,15 @@ private constraint_value_start ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL 
 type ::= (scalar_type | container_type | named_type) QUESTION?
 scalar_type ::= scalar_type_keyword
 private container_type ::= tuple_type | list_type | set_type | dict_type | rolling_type
-                         | atomic_type | ref_type | signal_type | result_type | error_type | delta_type
+                         | atomic_type | endpoint_type | ref_type | signal_type | result_type | error_type | delta_type
 tuple_type ::= TUPLE_KW LT nls <<list_of type>>? nls GT {pin=1}
 list_type ::= LIST_KW LT nls type (comma_sep list_size nls)? GT {pin=1}
 list_size ::= <<kw "UNBOUNDED_KW">> | size_expression
 set_type ::= SET_KW LT nls type nls GT {pin=1}
 dict_type ::= DICT_KW LT nls type comma_sep type nls GT {pin=1}
-rolling_type ::= ROLLING_KW LT nls type comma_sep size_expression (comma_sep size_expression)? nls GT {pin=1}
+rolling_type ::= ROLLING_WINDOW_KW LT nls type comma_sep size_expression (comma_sep size_expression)? nls GT {pin=1}
 atomic_type ::= ATOMIC_KW LT nls type nls GT {pin=1}
+endpoint_type ::= ENDPOINT_KW LT nls type nls GT {pin=1}
 ref_type ::= REF_KW LT nls type nls GT {pin=1}
 signal_type ::= SIGNAL_KW
 result_type ::= RESULT_KW LT nls type comma_sep type nls GT {pin=1}
@@ -391,6 +412,7 @@ private primary_group ::= applied_constructor_expr
                         | fn_expr
                         | if_expr
                         | eval_expr
+                        | run_expr
                         | implied_member_expr
                         | type_call_expr
                         | block_expr
@@ -437,7 +459,10 @@ fn_expr ::= FN_KW LPAREN nls <<list_of anonymous_parameter>>? nls RPAREN (arrow_
 anonymous_parameter ::= ident (COLON nls type)?
 if_expr ::= IF_KW expr block (nls else_arm)? {pin=1}
 else_arm ::= ELSE_KW (if_expr | block) {pin=1}
-eval_expr ::= EVAL_KW LPAREN nls expr (comma_sep argument)* trailing_comma? nls RPAREN {pin=1}
+eval_expr ::= EVAL_KW run_arguments {pin=1}
+run_expr ::= <<inTestBody>> run_form
+private run_form ::= <<runKeyword>> run_arguments {pin=1}
+private run_arguments ::= <<adjacent>> LPAREN nls expr (comma_sep expr)? trailing_comma? nls RPAREN {pin=2}
 block_expr ::= block
 reference_expr ::= &IDENTIFIER qualified_name
 
@@ -453,9 +478,11 @@ named_argument ::= member_name COLON nls expr {pin=2}
 // TYPE-7, CTRL-6, NATIVE-1, EXPR-10 and ERR-8.
 enum_decl ::= EXPORT_KW? ENUM_KW ident LBRACE nls <<list_of enum_member>>? nls RBRACE {pin=2}
 enum_member ::= member_name (EQ nls size_expression)?
-native_type_decl ::= EXPORT_KW? <<kw "NATIVE_KW">> <<kw "TYPE_KW">> ident {pin=3}
+native_type_decl ::= EXPORT_KW? <<kw "NATIVE_KW">> <<kw "TYPE_KW">> ident native_type_body? {pin=3}
+native_type_body ::= nls LBRACE nls (native_property (NEWLINE+ native_property)* nls)? RBRACE {pin=2}
+native_property ::= member_name COLON nls type {pin=2}
 operator_configuration ::= LBRACE nls <<list_of named_argument>> nls RBRACE {pin=1}
-warning_annotation ::= AT IDENTIFIER arguments NEWLINE+ {pin=1}
+warning_annotation ::= AT <<kw "SUPPRESS_WARNING_KW">> <<adjacent>> LPAREN nls STRING_LITERAL nls RPAREN NEWLINE+ {pin=2}
 switch_stmt ::= <<kw "SWITCH_KW">> expr LBRACE nls switch_case* switch_default? RBRACE {pin=1}
 switch_case ::= <<kw "CASE_KW">> expr COLON nls switch_body {pin=1}
 switch_default ::= <<kw "DEFAULT_KW">> COLON nls switch_body {pin=1}

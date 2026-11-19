@@ -1,6 +1,8 @@
 package io.github.hhenson.hgl.reference
 
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.psi.HglBlock
@@ -17,13 +19,13 @@ import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
 import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglStateDecl
-import io.github.hhenson.hgl.psi.HglEnumDecl
-import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglTestContext
 import io.github.hhenson.hgl.psi.HglTestDecl
+import io.github.hhenson.hgl.psi.HglTypes
 import io.github.hhenson.hgl.psi.HglUseAlias
 import io.github.hhenson.hgl.psi.HglUseDecl
+import io.github.hhenson.hgl.psi.dottedName
 
 /**
  * Lexical scoping for name resolution ("Scopes and name lookup" in the
@@ -38,6 +40,7 @@ object HglScope {
     /** The declarations of each enclosing scope of `from`, innermost scope first. */
     fun scopes(from: PsiElement): Sequence<List<HglNamedElement>> = sequence {
         val useOffset = from.textOffset
+        var inTests = false
         var scope: PsiElement? = from.parent
         while (scope != null) {
             val declared: List<HglNamedElement> = when (scope) {
@@ -48,8 +51,14 @@ object HglScope {
                 is HglNativeFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
                 is HglOperatorDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
                 is HglStructDecl -> genericParameters(scope.genericParameters)
-                is HglTestContext -> scope.functionDeclList + scope.testDeclList
-                is HglFile -> moduleDeclarations(scope)
+                is HglTestContext, is HglTestDecl -> {
+                    inTests = true
+                    emptyList()
+                }
+                is HglFile -> {
+                    yieldAll(fileScopes(scope, useOffset, inTests))
+                    break
+                }
                 else -> emptyList()
             }
             if (declared.isNotEmpty()) yield(declared)
@@ -77,25 +86,38 @@ object HglScope {
         }.distinct()
     }
 
-    /** Top-level declarations of a module file: functions, natives, operators, structs, tests. */
-    fun moduleDeclarations(file: HglFile): List<HglNamedElement> {
-        val result = ArrayList<HglNamedElement>()
-        for (child in file.children) {
-            when (child) {
-                is HglFunctionDecl, is HglNativeFunctionDecl, is HglOperatorDecl, is HglEnumDecl, is HglNativeTypeDecl, is HglStructDecl, is HglTestDecl ->
-                    result.add(child as HglNamedElement)
-                is HglUseDecl -> {
-                    child.importSet?.importItemList?.let(result::addAll)
-                    child.useAlias?.let(result::add)
+    /** Parts share declarations and test helpers. Imports and application bindings belong to their file. */
+    private fun fileScopes(file: HglFile, useOffset: Int, inTests: Boolean): Sequence<List<HglNamedElement>> = sequence {
+        val module = file.modulePath
+        val siblings = module?.let { HglModuleIndex.findFiles(file.project, it) }.orEmpty()
+        val parts = (listOf(file) + siblings).distinct()
+        if (inTests) {
+            yield(parts.flatMap { part ->
+                PsiTreeUtil.getChildrenOfTypeAsList(part, HglTestContext::class.java).flatMap { context ->
+                    context.functionDeclList + context.structDeclList + context.enumDeclList
                 }
-            }
+            })
         }
-        return result
+        yield(parts.flatMap(::declarations))
+        if (file.applicationDecl != null) {
+            yield(PsiTreeUtil.getChildrenOfTypeAsList(file, HglInjectDecl::class.java)
+                .filter { it.textOffset < useOffset }.flatMap { it.injectItemList })
+        }
+        yield(file.useDecls.flatMap { it.importSet?.importItemList.orEmpty() + listOfNotNull(it.useAlias) })
+        if (module != "core") yield(HglModuleIndex.findFiles(file.project, "core").flatMap(::publicDeclarations))
     }
 
-    /** Declarations of `file` that `name` may refer to from another module. */
+    private fun declarations(file: HglFile): List<HglNamedElement> =
+        CachedValuesManager.getCachedValue(file) {
+            val names = file.children.filterIsInstance<HglNamedElement>().filterNot { it is HglTestDecl }
+            CachedValueProvider.Result.create(names, file)
+        }
+
+    private fun publicDeclarations(file: HglFile): List<HglNamedElement> =
+        declarations(file).filter { it is HglOperatorDecl || it.node.findChildByType(HglTypes.EXPORT_KW) != null }
+
     fun exportedDeclarations(file: HglFile, name: String): List<HglNamedElement> =
-        moduleDeclarations(file).filter { it.name == name && it !is HglImportItem && it !is HglUseAlias }
+        publicDeclarations(file).filter { it.name == name }
 
     /** The `use ... as alias` declaration named `alias` in the file containing `from`. */
     fun findAlias(from: PsiElement, alias: String): HglUseAlias? {
@@ -107,7 +129,7 @@ object HglScope {
 
     /** The module files a `use` declaration refers to. */
     fun targetFiles(useDecl: HglUseDecl): List<HglFile> {
-        val path = useDecl.modulePath?.text?.filterNot { it.isWhitespace() } ?: return emptyList()
+        val path = useDecl.modulePath?.dottedName ?: return emptyList()
         if (path.isEmpty()) return emptyList()
         return HglModuleIndex.findFiles(useDecl.project, path)
     }

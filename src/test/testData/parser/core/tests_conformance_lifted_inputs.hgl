@@ -1,0 +1,65 @@
+module conformance part lifted_inputs
+
+# Eval supplies a temporal input for each trace. The value function runs on
+# the ordinary values the runtime binds for that evaluation.
+const fn scaled_value(value: i64, factor: i64 = 2) -> i64 => value * factor
+
+/**
+A lifted function uses a default until its input first publishes.
+Thereafter it uses the retained factor. A repeated input still produces a tick.
+
+:Rules: FN-6, FN-11, END-2
+:Status: agreed
+*/
+test lifted_default_gives_way_to_a_publication {
+    assert eval(scaled_value(
+        value:  [1, _, 3,  3],
+        factor: [_, 4, _,  _]
+    )) ==       [2, 4, 12, 12]
+}
+
+/**
+A default on one input leaves the other required input's validity gate in place.
+The factor ticks first. Its retained value is used when the required value arrives.
+
+:Rules: FN-6, FN-11
+:Status: agreed
+*/
+test lifted_default_still_requires_other_inputs {
+    assert eval(scaled_value(
+        value:  [_, _, 3],
+        factor: [4, 5, _]
+    )) ==       [_, _, 15]
+}
+
+# The trigger can wake the helper while its nullable input is quiet.
+const fn observed_input(trigger: bool, value: i64?) -> i64? => value
+const fn observed_default(trigger: bool, value: i64? = 9) -> i64? => value
+
+/**
+A lifted nullable parameter binds null when its input has never published.
+Only a notification wakes the helper. The gap between the triggers stays silent.
+
+:Rules: FN-6, FN-11, TIME-7
+:Status: agreed
+*/
+test lifted_nullable_binds_null_on_a_trigger {
+    assert eval(observed_input(
+        trigger: [true, _, true, _],
+        value:   [_,    _, _,    4]
+    )) ==        [null, _, null, 4]
+}
+
+/**
+A valid null takes precedence over a lifted parameter's default.
+The first trigger sees the default. After null is published, a later trigger sees null again.
+
+:Rules: FN-11, END-1, TIME-7
+:Status: agreed
+*/
+test published_null_takes_precedence_over_a_default {
+    assert eval(observed_default(
+        trigger: [true, _,    true, _],
+        value:   [_,    null, _,    4]
+    )) ==        [9,    null, null, 4]
+}

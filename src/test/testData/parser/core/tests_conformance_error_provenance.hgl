@@ -1,0 +1,73 @@
+module conformance part error_provenance
+
+fn forward_or_raise_again(first: error, repeat: bool) -> error {
+    when modified(first) && valid(first) { return first }
+    when modified(repeat) && valid(first) {
+        let failure: result<error, error> = err(first)
+        return failure?
+    }
+}
+
+fn handled_inside(value: i64, repeat: bool) -> error {
+    let inner = capture(attempt_number, value)
+    return forward_or_raise_again(inner.error, repeat)
+}
+
+fn original_time(first: error, repeated: error) -> datetime? {
+    when modified(repeated) && valid(first, repeated) {
+        let original = first.context
+        let again = repeated.context
+        if original == null || again == null { return null }
+        if original.node != again.node { return null }
+        if original.phase != "evaluate" || again.phase != "evaluate" { return null }
+        if original.evaluation_time != again.evaluation_time { return null }
+        return again.evaluation_time
+    }
+}
+
+fn time_at_outer_boundary(value: i64, repeat: bool) -> datetime? {
+    let outer = capture(handled_inside, value, repeat)
+    return original_time(outer.value, outer.error)
+}
+
+/**
+The nearest capture handles the original failure once. Raising its retained
+error later delivers a new event with the original node, phase and time.
+The negative input fails on the second cycle. Both later requests propagate
+that error. A missing context or a different node or phase would publish null.
+
+:Rules: ERR-4, ERR-7, ERR-8
+:Status: agreed
+*/
+test propagating_a_retained_error_preserves_its_origin {
+    let first_failure = earliest_start + 1us
+    assert eval(time_at_outer_boundary(
+        value:  [8, -1],
+        repeat: [_, _,  _, true, _, true])) ==
+                [_, _,  _, first_failure, _, first_failure]
+}
+
+fn divide_at_start(value: i64, const divisor: i64) -> i64 {
+    start { let quotient = 1 // divisor }
+    when { return value }
+}
+
+fn captured_start(value: i64, const divisor: i64) -> i64 {
+    let boundary = capture(divide_at_start, value, divisor)
+    return boundary.value
+}
+
+/**
+A start failure escapes a capture before the first evaluation.
+With divisor one the node forwards its input. Divisor zero fails even when
+the input has no publications.
+
+:Rules: ERR-7, ERR-8, CRUN-6
+:Status: agreed
+*/
+test a_start_failure_escapes_without_an_input_tick {
+    assert eval(captured_start(value: [7], divisor: 1)) == [7]
+    assert raises("numeric.division_by_zero") {
+        eval(captured_start(value: [], divisor: 0))
+    }
+}

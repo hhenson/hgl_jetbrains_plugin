@@ -73,11 +73,11 @@ fn drive_at_time(tick: i64) -> i64 {
 }
 
 test alarm_source {
-    assert eval(drive_constant_after, tick: [1, 1, 1]) == [_, _, 7]
+    assert eval(drive_constant_after(tick: [1, 1, 1])) == [_, _, 7]
 }
 test generator_sources {
-    assert eval(drive_constant, tick: [1, 1]) == [42, _]
-    assert eval(drive_count, tick: [1, 1, 1, 1, 1]) == [_, 0, 1, 2, _]
-    assert eval(drive_heartbeat, tick: [1, 1, 1, 1]) == [_, true, true, _]
-    assert eval(drive_at_time, tick: [1, 1, 1, 1]) == [_, _, 1, _]
+    assert eval(drive_constant(tick: [1, 1])) == [42]
+    assert eval(drive_count(tick: [1, 1, 1, 1, 1])) == [_, 0, 1, 2]
+    assert eval(drive_heartbeat(tick: [1, 1, 1, 1])) == [_, true, true]
+    assert eval(drive_at_time(tick: [1, 1, 1, 1])) == [_, _, 1, _]
 }

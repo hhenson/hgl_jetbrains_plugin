@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract complete HGL modules from the pinned spec and copy core sources."""
+"""Extract complete HGL modules and applications from the pinned spec and copy core sources."""
 from pathlib import Path
 import re
 import shutil
@@ -16,7 +16,7 @@ for name in ("spec", "core"):
     (DEST / name).mkdir()
 for document in documents:
     for number, block in enumerate(re.findall(r"```hgl\n(.*?)```", document.read_text(), re.S)):
-        if re.search(r"^module ", block, re.M):
+        if re.search(r"^(?:module|application) ", block, re.M):
             destination = DEST / "spec" / f"{document.stem}-{number}.hgl"
             if destination.exists():
                 raise SystemExit(f"Duplicate fixture name: {destination.name}")

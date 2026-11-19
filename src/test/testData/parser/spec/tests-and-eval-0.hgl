@@ -5,8 +5,58 @@ fn pass_through_i64(value: i64) -> i64 {
 }
 
 test repeated_ticks {
-    assert eval(pass_through_i64, value: [7, _, 7, 9]) == [7, _, 7, 9]
-    assert eval(pass_through_i64, value: [_, _, _]) == []
-    assert eval(pass_through_i64, value: [_, 7, _, _]) == [_, 7]
-    assert eval(pass_through_i64, value: []) == []
+    assert eval(pass_through_i64(value: [7, _, 7, 9])) == [7, _, 7, 9]
+    assert eval(pass_through_i64(value: [_, _, _])) == []
+    assert eval(pass_through_i64(value: [_, 7, _, _])) == [_, 7]
+    assert eval(pass_through_i64(value: [])) == []
+}
+
+test bound_and_timed {
+    let seen = eval(pass_through_i64(value: [7, _, 7, 9]))
+    assert seen == [7, _, 7, 9]
+    assert eval(pass_through_i64(value: [0s: 7, 2s: 9])) == [0s: 7, 2s: 9]
+}
+
+const fn ticks(seen: list<tuple<datetime, i64>>) -> i64 {
+    var count = 0
+    for tick in seen { count += 1 }
+    return count
+}
+
+test counted {
+    assert ticks(eval(pass_through_i64(value: [7, _, 7, 9]))) == 3
+}
+
+struct Quote {
+    bid: f64
+    ask: f64
+}
+
+fn relayed(quote: Quote) -> Quote {
+    when all_valid(quote) { return quote }
+}
+
+test whole_and_delta_cells {
+    assert eval(relayed(quote: [
+        Quote(bid: 1.0, ask: 2.0),
+        delta<Quote>(ask: 3.0),
+    ])) == [Quote(bid: 1.0, ask: 2.0), Quote(bid: 1.0, ask: 3.0)]
+}
+
+fn beats(const every: duration) -> i64 {
+    state count: i64 = 0
+    while {
+        count += 1
+        yield every: count
+    }
+}
+
+test bounded {
+    assert ticks(eval(beats(every: 1s), RunConfig(length: 4s))) == 3
+}
+
+@timeout(5s)
+integration_test beats_live {
+    let seen = run(beats(every: 10ms), RunConfig(length: 1s))
+    assert ticks(seen) > 0
 }

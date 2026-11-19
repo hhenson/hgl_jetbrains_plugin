@@ -10,7 +10,7 @@ The submodules under `spec/` pin hgl_spec and hgl_core to the compiler's
 selected revisions. The specification owns syntax and meaning. The plugin
 implements editor behavior and tolerates incomplete source during editing.
 
-`tools/refresh_test_data.sh` extracts complete fenced HGL modules from the
+`tools/refresh_test_data.sh` extracts complete fenced HGL modules and applications from the
 specification and copies core declarations and fixtures. Parser tests use
 that corpus. Golden tests cover tree structure and recovery. Platform tests
 exercise navigation, documentation, completion and the structure view.
@@ -24,7 +24,9 @@ The editor supplies lexical and syntax highlighting. Semantic diagnostics,
 phase checking, overload resolution and runtime conformance belong to the
 compiler. A future language server can expose the compiler's structured
 results and resolved names. Current navigation uses the plugin's syntax
-scopes and module index.
+scopes and module index. Module parts share declarations and test helpers.
+Imports stay file-local. Other modules see exported declarations, operators,
+and the public `core` prelude. Applications have their own file scope.
 
 ## Grammar and PSI
 

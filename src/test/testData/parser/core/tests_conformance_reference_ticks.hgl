@@ -1,0 +1,42 @@
+module conformance part reference_ticks
+
+fn selected_price(key: str, changed_key: str, price: i64?) -> i64 =>
+    write_price(changed_key, price)[key]
+
+/**
+Switching a live key selection samples the new child and follows its publications.
+Both prices exist before the switch. The proposed selection behavior makes
+the later A-only change silent after the reader switches to B.
+
+:Rules: TYPE-9, TYPE-16, EXPR-7, TIME-10
+:Status: proposed
+*/
+test switching_keys_follows_the_new_child {
+    assert eval(selected_price(
+        key:         ["A",   _, "B",   _,   _],
+        changed_key: ["A", "B",   _, "A", "B"],
+        price:       [  7,  20,   _,   8,  21],
+    )) ==            [  7,   _,  20,   _,  21]
+}
+
+fn sample_selection(use_left: bool, left: i64, right: i64, probe: bool) -> i64 {
+    let selected = if use_left { left } else { right }
+    return sample_on_probe(selected, probe)
+}
+
+/**
+A selected connection supplies its retained value when sampled later.
+Neither producer ticks during either switch. A probe observes the right
+producer's 20 and, after switching back, the left producer's newer 9.
+
+:Rules: TIME-1, TIME-3, CTRL-2, CTRL-13
+:Status: agreed
+*/
+test a_probe_reads_a_selected_producer_that_stayed_quiet {
+    assert eval(sample_selection(
+        use_left: [true, false,    _, _, true,    _],
+        left:     [   7,     _,    _, 9,    _,    _],
+        right:    [  20,     _,    _, _,    _,    _],
+        probe:    [true,     _, true, _,    _, true],
+    )) ==         [   7,     _,   20, _,    _,    9]
+}

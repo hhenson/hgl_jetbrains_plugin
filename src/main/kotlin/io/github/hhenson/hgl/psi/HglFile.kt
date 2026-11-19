@@ -16,10 +16,16 @@ class HglFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, HglLan
     val moduleDecl: HglModuleDecl?
         get() = PsiTreeUtil.getChildOfType(this, HglModuleDecl::class.java)
 
+    val applicationDecl: HglApplicationDecl?
+        get() = PsiTreeUtil.getChildOfType(this, HglApplicationDecl::class.java)
+
     /** The dotted module path, or null when the file declares none. */
     val modulePath: String?
-        get() = moduleDecl?.modulePath?.text?.filterNot { it.isWhitespace() }
+        get() = moduleDecl?.modulePath?.dottedName
 
     val useDecls: List<HglUseDecl>
         get() = PsiTreeUtil.getChildrenOfTypeAsList(this, HglUseDecl::class.java)
 }
+
+internal val HglModulePath.dottedName: String
+    get() = memberNameList.joinToString(".") { it.text }

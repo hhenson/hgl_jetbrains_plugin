@@ -6,7 +6,7 @@
     <description><![CDATA[
     Language support for HGL, the temporal programming language:
     syntax highlighting, brace matching, comments, code folding, structure
-    view, keyword completion and in-file navigation for <code>.hgl</code> modules.
+    view, completion and navigation across <code>.hgl</code> modules, parts and applications.
     The language is specified in
     <a href="https://github.com/hhenson/hgl_spec">hgl_spec</a>.
     ]]></description>

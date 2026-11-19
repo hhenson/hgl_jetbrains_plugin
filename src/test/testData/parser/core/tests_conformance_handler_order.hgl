@@ -1,0 +1,103 @@
+module conformance part handler_order
+
+fn total_after_update(value: i64) -> i64 {
+    state total: i64 = 0
+    when { total += value }
+    when { return total }
+}
+
+/**
+A handler that completes lets the next handler run in the same evaluation.
+The second handler reads the state the first one has just updated.
+
+:Rules: TIME-3, TIME-6
+:Status: agreed
+*/
+test a_handler_can_fall_through {
+    assert eval(total_after_update(value: [3, 4])) == [3, 7]
+}
+
+fn count_unsuppressed(suppress: bool) -> i64 {
+    state count: i64 = 0
+    when suppress { return count }
+    when {
+        count += 1
+        return count
+    }
+}
+
+/**
+Returning from a handler ends the evaluation before any later handler acts.
+The two suppressed ticks report the old count. The final tick reveals whether
+either suppressed evaluation changed the state.
+
+:Rules: TIME-3, FN-7
+:Status: agreed
+*/
+test a_return_skips_later_handlers {
+    assert eval(count_unsuppressed(suppress: [false, true, true, false])) ==
+        [1, 1, 1, 2]
+}
+
+fn first_ready(sample: bool, gate: bool, left: i64, right: i64) -> str {
+    when modified(sample) && valid(gate, left) { return "left" }
+    when modified(sample) && valid(gate, right) { return "right" }
+}
+
+/**
+Each handler requires its own inputs to be valid. A requirement shared by
+both handlers applies to both. Sample each cycle as right, gate, then left
+become valid. When both handlers qualify the first return wins.
+
+:Rules: TIME-3, TIME-4
+:Status: agreed
+*/
+test each_handler_checks_its_own_validity_requirements {
+    assert eval(first_ready(sample: [true], gate: [true], left: [], right: [])) == []
+    assert eval(first_ready(
+        sample: [true, true, true],
+        gate:   [_,    true, _],
+        left:   [_,    _,    7],
+        right:  [9,    _,    _])) == [_, "right", "left"]
+}
+
+fn report_on_change_or_request(value: i64, requested: bool) -> i64 {
+    when modified(value) || requested { return value }
+}
+
+/**
+A modification predicate inside a disjunction leaves the default subscription
+in place. A request alone can wake the handler and publish the retained value.
+
+:Rules: TIME-3, END-1
+:Status: agreed
+*/
+test a_disjunction_preserves_the_default_subscription {
+    assert eval(report_on_change_or_request(
+        value:     [7,     _,    _,     9],
+        requested: [false, true, false, _])) == [7, 7, _, 9]
+}
+
+fn which_inputs_published(left: i64, right: i64) -> str {
+    when modified(left) && modified(right) && valid([]) { return "both" }
+    when modified(left, right) && valid([]) { return "one" }
+}
+
+fn classify_publications(left_command: i64, right: i64) -> str =>
+    which_inputs_published(produce(left_command), right)
+
+/**
+A named modification selector matches either input. Two modification guards
+joined by && require both inputs to publish.
+The first two cycles publish on one side each, and the third on both.
+Zero clears the left input, first on its own and later alongside a right tick.
+
+:Rules: TIME-3, EXPR-6, END-2, END-4
+:Status: agreed
+*/
+test named_inputs_and_conjoined_guards_match_different_ticks {
+    assert eval(classify_publications(
+        left_command: [    7,     _,      8, 0,     9,     0],
+        right:        [    _,     2,      3, _,     _,     4],
+    )) ==             ["one", "one", "both", _, "one", "one"]
+}

@@ -1,0 +1,5 @@
+application examples.entry.backtest
+
+use examples.entry::{heartbeat}
+
+eval(heartbeat(every: 500ms), RunConfig(length: 3s))

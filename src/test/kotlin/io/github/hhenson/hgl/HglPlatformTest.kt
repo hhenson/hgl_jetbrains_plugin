@@ -273,6 +273,45 @@ class HglPlatformTest : BasePlatformTestCase() {
         assertEquals("market_data.hgl", target.containingFile.name)
     }
 
+    fun testPrivateConstantResolvesAcrossPartsAndImportsStayFileLocal() {
+        myFixture.addFileToProject("config.hgl", "module demo part config\nuse remote::{foreign}\nconst limit: i64 = 4\n")
+        myFixture.configureByText("main.hgl", "module demo\nfn read() -> i64 => li<caret>mit\n")
+        assertEquals("config.hgl", resolveAtCaret().single().containingFile.name)
+        myFixture.configureByText("main.hgl", "module demo\nfn read() -> i64 => fo<caret>reign\n")
+        assertEmpty(resolveAtCaret())
+    }
+
+    fun testCorePreludeExposesExportsAndOperators() {
+        myFixture.addFileToProject("core.hgl", "module core\nconst hidden: i64 = 2\n")
+        myFixture.addFileToProject("core_native.hgl", """
+            module core part native_ops
+            export native fn snapshot(input: endpoint<i64>) -> i64
+            operator plus(a: i64, b: i64) -> i64
+        """.trimIndent())
+        for (name in listOf("sn<caret>apshot", "pl<caret>us", "hi<caret>dden")) {
+            myFixture.configureByText("user.hgl", "module user\nfn read() => $name\n")
+            val targets = resolveAtCaret()
+            if (name.startsWith("hi")) assertEmpty(targets)
+            else assertEquals("core_native.hgl", targets.single().containingFile.name)
+        }
+    }
+
+    fun testHelpersAreSharedOnlyWithinTheModuleTestScope() {
+        myFixture.addFileToProject("helpers.hgl", "module suite part helpers\ntest { fn helper() -> bool => true }\n")
+        myFixture.configureByText("checks.hgl", "module suite\ntest check { assert hel<caret>per() }\n")
+        assertEquals("helpers.hgl", resolveAtCaret().single().containingFile.name)
+        myFixture.configureByText("checks.hgl", "module suite\nfn live() -> bool => hel<caret>per()\n")
+        assertEmpty(resolveAtCaret())
+    }
+
+    fun testAnApplicationIsNotAnImportableModule() {
+        myFixture.addFileToProject("app.hgl", "/*\nmodule phantom\n*/\napplication demo.app\nrun(work())\n")
+        myFixture.configureByText("consumer.hgl", "module client\nuse demo.a<caret>pp as app\n")
+        assertEmpty(resolveAtCaret())
+        myFixture.configureByText("consumer.hgl", "module client\nuse phan<caret>tom as ghost\n")
+        assertEmpty(resolveAtCaret())
+    }
+
     fun testRenameParameter() {
         myFixture.configureByText("a.hgl", "module a\n\nfn f(value: f64) -> f64 => val<caret>ue * 2.0\n")
         myFixture.renameElementAtCaret("price")
@@ -290,7 +329,7 @@ class HglPlatformTest : BasePlatformTestCase() {
             export fn twice(a: f64) -> f64 => midpoint(a, a) + midpoint(a, a)
 
             test t {
-                assert eval(midpoint, a: [1.0], b: [2.0]) == [1.5]
+                assert eval(midpoint(a: [1.0], b: [2.0])) == [1.5]
             }
             """.trimIndent(),
         )
@@ -318,6 +357,17 @@ class HglPlatformTest : BasePlatformTestCase() {
         assertTrue("got $strings", strings.containsAll(listOf("price", "helper", "scaled", "return", "let", "when")))
     }
 
+    fun testIntegrationTestCompletion() {
+        fun suggestions(source: String): List<String> {
+            myFixture.configureByText("live.hgl", source)
+            myFixture.completeBasic()
+            return myFixture.lookupElementStrings.orEmpty()
+        }
+        assertContainsElements(suggestions("module live\n<caret>"), "test", "integration_test")
+        assertContainsElements(suggestions("module live\n@<caret>"), "timeout", "suppress_warning")
+        assertContainsElements(suggestions("module live\nintegration_test pulses { <caret> }"), "run", "assert")
+    }
+
     fun testValidModuleHasNoErrorHighlights() {
         myFixture.configureByText("a.hgl", marketData)
         val errors = myFixture.doHighlighting().filter { it.severity == HighlightSeverity.ERROR }
@@ -343,19 +393,19 @@ class HglPlatformTest : BasePlatformTestCase() {
                 ask: f64
             }
 
-            operator summarize<T>(window: rolling<T, 20>) -> T
+            operator summarize<T>(window: rolling_window<T, 20>) -> T
 
             fn midpoint(quote: atomic<Quote>) -> f64 => (quote.bid + quote.ask) / 2.0
 
             test {
                 fn fixture(v: f64) -> f64 => v
                 test fixture_ticks {
-                    assert eval(fixture, v: [1.0]) == [1.0]
+                    assert eval(fixture(v: [1.0])) == [1.0]
                 }
             }
 
             test midpoint_ticks {
-                assert eval(midpoint, quote: [Quote(bid: 1.0, ask: 2.0)]) == [1.5]
+                assert eval(midpoint(quote: [Quote(bid: 1.0, ask: 2.0)])) == [1.5]
             }
             """.trimIndent(),
         )

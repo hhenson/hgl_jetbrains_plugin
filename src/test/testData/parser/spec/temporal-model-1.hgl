@@ -1,0 +1,21 @@
+module examples.collection_validity
+
+struct Quote {
+    bid: f64
+    ask: f64
+}
+
+fn spread(quote: Quote) -> f64 {
+    when all_valid(quote) { return quote.ask - quote.bid }
+}
+
+fn has_quote(quote: Quote) -> bool {
+    when valid([]) { return valid(quote) }
+}
+
+fn ask_or_zero(quote: Quote) -> f64 {
+    when {
+        if valid(quote.ask) { return quote.ask }
+        return 0.0
+    }
+}

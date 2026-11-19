@@ -1,0 +1,12 @@
+module examples.first_tick
+
+fn counted(value: i64) -> i64 {
+    state seen: i64 = 0
+    inject scheduler
+    start { schedule(scheduler, 0s) }
+    when scheduled() && valid([]) { return seen }
+    when modified() {
+        seen += 1
+        return seen
+    }
+}

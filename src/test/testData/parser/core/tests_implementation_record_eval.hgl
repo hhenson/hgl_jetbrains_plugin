@@ -1,0 +1,41 @@
+module core_implementation part record_eval
+
+# CEVAL-4 is agreed. The set delta profile used by this fixture is proposed.
+
+fn update_members(command: i64) -> set<i64> {
+    when {
+        if command == 1 {
+            return delta<set<i64>>(added: [1, 2])
+        }
+        if command == 2 {
+            return delta<set<i64>>(added: [3], removed: [1])
+        }
+    }
+}
+
+/**
+A recorder retains each publication independently. A later removal leaves the first delta intact.
+The set deltas used to observe retention follow the proposed set delta profile.
+
+:Rules: CEVAL-4, TST-6
+:Status: proposed
+*/
+test record_retains_each_delta {
+    assert eval(update_members(command: [1, _, 2])) == [
+        delta<set<i64>>(added: [1, 2]),
+        _,
+        delta<set<i64>>(added: [3], removed: [1])
+    ]
+}
+
+/**
+A recording is empty both when the input never ticks and when the node runs but publishes nothing.
+The fixture uses the proposed set delta profile.
+
+:Rules: CEVAL-4, TST-6
+:Status: proposed
+*/
+test record_can_be_empty {
+    assert eval(update_members(command: [])) == []
+    assert eval(update_members(command: [0])) == []
+}

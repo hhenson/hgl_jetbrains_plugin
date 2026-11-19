@@ -93,7 +93,7 @@ class HglColorSettingsPage : ColorSettingsPage {
                 <field>venue</field>: str? = null
             }
 
-            operator <op>summarize</op><<tparam>T</tparam>>(<param>window</param>: <ckw>rolling</ckw><<tparam>T</tparam>, 20>) -> <tparam>T</tparam>
+            operator <op>summarize</op><<tparam>T</tparam>>(<param>window</param>: rolling_window<<tparam>T</tparam>, 20>) -> <tparam>T</tparam>
 
             fn <fn>midpoint</fn>(<param>tob</param>: <ckw>atomic</ckw><<ckw>tuple</ckw><f64, f64>>) -> f64 =>
                 (<param>tob</param>[0] + <param>tob</param>[1]) / 2.0
@@ -119,7 +119,7 @@ class HglColorSettingsPage : ColorSettingsPage {
             }
 
             test <test>midpoint_ticks</test> {
-                assert eval(<call>midpoint</call>, <narg>tob</narg>: [(1.0, 2.0), _, (2.0, 3.0)]) == [1.5, _, 2.5]
+                assert eval(<call>midpoint</call>(<narg>tob</narg>: [(1.0, 2.0), _, (2.0, 3.0)])) == [1.5, _, 2.5]
             }
         """.trimIndent()
     }

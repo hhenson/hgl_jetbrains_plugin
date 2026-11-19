@@ -39,6 +39,7 @@ dependencies {
         val localPath = providers.gradleProperty("platformLocalPath")
         if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
         testFramework(TestFrameworkType.Platform)
+        pluginVerifier("1.411")
         zipSigner()
     }
     testImplementation("junit:junit:4.13.2")
@@ -123,6 +124,8 @@ intellijPlatformTesting {
 
 // A parser regression must fail CI instead of leaving an editor test spinning.
 tasks.withType<Test>().configureEach {
+    inputs.dir("src/test/testData").withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file("spec/hgl_spec/spec/language/source-text.md").withPathSensitivity(PathSensitivity.RELATIVE)
     timeout = Duration.ofMinutes(5)
 }
 

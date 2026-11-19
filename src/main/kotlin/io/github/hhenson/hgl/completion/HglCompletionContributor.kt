@@ -8,12 +8,14 @@ import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.psi.PsiComment
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import io.github.hhenson.hgl.HglLanguage
 import io.github.hhenson.hgl.psi.HglBlock
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglStructBody
+import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglTypes
 
 /**
@@ -32,14 +34,17 @@ class HglCompletionContributor : CompletionContributor() {
     private object KeywordProvider : CompletionProvider<CompletionParameters>() {
         override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext, result: CompletionResultSet) {
             val position = parameters.position
-            val previous = position.node.treePrev?.elementType
+            val previous = PsiTreeUtil.prevVisibleLeaf(position)?.node?.elementType
             if (previous == HglTypes.DOT || previous == HglTypes.COLONCOLON) return
 
             val inBlock = position.parentOfType<HglBlock>() != null
             val inStruct = position.parentOfType<HglStructBody>() != null
             val words = when {
-                inBlock -> STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS
+                previous == HglTypes.AT && !inBlock && !inStruct -> listOf("timeout", "suppress_warning")
+                inBlock -> STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS +
+                    if (position.parentOfType<HglTestDecl>() != null) listOf("run") else emptyList()
                 inStruct -> TYPE_KEYWORDS
+                (position.containingFile as? HglFile)?.applicationDecl != null -> listOf("use", "inject", "run", "eval")
                 position.containingFile is HglFile -> DECLARATION_KEYWORDS + TYPE_KEYWORDS
                 else -> emptyList()
             }
@@ -51,7 +56,7 @@ class HglCompletionContributor : CompletionContributor() {
 
     companion object {
         val DECLARATION_KEYWORDS = listOf(
-            "module", "part", "use", "as", "export", "abstract", "impl", "instantiate", "operator", "fn",
+            "application", "integration_test", "module", "part", "use", "as", "export", "abstract", "impl", "instantiate", "operator", "fn",
             "const", "struct", "enum", "requires", "test", "native", "type", "properties", "each", "in", "is",
         )
         val STATEMENT_KEYWORDS = listOf(
@@ -61,8 +66,8 @@ class HglCompletionContributor : CompletionContributor() {
         val EXPRESSION_KEYWORDS = listOf("fn", "eval", "const", "true", "false", "null", "delta")
         val TYPE_KEYWORDS = listOf(
             "bool", "i64", "f64", "str", "date", "time", "datetime", "duration", "civil_datetime",
-            "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling",
-            "ref", "signal", "unbounded", "bytes", "any", "result", "error",
+            "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling_window",
+            "endpoint", "tenor", "ref", "signal", "unbounded", "bytes", "any", "result", "error",
         )
     }
 }

@@ -1,0 +1,5 @@
+application examples.entry.live
+
+use examples.entry::{heartbeat}
+
+run(heartbeat())

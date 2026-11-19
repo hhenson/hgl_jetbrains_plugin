@@ -1,0 +1,38 @@
+module examples.selectors
+
+fn default_sum(a: f64, b: f64) -> f64 {
+    when { return a + b }
+}
+
+fn explicit_sum(a: f64, b: f64) -> f64 {
+    when modified(a, b) && valid(a, b) { return a + b }
+}
+
+fn on_a(a: f64, b: f64) -> f64 {
+    when modified(a) { return a + b }
+}
+
+fn while_a_valid(a: f64, b: f64) -> f64 {
+    when valid(a) { return a }
+}
+
+fn sum_or_zero(a: f64, b: f64) -> f64 {
+    when valid([]) {
+        if valid(a) && valid(b) { return a + b }
+        return 0.0
+    }
+}
+
+fn sampled(a: f64, const every: duration = 1s) -> f64 {
+    inject scheduler
+    start { schedule(scheduler, every) }
+    when modified([]) && valid([]) {
+        schedule(scheduler, every)
+        if valid(a) { return a }
+    }
+}
+
+@suppress_warning("node.no_activation")
+fn null_sink(a: f64) {
+    when modified([]) { }
+}

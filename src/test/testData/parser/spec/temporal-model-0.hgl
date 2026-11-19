@@ -2,8 +2,22 @@ module examples.handlers
 
 fn manual_forward(value: i64) -> i64 {
     inject out
-    when modified() && valid([]) {
+    when valid([]) {
         if valid(value) { return value }
         invalidate(out)
+    }
+}
+
+fn guarded_forward(value: i64) -> i64 {
+    inject out
+    when modified(value) { return value }
+    when valid([]) { invalidate(out) }
+}
+
+fn last_seen(value: i64) -> i64 {
+    state last: i64 = 0
+    when { return value }
+    stop {
+        if valid(value) { last = value }
     }
 }

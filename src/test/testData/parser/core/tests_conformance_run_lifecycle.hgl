@@ -1,0 +1,155 @@
+module conformance part run_lifecycle
+
+# TST-16 gives a value function the publication times alongside their values.
+const fn recorded_ticks(ticks: list<tuple<datetime, i64>>) -> list<tuple<datetime, i64>> => ticks
+
+/**
+Simulation includes a tick at the configured start and excludes one at the end.
+A gap in the input leaves the later tick at its own time. Set the start
+explicitly so the absolute timestamps can also be checked.
+
+:Rules: CRUN-2, CRUN-3, CEVAL-2, CRUN-8, TST-16
+:Status: agreed
+*/
+test a_simulation_runs_from_start_up_to_end {
+    let opening = @2026-01-05T09:30:00Z
+    let closing = opening + 3us
+    let seen = eval(pass_i64(value: [10, _, 20, 30]),
+                    RunConfig(start: opening, end: closing))
+    assert recorded_ticks(seen) == [(opening, 10), (opening + 2us, 20)]
+}
+
+/**
+A length counts from the simulation's actual start.
+A length of one step admits the opening tick. A zero length admits none.
+
+:Rules: CRUN-2
+:Status: agreed
+*/
+test a_run_length_counts_from_its_start {
+    let opening = @2026-01-05T09:30:00Z
+    assert eval(pass_i64(value: [10, 20]),
+                RunConfig(start: opening, length: 1us)) == [10]
+    assert eval(pass_i64(value: [10]),
+                RunConfig(start: opening, length: 0us)) == []
+}
+
+/**
+A run with both an end and a length fails before evaluation.
+The target would divide by zero on its first tick, making the two failures
+distinguishable.
+
+:Rules: CRUN-2
+:Status: agreed
+*/
+test conflicting_run_bounds_fail_before_evaluation {
+    assert raises("run.end_and_length") {
+        eval(checked_ratio(divisor: [0.0]),
+             RunConfig(end: earliest_start + 2us, length: 2us))
+    }
+}
+
+fn started_total(value: i64) -> i64 {
+    state total: i64 = 2
+    start { total *= 3 }
+    when {
+        total += value
+        return total
+    }
+}
+
+/**
+State is initialized before start, and start runs once before evaluation.
+The multiply in start and the additions on ticks distinguish all three steps.
+
+:Rules: CRUN-1, TIME-5, TIME-6
+:Status: agreed
+*/
+test start_runs_after_initialization_and_before_ticks {
+    assert eval(started_total(value: [1, _, 4])) == [7, _, 11]
+}
+
+fn divide_at_stop(divisor: i64) {
+    when { }
+    stop {
+        if valid(divisor) {
+            let quotient = 1 // divisor
+        }
+    }
+}
+
+/**
+A sink's stop hook can read its last valid input, and a stop failure escapes eval.
+Only the final divisor matters. An empty input exercises the validity guard.
+
+:Rules: TIME-5, CRUN-6, CEVAL-6
+:Status: agreed
+*/
+test stop_reads_the_final_input_of_an_outputless_node {
+    eval(divide_at_stop(divisor: []))
+    eval(divide_at_stop(divisor: [0, 2]))
+    assert raises("numeric.division_by_zero") {
+        eval(divide_at_stop(divisor: [2, 0]))
+    }
+}
+
+fn remember_each_start(value: i64) -> i64 {
+    state first: bool = false
+    inject global_state
+    start {
+        first = !has(global_state, "one has started")
+        put(global_state, "one has started", true)
+    }
+    when { return value }
+    stop {
+        if first {
+            let divisor: i64 = get(global_state, "final divisor")
+            let quotient = 1 // divisor
+        } else if valid(value) {
+            put(global_state, "final divisor", value)
+        }
+    }
+}
+
+fn two_started_nodes(value: i64) -> i64 =>
+    remember_each_start(remember_each_start(value))
+
+/**
+Two nodes stop in reverse order of their starts.
+At stop the second node stores its final input. The first node to start
+must then find that divisor. Zero makes both stop hooks observable.
+
+:Rules: CRUN-6, TIME-5, CAP-6
+:Status: agreed
+*/
+test the_first_node_to_start_is_the_last_to_stop {
+    assert eval(two_started_nodes(value: [7])) == [7]
+    assert raises("numeric.division_by_zero") {
+        eval(two_started_nodes(value: [0]))
+    }
+}
+
+fn saw_an_earlier_tick(divisor: i64) -> bool {
+    inject global_state
+    when {
+        let earlier = has(global_state, "seen a tick")
+        put(global_state, "seen a tick", true)
+        let quotient = 1 // divisor
+        return earlier
+    }
+}
+
+/**
+The next run starts with an empty store even after the previous run failed.
+Each run writes the same key on its first tick. Only its own later ticks
+should find it.
+
+:Rules: CRUN-1, CRUN-7, CEVAL-5, CAP-6
+:Status: agreed
+*/
+test a_failed_run_leaves_no_store_for_the_next_run {
+    assert raises("numeric.division_by_zero") {
+        eval(saw_an_earlier_tick(divisor: [1, 0]))
+    }
+    assert eval(saw_an_earlier_tick(divisor: [1, 1])) == [false, true]
+}

@@ -1,0 +1,123 @@
+module conformance part run_store
+
+fn save_sample(value: i64) -> i64 {
+    inject global_state
+    when {
+        put(global_state, "sample", value)
+        return value
+    }
+}
+
+# The writer's output orders the two nodes when both run. Only a probe
+# wakes the reader, including before the writer's first publication.
+fn read_saved_sample(writer: i64, probe: bool) -> i64? {
+    inject global_state
+    when modified(probe) && valid([]) {
+        if has(global_state, "sample") {
+            let saved: i64 = get(global_state, "sample")
+            return saved
+        }
+        return null
+    }
+}
+
+fn ordered_store_read(value: i64, probe: bool) -> i64? =>
+    read_saved_sample(save_sample(value), probe)
+
+/**
+Nodes in one run share stored values. Writing a key alone does not wake a reader.
+The first probe finds an empty store. The second coincides with a write on
+an upstream node. The third sees the value written while the reader was idle.
+
+:Rules: CAP-6, CRUN-7, TIME-2
+:Status: agreed
+*/
+test an_ordered_reader_sees_the_latest_store_write {
+    assert eval(ordered_store_read(
+        value: [_,    7,    9, _],
+        probe: [true, true, _, true]
+    )) ==      [null, 7,    _, 9]
+}
+
+fn stored_snapshot(value: i64) -> bool {
+    inject global_state
+    when {
+        var entries: list<i64> = []
+        append(entries, value)
+        put(global_state, "snapshot", entries)
+        append(entries, 99)
+        let saved: list<i64> = get(global_state, "snapshot")
+        return saved == [value]
+    }
+}
+
+/**
+A stored ordinary value keeps the contents it had when it was written.
+After saving a one-entry list, grow the original and read back the saved copy.
+
+:Rules: CAP-6, TYPE-5, LIST-3
+:Status: agreed
+*/
+test a_store_write_retains_the_value_at_the_write {
+    assert eval(stored_snapshot(value: [7, 8])) == [true, true]
+}
+
+fn read_before_write(value: i64?) -> str {
+    inject global_state
+    when {
+        var previous: str = "absent"
+        if has(global_state, "previous") {
+            let saved: i64? = get(global_state, "previous")
+            if saved == null { previous = "null" }
+            else { previous = "number" }
+        }
+        put(global_state, "previous", value)
+        return previous
+    }
+}
+
+/**
+A key holding null is present in the store.
+Read the key before each write. It starts absent, then holds null, then 7.
+
+:Rules: CAP-6, CRUN-7, TYPE-14
+:Status: agreed
+*/
+test a_stored_null_is_distinct_from_an_absent_key {
+    assert eval(read_before_write(value: [null, 7, 0])) == ["absent", "null", "number"]
+}
+
+fn write_on_update(update: i64) {
+    inject global_state
+    when { put(global_state, "last update", update) }
+}
+
+fn read_on_sample(sample: bool) -> i64 {
+    inject global_state
+    when {
+        if has(global_state, "last update") {
+            return get<i64>(global_state, "last update")
+        }
+        return 0
+    }
+}
+
+fn independently_sampled_store(update: i64, sample: bool) -> i64 {
+    write_on_update(update)
+    return read_on_sample(sample)
+}
+
+/**
+A store write becomes visible without waking a reader of the same key.
+The writer and reader have independent inputs. Their ticks alternate so
+every read sees a completed write or the initial empty store.
+
+:Rules: CAP-6, CRUN-7
+:Status: agreed
+*/
+test a_store_write_does_not_wake_a_reader {
+    assert eval(independently_sampled_store(
+        update: [   _, 7,    _, 8,    _],
+        sample: [true, _, true, _, true],
+    )) ==       [   0, _,    7, _,    8]
+}
