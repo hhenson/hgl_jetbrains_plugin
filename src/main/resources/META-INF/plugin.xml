@@ -28,6 +28,9 @@
                                        implementationClass="io.github.hhenson.hgl.highlighting.HglSyntaxHighlighterFactory"/>
         <colorSettingsPage implementation="io.github.hhenson.hgl.highlighting.HglColorSettingsPage"/>
         <annotator language="HGL" implementationClass="io.github.hhenson.hgl.highlighting.HglAnnotator"/>
+        <annotator language="HGL" implementationClass="io.github.hhenson.hgl.diagnostics.HglCompilerAnnotator"/>
+        <fileDocumentManagerListener implementation="io.github.hhenson.hgl.diagnostics.HglSaveListener"/>
+        <notificationGroup id="HGL compiler" displayType="BALLOON"/>
         <lang.braceMatcher language="HGL" implementationClass="io.github.hhenson.hgl.editor.HglBraceMatcher"/>
         <lang.commenter language="HGL" implementationClass="io.github.hhenson.hgl.editor.HglCommenter"/>
         <lang.foldingBuilder language="HGL" implementationClass="io.github.hhenson.hgl.editor.HglFoldingBuilder"/>

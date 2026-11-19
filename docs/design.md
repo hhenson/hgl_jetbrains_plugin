@@ -22,11 +22,24 @@ checks together. Changes to the pinned sources must expose editor drift in CI.
 
 The editor supplies lexical and syntax highlighting. Semantic diagnostics,
 phase checking, overload resolution and runtime conformance belong to the
-compiler. A future language server can expose the compiler's structured
-results and resolved names. Current navigation uses the plugin's syntax
+compiler. The editor reads its structured diagnostics on save. Current
+navigation uses the plugin's syntax
 scopes and module index. Module parts share declarations and test helpers.
 Imports stay file-local. Other modules see exported declarations, operators,
 and the public `core` prelude. Applications have their own file scope.
+
+## Compiler diagnostics on save
+
+Saving a local HGL file in a trusted project starts `hgl check --json` on
+the configured source roots or the saved file. Saves for the same roots
+supersede each other and cancel the previous process. Checks run in the
+background. The annotator applies errors and warnings to open, saved
+documents whose file and document stamps still match the check. A clean
+report clears previous findings for those roots.
+
+Version 1 uses zero-based UTF-16 positions and half-open ranges. Tooltips
+include the code, rule, notes and related locations. A failed invocation or
+unsupported report raises a project notification.
 
 ## Application and test execution
 
@@ -73,7 +86,7 @@ the compiler and runtime.
 
 The compiler-backed process tests run when `HGL_TEST_CLI` names a compiler and
 `HGL_HGRAPH_PYTHON` names a Python interpreter with hgraph installed. CI
-builds the pinned compiler and exercises both IDEs against hgraph 0.9.3.
+builds the pinned compiler and exercises both IDEs against hgraph 0.9.5.
 
 ## Performance baseline
 

@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hhenson/hgl-compiler
-          ref: a7650d4f86850c8792fff62386a7b038c8ce49b9
+          ref: d26991b2a96da8223da57170ed100938e633ca10
           path: build/test-compiler
           submodules: recursive
           persist-credentials: false
@@ -35,7 +35,7 @@ jobs:
       - name: Prepare the HGL test runner
         working-directory: build/test-compiler
         run: |
-          python -m pip install hgraph==0.9.3
+          python -m pip install hgraph==0.9.5
           cargo build --locked --bin hgl
           echo "HGL_TEST_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
           echo "HGL_HGRAPH_PYTHON=$(command -v python)" >> "$GITHUB_ENV"

@@ -136,7 +136,7 @@ tasks.withType<Test>().configureEach {
         systemProperty("hglBenchmarkWorkspace", file(workspace.get()).absolutePath)
         outputs.upToDateWhen { false }
     } else exclude("**/HglPerformanceBaselineTest.class")
-    if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class")
+    if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class")
     else outputs.upToDateWhen { false }
     timeout = Duration.ofMinutes(5)
 }
