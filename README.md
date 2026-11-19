@@ -25,7 +25,7 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.4.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.5.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
