@@ -52,6 +52,11 @@ Named declarations implement HglNamedElement. Typed PSI views support folding,
 structure, documentation and references. Generated sources live under
 `src/main/gen` and are rebuilt from the grammar.
 
+Keyword completion in a function, operator or anonymous function's `=>` body
+offers expression starters at operands. A nested block resumes statement
+completion. Test bodies also admit `eval`, and integration tests admit `run`.
+Names in scope are supplied independently by reference completion.
+
 ## Validation
 
 Run the lexer, parser and platform tests against each supported IDE. Build the
