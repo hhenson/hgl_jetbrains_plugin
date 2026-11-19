@@ -122,10 +122,22 @@ intellijPlatformTesting {
     }
 }
 
+// CLion's C++ backend can outlive a headless fixture and access its deleted project.
+tasks.test {
+    systemProperty("rider.disable.resharper.backend", "true")
+}
+
 // A parser regression must fail CI instead of leaving an editor test spinning.
 tasks.withType<Test>().configureEach {
     inputs.dir("src/test/testData").withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file("spec/hgl_spec/spec/language/source-text.md").withPathSensitivity(PathSensitivity.RELATIVE)
+    val workspace = providers.gradleProperty("hglBenchmarkWorkspace")
+    if (workspace.isPresent) {
+        systemProperty("hglBenchmarkWorkspace", file(workspace.get()).absolutePath)
+        outputs.upToDateWhen { false }
+    } else exclude("**/HglPerformanceBaselineTest.class")
+    if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class")
+    else outputs.upToDateWhen { false }
     timeout = Duration.ofMinutes(5)
 }
 

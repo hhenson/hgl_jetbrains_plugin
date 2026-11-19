@@ -1,11 +1,9 @@
 package io.github.hhenson.hgl
 
-import com.intellij.codeInsight.CodeInsightSettings
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.ide.structureView.StructureViewTreeElement
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglImportItem
@@ -22,18 +20,7 @@ import io.github.hhenson.hgl.structure.HglStructureViewModel
  * parser definition, references, module index, completion, annotator and
  * structure view are wired, and they behave as docs/design.md says.
  */
-class HglPlatformTest : BasePlatformTestCase() {
-
-    override fun tearDown() {
-        try {
-            // A CLion component turns this on during the first test of the
-            // process; the fixture's tear-down otherwise reports the code
-            // insight settings as damaged.
-            CodeInsightSettings.getInstance().AUTO_POPUP_JAVADOC_INFO = false
-        } finally {
-            super.tearDown()
-        }
-    }
+class HglPlatformTest : HglEditorFixture() {
 
     fun testDocumentationAtDeclarationAndReference() {
         myFixture.configureByText("docs.hgl", """
