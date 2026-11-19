@@ -1,0 +1,20 @@
+module examples.deltas
+
+export struct TimedValue<T> {
+    time: datetime
+    value: delta<T>
+}
+
+const fn arrived(change: delta<set<str>>) -> set<str> => change.added
+
+const fn joined(name: str) -> delta<set<str>> => delta<set<str>>(added: [name])
+
+const fn cleared() -> delta<f64?> => delta<f64?>()
+
+fn arrivals(members: set<str>) -> atomic<set<str>> {
+    when { return arrived(delta_value(members)) }
+}
+
+fn relayed(members: set<str>) -> set<str> {
+    when { return delta_value(members) }
+}

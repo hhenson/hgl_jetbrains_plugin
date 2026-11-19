@@ -1,0 +1,66 @@
+module core part capabilities
+
+# The capabilities a node injects (the language's TIME-8), as native types,
+# and the native operations on them. Contract: spec/capabilities.md. The
+# `log_*` helpers and `LogLevel` are in hgl/core/core.hgl.
+
+# `inject logger` (CAP-2).
+export native type Logger {
+    level: LogLevel
+}
+
+# `inject clock` (CAP-3).
+export native type Clock {
+    evaluation_time: datetime
+    now: datetime
+    cycle_time: duration
+    next_cycle_evaluation_time: datetime
+}
+
+# `inject scheduler` (CAP-4).
+export native type Scheduler {
+    next_scheduled_time: datetime?
+    is_scheduled: bool
+    is_scheduled_now: bool
+}
+
+# `inject alarm` and `inject global_state` (CAP-5, CAP-6). Neither has a
+# property.
+export native type Alarm
+export native type GlobalState
+
+# CAP-2: one record at `level`.
+export native const fn log(logger: Logger, level: LogLevel, message: str)
+
+# CAP-4: a wake on the scheduler, under a tag or without one, on the
+# engine's clock or the wall clock.
+native impl const fn schedule(
+    capability: Scheduler,
+    at: duration,
+    tag: str? = null,
+    on_wall_clock: bool = false,
+)
+native impl const fn schedule(
+    capability: Scheduler,
+    at: datetime,
+    tag: str? = null,
+    on_wall_clock: bool = false,
+)
+
+# CAP-4: cancel a pending wake, and every pending wake.
+export native const fn un_schedule(scheduler: Scheduler, tag: str? = null)
+export native const fn reset(scheduler: Scheduler)
+
+# CAP-5: a wake on the alarm. It takes no tag and no clock.
+native impl const fn schedule(capability: Alarm, at: duration)
+native impl const fn schedule(capability: Alarm, at: datetime)
+
+# The language's ERR-6: the value a dictionary has for a key, or null
+# where it has none.
+native impl const fn get<K, T>(store: dict<K, T>, key: K) -> T?
+
+# CAP-6: the global store's candidates. The key is fixed when the graph is
+# built (the language's FN-1).
+native impl const fn get<V>(store: GlobalState, const key: str) -> V
+native impl const fn has(store: GlobalState, const key: str) -> bool
+native impl const fn put<V>(store: GlobalState, const key: str, value: V)

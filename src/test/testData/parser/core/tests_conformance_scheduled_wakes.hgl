@@ -1,0 +1,121 @@
+module conformance part scheduled_wakes
+
+fn time_of_input(value: i64) -> datetime {
+    inject clock
+    when { return clock.evaluation_time }
+}
+
+/**
+The clock reports the logical time of the input publication in simulation.
+The proposed clock property follows the configured start and the gap between
+the two replayed inputs.
+
+:Rules: CAP-3, CRUN-3
+:Status: proposed
+*/
+test the_clock_reports_the_time_of_each_input {
+    let start_time = @2026-01-05T09:30:00Z
+    assert eval(time_of_input(value: [10, _, 20]), RunConfig(start: start_time)) ==
+        [start_time, _, start_time + 2us]
+}
+
+fn scheduler_due_on_input(value: i64) -> bool {
+    inject scheduler
+    when scheduled() { return true }
+    when modified(value) { return scheduler.is_scheduled_now }
+}
+
+/**
+An input tick alone reports no scheduler wake through either the selector or
+the scheduler property. This node requests no wakes.
+
+:Rules: CAP-4, TIME-9
+:Status: agreed
+*/
+test an_input_tick_alone_is_not_a_scheduler_wake {
+    assert eval(scheduler_due_on_input(value: [7, _, 9])) == [false, _, false]
+}
+
+fn cause_of_wake(value: i64) -> str {
+    inject scheduler
+    start {
+        schedule(scheduler, 2us, tag: "with input")
+        schedule(scheduler, 4us, tag: "alone")
+    }
+    when scheduled() && valid([]) {
+        if modified(value) { return "input and scheduler" }
+        return "scheduler"
+    }
+    when modified(value) { return "input" }
+}
+
+/**
+A due scheduler wake is observable even when an input ticks in the same cycle.
+The proposed duration deadlines place one wake on the second input and
+the other after the final input.
+
+:Rules: CAP-4, TIME-3, TIME-9
+:Status: proposed
+*/
+test a_scheduler_wake_can_coincide_with_an_input {
+    assert eval(cause_of_wake(value: [7, _, 9])) ==
+        ["input", _, "input and scheduler", _, "scheduler"]
+}
+
+enum PendingWakes { keep_both, cancel_later, reset_all }
+
+fn wake_without_inputs(const pending: PendingWakes) -> bool {
+    inject scheduler
+    start {
+        schedule(scheduler, 1us, tag: "early")
+        schedule(scheduler, 3us, tag: "late")
+        if pending == .cancel_later { un_schedule(scheduler, tag: "late") }
+        if pending == .reset_all { reset(scheduler) }
+    }
+    when modified([]) { return scheduler.is_scheduled_now }
+}
+
+/**
+A scheduler can wake a node with no inputs, and resetting it clears every
+pending wake. Run the same node with and without a reset.
+
+:Rules: CAP-4, TIME-3
+:Status: agreed
+*/
+test a_reset_removes_all_wakes_from_an_inputless_node {
+    assert eval(wake_without_inputs(pending: .keep_both)) != []
+    assert eval(wake_without_inputs(pending: .reset_all)) == []
+}
+
+/**
+Cancelling a named wake leaves an earlier wake with another tag in place.
+The proposed scheduler profile cancels the matching tag and measures both
+deadlines from the start hook.
+
+:Rules: CAP-4, TIME-3
+:Status: proposed
+*/
+test cancelling_the_later_tag_preserves_the_earlier_wake {
+    assert eval(wake_without_inputs(pending: .keep_both)) == [_, true, _, true]
+    assert eval(wake_without_inputs(pending: .cancel_later)) == [_, true]
+}
+
+fn alarm_or_input(value: i64) -> str {
+    inject alarm
+    start { schedule(alarm, 2us) }
+    when scheduled() && valid([]) { return "alarm" }
+    when modified(value) { return "input" }
+}
+
+/**
+An alarm subscriber observes an input tick as an input wake even if its alarm
+is due. An input arrives at every instant in this four-step run, so the rule
+holds regardless of whether the best-effort alarm is delivered.
+
+:Rules: CAP-5, TIME-3, TIME-9
+:Status: agreed
+*/
+test an_alarm_cannot_hide_an_input_tick {
+    assert eval(alarm_or_input(value: [1, 2, 3, 4]), RunConfig(length: 4us)) ==
+        ["input", "input", "input", "input"]
+}

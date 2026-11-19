@@ -1,0 +1,8 @@
+application examples.limited.three
+
+use examples.limited::{counted}
+
+inject global_state
+put(global_state, "limit", 3)
+
+eval(counted())

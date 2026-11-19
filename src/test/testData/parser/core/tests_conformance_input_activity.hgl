@@ -1,0 +1,182 @@
+module conformance part input_activity
+
+fn switch_input_activity(enabled: bool, value: i64) -> i64 {
+    when {
+        if modified(enabled) {
+            if enabled { activate(value) }
+            else { passivate(value) }
+        }
+        return value
+    }
+}
+
+/**
+A passive input retains new values and can be made active again.
+The control stays active. Switching on samples the 20 that arrived while
+the data input was passive. The next data tick wakes the node by itself.
+
+:Rules: TIME-2, TIME-9, END-5
+:Status: agreed
+*/
+test passivation_changes_wakes_and_preserves_data {
+    assert eval(switch_input_activity(
+        enabled: [true, false,  _, true,  _],
+        value:   [  10,     _, 20,    _, 30],
+    )) ==        [  10,    10,  _,   20, 30]
+}
+
+fn sample_validity(sample: bool, watched: i64) -> bool {
+    when modified(sample) && valid([]) { return valid(watched) }
+}
+
+# The scalar endpoint fixture produces a value for a nonzero command and
+# invalidates its output on zero.
+fn sample_produced_validity(sample: bool, command: i64) -> bool =>
+    sample_validity(sample, produce(command))
+
+/**
+Invalidating a passive input changes what a later sample observes.
+Only the sample input wakes the observer. Both the invalidation and the
+recovery happen between samples.
+
+:Rules: TIME-2, TIME-3, END-4, END-5
+:Status: agreed
+*/
+test passive_invalidation_is_visible_on_the_next_sample {
+    assert eval(sample_produced_validity(
+        sample:  [true, _,  true, _, true],
+        command: [   7, 0,     _, 9,    _],
+    )) ==        [true, _, false, _, true]
+}
+
+fn count_data_ticks(control: bool, data: i64, sample: bool) -> i64 {
+    state count: i64 = 0
+    when modified(control) && valid(control) {
+        if control { activate(data) }
+        else { passivate(data) }
+    }
+    when modified(data) && valid(data) { count += 1 }
+    when modified(sample) && valid(sample) { return count }
+}
+
+/**
+A passive input can satisfy its modification guard when another input wakes the node.
+The data-only tick at 20 leaves the node asleep. The next sample still reads
+one. When 30 and the sample arrive together, the data handler counts 30.
+
+:Rules: TIME-2, TIME-3, END-5
+:Status: agreed
+*/
+test a_passive_publication_counts_on_an_independent_wake {
+    assert eval(count_data_ticks(
+        control: [true, false,  _,    _,    _, true,    _],
+        data:    [  10,     _, 20,    _,   30,    _,   40],
+        sample:  [true,  true,  _, true, true, true, true],
+    )) ==        [   1,     1,  _,    1,    2,    2,    3]
+}
+
+fn describe_data_tick(control: bool, data: i64, sample: bool) -> str {
+    when modified(control) {
+        if control { activate(data) }
+        else { passivate(data) }
+    }
+    when modified(data) && is_active(data) { return "active data" }
+    when modified(data) { return "data" }
+    when modified(sample) { return "sample" }
+}
+
+/**
+An explicit activity check restricts a modification guard to active inputs.
+At 20 the data input is passive and nothing wakes the node. At 30 the sample
+wakes it: the active-only guard skips the tick and the plain guard accepts it.
+
+:Rules: TIME-2, TIME-3, TIME-9, END-5
+:Status: agreed
+*/
+test an_active_only_handler_queries_its_input {
+    assert eval(describe_data_tick(
+        control: [         true,    false,  _,        _,       _,     true,             _],
+        data:    [           10,        _, 20,        _,      30,        _,            40],
+        sample:  [         true,     true,  _,     true,    true,     true,             _],
+    )) ==        ["active data", "sample",  _, "sample", "data", "sample", "active data"]
+}
+
+fn compare_binding_activity(driving: i64, sampled: i64) -> bool {
+    when modified(driving) { return is_active(driving) && !is_active(sampled) }
+}
+
+fn compare_bindings(value: i64) -> bool => compare_binding_activity(value, value)
+
+/**
+Two inputs connected to one producer can report different activity.
+Only the driving input subscribes. Each publication reaches both bindings,
+and the activity query observes the subscription of the input it names.
+
+:Rules: TIME-2, TIME-3, TIME-9, END-5
+:Status: agreed
+*/
+test activity_belongs_to_the_binding {
+    assert eval(compare_bindings(value: [7, _, 7])) == [true, _, true]
+}
+
+fn count_publications_when_sampled(control: bool, data: i64, sample: bool) -> i64 {
+    state count: i64 = 0
+    when modified(control) && valid(control) {
+        if control { activate(data) }
+        else { passivate(data) }
+    }
+    when modified(data) && valid([]) { count += 1 }
+    when modified(sample) && valid(sample) { return count }
+}
+
+fn sample_notifications(control: bool, command: i64, sample: bool) -> i64 =>
+    count_publications_when_sampled(control, produce(command), sample)
+
+/**
+An idle sample cannot turn an earlier passive invalidation into a new notification.
+Zero clears the data endpoint between samples. After reactivation only the
+publication of 9 increments the count. The final zero invalidates it again.
+
+:Rules: END-2, END-4, END-5, TIME-3
+:Status: agreed
+*/
+test a_later_probe_does_not_replay_a_passive_invalidation {
+    assert eval(sample_notifications(
+        control: [true, false, _,    _, true, _, _,    _],
+        command: [   7,     _, 0,    _,    _, 9, 0,    _],
+        sample:  [true,  true, _, true, true, _, _, true],
+    )) ==        [   1,     1, _,    1,    1, _, _,    2]
+}
+
+fn describe_notification(control: bool, data: i64, sample: bool) -> str {
+    when modified(control) && valid(control) {
+        if control { activate(data) }
+        else { passivate(data) }
+    }
+    when modified(data) && valid([]) { return "data handler" }
+    when modified(sample) && valid(sample) {
+        if modified(data) { return "modified" }
+        if valid(data) { return "valid" }
+        return "invalid"
+    }
+}
+
+fn probe_clear(control: bool, command: i64, sample: bool) -> str =>
+    describe_notification(control, produce(command), sample)
+
+/**
+Invalidating a passive input on a probe tick leaves its modification guard false.
+The probe sees a valid retained 7 after passivation. When zero clears the
+endpoint, the data handler skips and the probe sees invalid, unmodified data.
+A new publication on the following probe does reach the data handler.
+
+:Rules: END-2, END-4, END-5, TIME-3
+:Status: agreed
+*/
+test a_passive_invalidation_is_visible_but_unmodified_on_a_probe {
+    assert eval(probe_clear(
+        control: [          true,   false,         _,              _],
+        command: [             7,       _,         0,              9],
+        sample:  [          true,    true,      true,           true],
+    )) ==        ["data handler", "valid", "invalid", "data handler"]
+}

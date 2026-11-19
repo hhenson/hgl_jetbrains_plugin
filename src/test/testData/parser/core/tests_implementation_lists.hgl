@@ -1,0 +1,29 @@
+module core_implementation part lists
+
+# LIST-1: an item goes after the last entry, one at a time.
+test append_adds_one_entry_after_the_last {
+    var entries: list<i64> = []
+    append(entries, 1)
+    append(entries, 2)
+    append(entries, 2)
+    assert entries == [1, 2, 2]
+}
+
+# LIST-2: every entry of the second list, in its order; none is none.
+test extend_adds_each_entry_in_order {
+    var entries: list<i64> = [1]
+    extend(entries, [2, 3])
+    extend(entries, [])
+    assert entries == [1, 2, 3]
+}
+
+# LIST-3, the language's FN-15: the call assigns the place, and a value
+# taken from it before is as it was.
+test a_value_taken_before_is_as_it_was {
+    var entries: list<i64> = [1, 2]
+    let before = entries
+    append(entries, 3)
+    extend(entries, before)
+    assert before == [1, 2]
+    assert entries == [1, 2, 3, 1, 2]
+}

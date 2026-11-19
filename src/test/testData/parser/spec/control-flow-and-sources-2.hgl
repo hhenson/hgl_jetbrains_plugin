@@ -1,6 +1,0 @@
-module examples.source
-
-export fn two_values() -> i64 {
-    yield 1s: 7
-    yield 1s: 9
-}

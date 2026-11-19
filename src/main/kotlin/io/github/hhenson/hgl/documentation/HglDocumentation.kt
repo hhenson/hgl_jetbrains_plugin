@@ -24,11 +24,11 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider {
         val candidates = if (resolved.isNotEmpty()) resolved else {
             val leaf = file.findElementAt(offset) ?: return emptyList()
             val declaration = generateSequence(leaf) { it.parent }
-                .firstOrNull { it is HglNamedElement || it is HglModuleDecl }
+                .firstOrNull { it is HglNamedElement || it is HglModuleDecl || it is HglApplicationDecl }
             // Only a declaration's own name supplies fallback documentation.
             // Expressions, locals and parameters must not inherit an enclosing declaration's docs.
             listOfNotNull(declaration?.takeIf {
-                it is HglModuleDecl ||
+                it is HglModuleDecl || it is HglApplicationDecl ||
                     (it as? HglNamedElement)?.nameIdentifier?.textRange?.containsOffset(offset) == true
             })
         }
@@ -55,7 +55,9 @@ object HglDocumentation {
     fun attached(element: PsiElement): String? {
         if (element !is HglFunctionDecl && element !is HglNativeFunctionDecl &&
             element !is HglOperatorDecl && element !is HglStructDecl &&
-            element !is HglStructMember && element !is HglTestDecl && element !is HglModuleDecl) return null
+            element !is HglStructMember && element !is HglTestDecl && element !is HglModuleDecl &&
+            element !is HglApplicationDecl && element !is HglEnumDecl && element !is HglEnumMember &&
+            element !is HglConstantDecl && element !is HglNativeTypeDecl && element !is HglNativeProperty) return null
         var leaf = PsiTreeUtil.prevLeaf(element)
         while (leaf != null && leaf.text.isBlank()) leaf = PsiTreeUtil.prevLeaf(leaf)
         if (leaf?.node?.elementType != HglTypes.DOC_COMMENT) return null

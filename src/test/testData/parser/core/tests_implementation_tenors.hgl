@@ -1,0 +1,136 @@
+module core_implementation part tenors
+
+# A calendar of a library's own: one day closed, beside the weekend.
+struct Closed {
+    day: date
+}
+
+impl const fn business_day(calendar: Closed, day: date) -> bool =>
+    day != calendar.day && business_day(Weekdays(), day)
+
+# A calendar with one business day.
+struct Only {
+    day: date
+}
+
+impl const fn business_day(calendar: Only, day: date) -> bool => day == calendar.day
+
+# A rolling rule of a library's own: the day as it is.
+struct Unrolled {}
+
+impl const fn roll<C>(rolling_rule: Unrolled, calendar: C, day: date) -> date => day
+
+const fn summed(lhs: tenor, rhs: tenor) -> tenor => lhs + rhs
+
+# TEN-1, TEN-2, the language's TYPE-17: a tenor is its counts, and its
+# arithmetic is count by count.
+test a_tenor_is_its_counts {
+    assert 1Y == 12M
+    assert 1W == 7D
+    assert 1M != 30D
+    assert 0B != 0D
+    assert 6M + 6M == 1Y
+    assert 1Y6M - 6M == 1Y
+    assert 2 * 1Y6M == 3Y
+    assert 1Y6M * 2 == 3Y
+    assert -(1M2D) == -1 * 1M2D
+    assert 1M - 1D + 1D == 1M
+    assert 2B + 3B == 5B
+    assert 3 * 2B == 6B
+}
+
+# TEN-2: a tenor of business days and one of months and days have no sum.
+test the_two_forms_have_no_sum {
+    assert raises("tenor.mixed_units") { summed(2B, 1M) }
+    assert raises("tenor.mixed_units") { summed(1D, 0B) }
+}
+
+# TEN-3: the order is count by count, and two tenors that differ both
+# ways have none.
+test the_order_is_count_by_count {
+    assert 1M < 2M
+    assert 1M < 1M1D
+    assert 1M <= 1M
+    assert 2B < 3B
+    assert !(1M < 45D)
+    assert !(45D < 1M)
+    assert !(1M >= 45D)
+    assert !(2B < 1M)
+    assert (1Y <=> 12M) == CmpResult.equivalent
+    assert (1M <=> 2M) == CmpResult.less
+    assert (3B <=> 2B) == CmpResult.greater
+    assert (1M <=> 45D) == CmpResult.unordered
+    assert (2B <=> 1M) == CmpResult.unordered
+}
+
+# TEN-4: months first, to the last day of a shorter month, and then days.
+test months_end_at_the_months_last_day {
+    assert @2026-01-31 + 1M == @2026-02-28
+    assert @2026-01-31 + 3M == @2026-04-30
+    assert @2026-01-31 + 1Y6M == @2027-07-31
+    assert @2024-02-29 + 1Y == @2025-02-28
+    assert @2026-01-31 - 2W == @2026-01-17
+    assert @2026-03-31 - 1M == @2026-02-28
+    assert @2026-01-31 + 1M1D == @2026-03-01
+    assert @2026-01-31 + 2 * 1M == @2026-03-31
+    assert @2026-01-31 + 1M + 1M == @2026-03-28
+    assert @2026-01-31 + -(1M) == @2025-12-31
+}
+
+# TEN-5, TEN-6: a count of business days starts from a business day. With
+# no calendar every day but a Saturday and a Sunday is one. 2026-01-03 is
+# a Saturday.
+test business_days_start_from_a_business_day {
+    assert @2026-01-02 + 1B == @2026-01-05
+    assert @2026-01-05 + 0B == @2026-01-05
+    assert @2026-01-05 + 5B == @2026-01-12
+    assert @2026-01-05 - 1B == @2026-01-02
+    assert @2026-01-03 + 0B == @2026-01-05
+    assert @2026-01-03 - 0B == @2026-01-02
+    assert @2026-01-03 + 1B == @2026-01-06
+    assert @2026-01-03 + 2B == @2026-01-07
+    assert @2026-01-03 - 1B == @2026-01-01
+    assert @2026-01-05 + -1 * 1B == @2026-01-02
+}
+
+# TEN-5: a calendar is any value `business_day` has a candidate for.
+test a_calendar_says_what_a_business_day_is {
+    let closed = Closed(day: @2026-01-05)
+    assert @2026-01-02 +{calendar: closed} 1B == @2026-01-06
+    assert @2026-01-06 -{calendar: closed} 1B == @2026-01-02
+    assert @2026-01-05 +{calendar: closed} 0B == @2026-01-06
+    assert @2026-01-02 +{calendar: Weekdays()} 1B == @2026-01-05
+}
+
+# TEN-7, TEN-8: a rolling rule gives the business day a moved date
+# becomes. 2026-01-31 is a Saturday and 2026-02-01 a Sunday.
+test a_rule_rolls_to_a_business_day {
+    assert @2026-01-31 +{rolling_rule: Rolling.following} 0D == @2026-02-02
+    assert @2026-01-31 +{rolling_rule: Rolling.modified_following} 0D == @2026-01-30
+    assert @2026-01-31 +{rolling_rule: Rolling.preceding} 0D == @2026-01-30
+    assert @2026-02-01 +{rolling_rule: Rolling.modified_preceding} 0D == @2026-02-02
+    assert @2025-10-31 +{rolling_rule: Rolling.modified_following} 3M == @2026-01-30
+    assert @2026-05-01 -{rolling_rule: Rolling.following} 3M == @2026-02-02
+    let closed = Closed(day: @2026-02-02)
+    assert @2026-01-31 +{rolling_rule: Rolling.following, calendar: closed} 0D == @2026-02-03
+    assert @2026-01-31 +{rolling_rule: Unrolled()} 0D == @2026-01-31
+    # A rule looks only the way it needs: this calendar has no business
+    # day before its one, and none after it.
+    let only = Only(day: @2026-01-05)
+    assert @2026-01-03 +{rolling_rule: Rolling.following, calendar: only} 0D == @2026-01-05
+    assert @2026-01-07 +{rolling_rule: Rolling.preceding, calendar: only} 0D == @2026-01-05
+    assert @2026-01-03 +{rolling_rule: Rolling.modified_following, calendar: only} 0D == @2026-01-05
+    assert @2026-01-07 +{rolling_rule: Rolling.modified_preceding, calendar: only} 0D == @2026-01-05
+}
+
+# TEN-9: a tenor's text has its largest units.
+test a_tenors_text_has_its_largest_units {
+    assert convert<str>(13D) == "1W6D"
+    assert convert<str>(18M) == "1Y6M"
+    assert convert<str>(1Y6M2W3D) == "1Y6M2W3D"
+    assert convert<str>(0D) == "0D"
+    assert convert<str>(0B) == "0B"
+    assert convert<str>(10B) == "10B"
+    assert convert<str>(-(13D)) == "-1W6D"
+    assert convert<str>(1M - 1D) == "1M-1D"
+}

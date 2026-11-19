@@ -1,6 +1,7 @@
 package io.github.hhenson.hgl.parser;
 
 import com.intellij.lang.PsiBuilder;
+import com.intellij.openapi.util.Key;
 import com.intellij.lang.parser.GeneratedParserUtilBase;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.tree.IElementType;
@@ -35,7 +36,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
             HglTypes.TIME_KW, HglTypes.DATETIME_KW, HglTypes.DURATION_KW, HglTypes.CIVIL_DATETIME_KW,
             HglTypes.ZONED_DATETIME_KW, HglTypes.ZONED_TIME_KW, HglTypes.TIMEZONE_KW, HglTypes.QUESTION, HglTypes.BYTES_KW, HglTypes.ANY_KW,
             HglTypes.DICT_KW, HglTypes.RESULT_KW, HglTypes.ATOMIC_KW, HglTypes.TUPLE_KW,
-            HglTypes.LIST_KW, HglTypes.SET_KW, HglTypes.ROLLING_KW, HglTypes.REF_KW,
+            HglTypes.LIST_KW, HglTypes.SET_KW, HglTypes.ENDPOINT_KW, HglTypes.TENOR_KW, HglTypes.ROLLING_WINDOW_KW, HglTypes.REF_KW,
             HglTypes.SIGNAL_KW, HglTypes.DELTA_KW, HglTypes.ERROR_KW);
 
     private static final TokenSet TRIVIA = TokenSet.create(
@@ -46,6 +47,9 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
 
     /** Contextual keyword tokens by name; the grammar passes the name because Grammar-Kit passes a token reference as a parser. */
     private static final Map<String, IElementType> CONTEXTUAL_KEYWORDS = Map.ofEntries(
+            Map.entry("APPLICATION_KW", HglTypes.APPLICATION_KW), Map.entry("RUN_KW", HglTypes.RUN_KW),
+            Map.entry("INTEGRATION_TEST_KW", HglTypes.INTEGRATION_TEST_KW), Map.entry("TIMEOUT_KW", HglTypes.TIMEOUT_KW),
+            Map.entry("SUPPRESS_WARNING_KW", HglTypes.SUPPRESS_WARNING_KW),
             Map.entry("CONST_KW", HglTypes.CONST_KW), Map.entry("TYPE_KW", HglTypes.TYPE_KW),
             Map.entry("SWITCH_KW", HglTypes.SWITCH_KW), Map.entry("CASE_KW", HglTypes.CASE_KW),
             Map.entry("DEFAULT_KW", HglTypes.DEFAULT_KW), Map.entry("RAISES_KW", HglTypes.RAISES_KW),
@@ -54,7 +58,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
             Map.entry("DELTA_KW", HglTypes.DELTA_KW), Map.entry("ATOMIC_KW", HglTypes.ATOMIC_KW),
             Map.entry("TUPLE_KW", HglTypes.TUPLE_KW), Map.entry("LIST_KW", HglTypes.LIST_KW),
             Map.entry("SET_KW", HglTypes.SET_KW),
-            Map.entry("ROLLING_KW", HglTypes.ROLLING_KW), Map.entry("REF_KW", HglTypes.REF_KW),
+            Map.entry("ROLLING_WINDOW_KW", HglTypes.ROLLING_WINDOW_KW), Map.entry("REF_KW", HglTypes.REF_KW),
             Map.entry("SIGNAL_KW", HglTypes.SIGNAL_KW));
 
     private static IElementType keywordType(String name) {
@@ -108,6 +112,28 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
         IElementType previous = b.rawLookup(-1);
         return previous != null && previous != HglTypes.NEWLINE &&
                 previous != HglTypes.DOC_COMMENT && !TRIVIA.contains(previous);
+    }
+
+    private static final Key<Boolean> TEST_BODY = Key.create("hgl.test.body");
+
+    public static boolean testBlock(PsiBuilder b, int level, Parser block) {
+        Boolean previous = b.getUserData(TEST_BODY);
+        b.putUserData(TEST_BODY, true);
+        try {
+            return block.parse(b, level);
+        } finally {
+            b.putUserData(TEST_BODY, previous);
+        }
+    }
+
+    /** A run form starts with the contextual name immediately followed by its call delimiter. */
+    public static boolean runKeyword(PsiBuilder b, int level) {
+        return isIdentifierWithText(b, HglTypes.RUN_KW) && b.rawLookup(1) == HglTypes.LPAREN &&
+                remapAndAdvance(b, HglTypes.RUN_KW);
+    }
+
+    public static boolean inTestBody(PsiBuilder b, int level) {
+        return Boolean.TRUE.equals(b.getUserData(TEST_BODY));
     }
 
     /** EXPR-1/10: configured unary operators bind above multiplicative operators. */

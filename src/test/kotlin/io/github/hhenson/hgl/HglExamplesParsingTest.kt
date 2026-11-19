@@ -8,7 +8,7 @@ import io.github.hhenson.hgl.parser.HglParserDefinition
 import java.io.File
 
 /**
- * Complete specification modules and every core HGL file must parse without
+ * Complete specification modules, applications and every core HGL file must parse without
  * a single error element. The files are copied
  * by tools/refresh_test_data.sh; src/test/testData/parser/SOURCES.md records
  * the revisions.

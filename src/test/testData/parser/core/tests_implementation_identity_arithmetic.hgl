@@ -1,0 +1,91 @@
+module core_implementation part identity_arithmetic
+
+# OPS-9: one template per operator, over closed value operations on T.
+fn identity_sum<T>(lhs: T, rhs: T) -> T
+    requires add_(T, T) -> T => lhs +{invalid: .identity} rhs
+
+fn identity_difference<T>(lhs: T, rhs: T) -> T
+    requires sub_(T, T) -> T && neg_(T) -> T => lhs -{invalid: .identity} rhs
+
+# Unconfigured calls select the ordinary value candidates and lift them.
+fn lifted_sum(lhs: i64, rhs: i64) -> i64 => lhs + rhs
+fn lifted_difference(lhs: i64, rhs: i64) -> i64 => lhs - rhs
+
+# A valid null command invalidates; zero is an ordinary published value.
+fn identity_operand(command: i64?) -> i64 {
+    inject out
+    when valid(command) {
+        if command != null { return command }
+        invalidate(out)
+    }
+}
+
+fn wired_identity_sum(left: i64?, right: i64?) -> i64 =>
+    identity_sum(identity_operand(left), identity_operand(right))
+
+fn wired_identity_difference(left: i64?, right: i64?) -> i64 =>
+    identity_difference(identity_operand(left), identity_operand(right))
+
+fn wired_lifted_sum(left: i64?, right: i64?) -> i64 =>
+    lifted_sum(identity_operand(left), identity_operand(right))
+
+fn wired_lifted_difference(left: i64?, right: i64?) -> i64 =>
+    lifted_difference(identity_operand(left), identity_operand(right))
+
+fn identity_validity(value: i64) -> bool {
+    when valid([]) { return valid(value) }
+}
+
+fn identity_sum_validity(left: i64?, right: i64?) -> bool =>
+    identity_validity(wired_identity_sum(left, right))
+
+fn identity_difference_validity(left: i64?, right: i64?) -> bool =>
+    identity_validity(wired_identity_difference(left, right))
+
+test identity_arithmetic_publications {
+    assert eval(wired_identity_sum(
+        left:  [7, _, null, _, 9, _, _, 0, _],
+        right: [_, 2, _, null, _, _, 3, _, null])) ==
+        [7, 9, 2, _, 9, _, 12, 3, 0]
+    assert eval(wired_identity_difference(
+        left:  [7, _, null, _, 9, _, _, 0, _],
+        right: [_, 2, _, null, _, _, 3, _, null])) ==
+        [7, 5, -2, _, 9, _, 6, -3, 0]
+}
+
+test identity_arithmetic_invalidates_and_recovers {
+    assert eval(identity_sum_validity(
+        left:  [7, _, null, _, 9, _, _, 0, _],
+        right: [_, 2, _, null, _, _, 3, _, null])) ==
+        [true, true, true, false, true, _, true, true, true]
+    assert eval(identity_difference_validity(
+        left:  [7, _, null, _, 9, _, _, 0, _],
+        right: [_, 2, _, null, _, _, 3, _, null])) ==
+        [true, true, true, false, true, _, true, true, true]
+}
+
+test repeated_invalidation_is_silent {
+    assert eval(identity_sum_validity(
+        left: [7, null, null, 9], right: [])) == [true, false, _, true]
+    assert eval(identity_difference_validity(
+        left: [7, null, null, 9], right: [])) == [true, false, _, true]
+}
+
+test unconfigured_arithmetic_uses_lifting {
+    assert eval(wired_lifted_sum(
+        left:  [7, _, null, _, 9, _, _, 0, _],
+        right: [_, 2, _, null, _, _, 3, _, null])) ==
+        [_, 9, _, _, _, _, 12, 3]
+    assert eval(wired_lifted_difference(
+        left:  [7, _, null, _, 9, _, _, 0, _],
+        right: [_, 2, _, null, _, _, 3, _, null])) ==
+        [_, 5, _, _, _, _, 6, -3]
+}
+
+test identity_arithmetic_is_generic {
+    assert eval(identity_sum(lhs: [_, 1.5], rhs: [0.5])) == [0.5, 2.0]
+    assert eval(identity_difference(lhs: [_, 1.5], rhs: [0.5])) == [-0.5, 1.0]
+    assert eval(identity_sum(lhs: [_, 5m], rhs: [2m])) == [2m, 7m]
+    assert eval(identity_difference(lhs: [_, 5m], rhs: [2m])) == [-2m, 3m]
+    assert eval(identity_sum(lhs: ["", _, "a"], rhs: [_, "b"])) == ["", "b", "ab"]
+}

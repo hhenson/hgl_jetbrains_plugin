@@ -1,0 +1,36 @@
+module conformance.rejections part collection_children
+
+struct BookQuote {
+    bid: i64
+    ask: i64
+}
+
+/**
+A list's element at a constant index is read only where it is admitted.
+The default admission, `valid(pair)`, is true once any position is valid
+and admits no element; `all_valid(pair)` or `valid(pair[1])` would.
+
+:Rules: TIME-1, TIME-4, TIME-9
+:Status: agreed
+*/
+fn second_without_admission(pair: list<i64, 2>) -> i64 {
+    when {
+        # expect-error(phase, "payload.unguarded")
+        return pair[1]
+    }
+}
+
+/**
+A struct's field is read only where it is admitted.
+The default admission, `valid(quote)`, is true once any field is valid
+and admits no field; `all_valid(quote)` or `valid(quote.bid)` would.
+
+:Rules: TIME-1, TIME-4, TIME-9
+:Status: agreed
+*/
+fn bid_without_admission(quote: BookQuote) -> i64 {
+    when {
+        # expect-error(phase, "payload.unguarded")
+        return quote.bid
+    }
+}

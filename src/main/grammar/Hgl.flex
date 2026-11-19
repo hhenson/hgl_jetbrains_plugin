@@ -39,6 +39,11 @@ INT_LITERAL = {DIGITS} | 0[xX][0-9a-fA-F](_?[0-9a-fA-F])* | 0[bB][01](_?[01])*
 // `1e5m`, `2x`) is one bad token, as in the compiler.
 DURATION_PART = {DIGITS} ( "." {DIGITS} )? ( "ms" | "us" | "d" | "h" | "m" | "s" )
 DURATION_LITERAL = {DURATION_PART}+
+TENOR_YEAR = {DIGITS}"Y"
+TENOR_MONTH = {DIGITS}"M"
+TENOR_WEEK = {DIGITS}"W"
+TENOR_DAY = {DIGITS}"D"
+TENOR_LITERAL = {TENOR_YEAR}{TENOR_MONTH}?{TENOR_WEEK}?{TENOR_DAY}? | {TENOR_MONTH}{TENOR_WEEK}?{TENOR_DAY}? | {TENOR_WEEK}{TENOR_DAY}? | {TENOR_DAY} | {DIGITS}"B"
 NUMBER_RUN = [0-9] ( [A-Za-z0-9_] | "." [0-9] )*
 
 TEXT_BLOCK = \"\"\" ( [^\"] | \" [^\"] | \"\" [^\"] )* \"\"\"
@@ -56,7 +61,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
 %%
 
 <YYINITIAL> {
-  "\\" {NEWLINE} { return WHITE_SPACE; }
+  "\\" [ \t]* {NEWLINE} { return WHITE_SPACE; }
   {WHITE_SPACE}                  { return WHITE_SPACE; }
   {NEWLINE}                      { return NEWLINE; }
   {LINE_COMMENT}                 { return LINE_COMMENT; }
@@ -118,7 +123,9 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
   "list" { return LIST_KW; }
   "set" { return SET_KW; }
   "dict" { return DICT_KW; }
-  "rolling" { return ROLLING_KW; }
+  "rolling_window" { return ROLLING_WINDOW_KW; }
+  "endpoint" { return ENDPOINT_KW; }
+  "tenor" { return TENOR_KW; }
   "result" { return RESULT_KW; }
   "ref" { return REF_KW; }
   "signal" { return SIGNAL_KW; }
@@ -129,7 +136,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
 
   {FLOAT_LITERAL}                { return FLOAT_LITERAL; }
   {INT_LITERAL}                  { return INT_LITERAL; }
-  {DURATION_LITERAL}             { return TEMPORAL_LITERAL; }
+  {DURATION_LITERAL}|{TENOR_LITERAL} { return TEMPORAL_LITERAL; }
   {NUMBER_RUN}                   { return BAD_CHARACTER; }
   {TEMPORAL_AT}                  { return TEMPORAL_LITERAL; }
   {TEXT_BLOCK} { return STRING_LITERAL; }

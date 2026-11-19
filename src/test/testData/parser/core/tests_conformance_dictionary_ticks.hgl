@@ -1,0 +1,29 @@
+module conformance part dictionary_ticks
+
+# A price updates one key. A null requests that key's removal.
+fn write_price(changed_key: str, price: i64?) -> dict<str, i64> {
+    when {
+        if price == null { return delta<dict<str, i64>>(removed: [changed_key]) }
+        return delta<dict<str, i64>>(updated: [changed_key: price])
+    }
+}
+
+const fn lookup_a(prices: dict<str, i64>) -> i64? => get(prices, "A")
+
+fn observe_a(changed_key: str, price: i64?) -> i64? =>
+    lookup_a(write_price(changed_key, price))
+
+/**
+Removing a dictionary key makes it absent until a later update adds it again.
+B stays present throughout. An update to B causes a fresh lookup of A while
+it is missing. Adding A again supplies its new price.
+
+:Rules: TYPE-9, TYPE-16, TIME-7, FN-12, ERR-6
+:Status: agreed
+*/
+test a_removed_key_is_absent_until_added_again {
+    assert eval(observe_a(
+        changed_key: [ "B", "A",  "A",  "B", "A"],
+        price:       [  20,   7, null,   21,   9],
+    )) ==            [null,   7, null, null,   9]
+}

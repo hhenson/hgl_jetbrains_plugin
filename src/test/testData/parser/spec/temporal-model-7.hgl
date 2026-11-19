@@ -1,0 +1,21 @@
+module examples.seeded
+
+fn counted(const every: duration = 1s) -> i64 {
+    inject global_state
+    cache count: i64 = 0
+    while count < get<i64>(global_state, "limit") {
+        count += 1
+        yield every: count
+    }
+}
+
+fn seeded(const limit: i64) -> i64 {
+    inject global_state
+    put(global_state, "limit", limit)
+    return counted()
+}
+
+test the_store_is_set_where_the_graph_is_built {
+    assert eval(seeded(limit: 2)) == [1s: 1, 2s: 2]
+    assert eval(seeded(limit: 3)) == [1s: 1, 2s: 2, 3s: 3]
+}

@@ -1,8 +1,10 @@
 package io.github.hhenson.hgl.reference
 
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
+import com.intellij.psi.TokenType
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.indexing.DataIndexer
 import com.intellij.util.indexing.DefaultFileTypeSpecificInputFilter
@@ -13,12 +15,15 @@ import com.intellij.util.indexing.ScalarIndexExtension
 import com.intellij.util.io.EnumeratorStringDescriptor
 import com.intellij.util.io.KeyDescriptor
 import io.github.hhenson.hgl.HglFileType
+import io.github.hhenson.hgl.lexer.HglLexerAdapter
 import io.github.hhenson.hgl.psi.HglFile
+import io.github.hhenson.hgl.psi.HglTokenSets
+import io.github.hhenson.hgl.psi.HglTypes
 
 /**
  * Maps a module path (`examples.market_data`) to the files that declare it,
  * so `use` declarations and `alias::name` references can cross files. The
- * key is read from the `module` line by a text scan, without parsing.
+ * key is read from the header with the HGL lexer.
  */
 class HglModuleIndex : ScalarIndexExtension<String>() {
     override fun getName(): ID<String, Void> = NAME
@@ -34,18 +39,36 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
 
     override fun dependsOnFileContent(): Boolean = true
 
-    override fun getVersion(): Int = 1
+    override fun getVersion(): Int = 2
 
     companion object {
         val NAME: ID<String, Void> = ID.create("io.github.hhenson.hgl.module")
 
-        private val MODULE_LINE = Regex("""^\s*module\s+([A-Za-z_][A-Za-z0-9_]*(?:\s*\.\s*[A-Za-z_][A-Za-z0-9_]*)*)""", RegexOption.MULTILINE)
-
-        /** The declared module path of a source text, or null. Only the first `module` line counts. */
-        fun moduleNameOf(text: CharSequence): String? =
-            MODULE_LINE.find(text)?.groupValues?.get(1)?.filterNot { it.isWhitespace() }
+        /** Index importable module headers, including parts. */
+        fun moduleNameOf(text: CharSequence): String? {
+            val lexer = HglLexerAdapter()
+            lexer.start(text)
+            fun skipTrivia() {
+                while (lexer.tokenType == TokenType.WHITE_SPACE || lexer.tokenType == HglTypes.NEWLINE ||
+                    HglTokenSets.COMMENTS.contains(lexer.tokenType)) lexer.advance()
+            }
+            skipTrivia()
+            if (lexer.tokenType != HglTypes.MODULE_KW) return null
+            lexer.advance()
+            val path = mutableListOf<String>()
+            while (true) {
+                skipTrivia()
+                if (lexer.tokenType != HglTypes.IDENTIFIER) return null
+                path.add(lexer.tokenText)
+                lexer.advance()
+                skipTrivia()
+                if (lexer.tokenType != HglTypes.DOT) return path.joinToString(".")
+                lexer.advance()
+            }
+        }
 
         fun findFiles(project: Project, modulePath: String, scope: GlobalSearchScope = GlobalSearchScope.allScope(project)): List<HglFile> {
+            if (DumbService.isDumb(project)) return emptyList()
             val virtualFiles: Collection<VirtualFile> =
                 FileBasedIndex.getInstance().getContainingFiles(NAME, modulePath, scope)
             val manager = PsiManager.getInstance(project)

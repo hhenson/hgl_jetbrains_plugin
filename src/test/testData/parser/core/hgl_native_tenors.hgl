@@ -1,0 +1,37 @@
+module core part tenors
+
+# The native candidates and parts of a tenor, a rule for moving a date
+# (the language's TYPE-17). A provider supplies each body. Contract:
+# spec/tenor-operations.md. The candidates that move a date, with their
+# options, are HGL in hgl/core/calendar.hgl.
+
+# TEN-2: a tenor's own arithmetic, count by count.
+native impl const fn add_(lhs: tenor, rhs: tenor) -> tenor
+native impl const fn sub_(lhs: tenor, rhs: tenor) -> tenor
+native impl const fn neg_(value: tenor) -> tenor
+native impl const fn mul_(lhs: tenor, rhs: i64) -> tenor
+
+# TEN-3: the order, count by count.
+native impl const fn lt_(lhs: tenor, rhs: tenor) -> bool
+native impl const fn le_(lhs: tenor, rhs: tenor) -> bool
+native impl const fn gt_(lhs: tenor, rhs: tenor) -> bool
+native impl const fn ge_(lhs: tenor, rhs: tenor) -> bool
+native impl const fn compare_(lhs: tenor, rhs: tenor) -> CmpResult
+
+# TEN-9: a tenor's text.
+native impl const fn convert(value: tenor) -> str
+
+# The parts core's own candidates are written with. None is exported.
+
+# The count of a tenor of business days, and null for one of months and
+# days (TEN-1).
+native const fn business_days(value: tenor) -> i64?
+
+# TEN-4: `day` moved by `by`, a tenor of months and days.
+native const fn moved(day: date, by: tenor) -> date
+
+# TEN-5: true for a Saturday and for a Sunday.
+native const fn weekend(day: date) -> bool
+
+# TEN-8: true where the two dates are in one month of one year.
+native const fn same_month(lhs: date, rhs: date) -> bool

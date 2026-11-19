@@ -1,0 +1,123 @@
+module core_implementation part conversions
+
+const fn whole(value: f64, rounding: Rounding) -> i64 =>
+    convert<i64>(value, rounding: rounding, invalid: .fail)
+
+# What `text` is as an `f64`, written again: a text that reads back.
+const fn again(text: str) -> str => convert<str>(convert<f64>(text, invalid: .fail))
+
+# OPS-6: a number to and from a `bool`, and an `i64` to an `f64`.
+test a_number_is_a_flag_and_back {
+    assert convert<f64>(3) == 3.0
+    assert convert<bool>(7) && !convert<bool>(0)
+    assert convert<bool>(0.5) && !convert<bool>(0.0)
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert convert<bool>(nan)
+    assert convert<i64>(true) == 1 && convert<i64>(false) == 0
+    assert convert<f64>(true) == 1.0 && convert<f64>(false) == 0.0
+}
+
+# OPS-7, OPS-8: an `f64` to an `i64` under each rounding.
+test an_f64_is_rounded_as_asked {
+    assert whole(2.9, .truncate) == 2 && whole(-2.9, .truncate) == -2
+    assert whole(-2.5, .floor) == -3 && whole(-2.5, .ceiling) == -2
+    assert whole(2.5, .half_even) == 2 && whole(3.5, .half_even) == 4
+    assert whole(2.5, .half_up) == 3 && whole(-2.5, .half_up) == -3
+    assert whole(2.5, .half_down) == 2 && whole(-2.5, .half_down) == -2
+    assert whole(2.6, .half_down) == 3 && whole(2.4, .half_up) == 2
+    # `.truncate` where none is given, and a `result` where `invalid` is not.
+    assert convert<i64>(2.9, invalid: .fail) == 2
+    assert is_ok(convert<i64>(2.9))
+}
+
+# OPS-7: a NaN, an infinity and a number outside `i64` once rounded fail,
+# and OPS-8: `nan` is what a NaN converts to.
+test an_f64_that_is_no_i64_fails {
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert is_err(convert<i64>(nan))
+    assert is_err(convert<i64>(1.0 / 0.0)) && is_err(convert<i64>(-1.0 / 0.0))
+    assert is_err(convert<i64>(9223372036854775808.0))
+    assert is_ok(convert<i64>(-9223372036854775808.0))
+    assert convert<i64>(nan, nan: -1, invalid: .fail) == -1
+    assert raises("convert.invalid") { convert<i64>(nan, invalid: .fail) }
+    assert raises("convert.invalid") { convert<i64>(1e19, invalid: .fail) }
+}
+
+# OPS-6: the text of an `i64` and of a `bool`.
+test an_integer_and_a_flag_are_written {
+    assert convert<str>(42) == "42"
+    assert convert<str>(-3) == "-3"
+    assert convert<str>(0) == "0"
+    assert convert<str>(-9223372036854775807 - 1) == "-9223372036854775808"
+    assert convert<str>(true) == "true" && convert<str>(false) == "false"
+}
+
+# OPS-6: the text of an `f64` is the shortest that reads back, with a `.`
+# or an exponent.
+test an_f64_is_written_as_the_shortest_text_that_reads_back {
+    assert convert<str>(3.0) == "3.0"
+    assert convert<str>(0.1) == "0.1"
+    assert convert<str>(-2.5) == "-2.5"
+    assert convert<str>(0.1 + 0.2) == "0.30000000000000004"
+    assert convert<str>(-0.0) == "-0.0"
+    # An exponent from 1e16 up, and below 1e-4.
+    assert convert<str>(1000000000000000.0) == "1000000000000000.0"
+    assert convert<str>(10000000000000000.0) == "1e16"
+    assert convert<str>(1e21) == "1e21"
+    assert convert<str>(1.5e300) == "1.5e300"
+    assert convert<str>(0.0001) == "0.0001"
+    assert convert<str>(0.00001) == "1e-5"
+    assert convert<str>(1.5e-7) == "1.5e-7"
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert convert<str>(nan) == "nan"
+    assert convert<str>(1.0 / 0.0) == "inf" && convert<str>(-1.0 / 0.0) == "-inf"
+}
+
+# OPS-6: text is an `i64` where it is an integer literal, after one `-`.
+test text_is_read_as_an_integer {
+    assert convert<i64>("42", invalid: .fail) == 42
+    assert convert<i64>("-3", invalid: .fail) == -3
+    assert convert<i64>("0x1F", invalid: .fail) == 31
+    assert convert<i64>("-0b101", invalid: .fail) == -5
+    assert convert<i64>("1_000", invalid: .fail) == 1000
+    assert convert<i64>("-9223372036854775808", invalid: .fail) == -9223372036854775807 - 1
+    # OPS-7: text that is no such literal, and a number outside `i64`.
+    assert is_err(convert<i64>("9223372036854775808"))
+    assert is_err(convert<i64>("three")) && is_err(convert<i64>(""))
+    assert is_err(convert<i64>(" 3")) && is_err(convert<i64>("3 "))
+    assert is_err(convert<i64>("+3")) && is_err(convert<i64>("--3"))
+    assert is_err(convert<i64>("3.0")) && is_err(convert<i64>("1__0"))
+    assert raises("convert.invalid") { convert<i64>("three", invalid: .fail) }
+}
+
+# OPS-6: text is an `f64` where it is a float or an integer literal, after
+# one `-`, or names a NaN or an infinity.
+test text_is_read_as_a_float {
+    assert convert<f64>("2.5", invalid: .fail) == 2.5
+    assert convert<f64>("-1e5", invalid: .fail) == -100000.0
+    assert convert<f64>("3", invalid: .fail) == 3.0
+    assert convert<f64>("1_0.5E1", invalid: .fail) == 105.0
+    assert convert<f64>("inf", invalid: .fail) == 1.0 / 0.0
+    assert convert<f64>("-inf", invalid: .fail) == -1.0 / 0.0
+    let nan = convert<f64>("nan", invalid: .fail)
+    assert nan != nan
+    # The text a number converts to converts back to that number.
+    assert again("0.30000000000000004") == "0.30000000000000004"
+    assert again("1e21") == "1e21" && again("-0.0") == "-0.0"
+    assert again("nan") == "nan" && again("-inf") == "-inf"
+    # OPS-7: text that is neither, and a number that rounds to an infinity.
+    assert is_err(convert<f64>("1e999")) && is_err(convert<f64>(".5"))
+    assert is_err(convert<f64>("NaN")) && is_err(convert<f64>("+inf"))
+    assert is_err(convert<f64>("2.5 ")) && is_err(convert<f64>("1e"))
+    assert raises("convert.invalid") { convert<f64>("two", invalid: .fail) }
+}
+
+# OPS-6, OPS-7: text and a `bool`, text and bytes, a `date` and a `datetime`.
+test the_other_conversions {
+    assert convert<bool>("true", invalid: .fail) && !convert<bool>("false", invalid: .fail)
+    assert is_err(convert<bool>("True")) && is_err(convert<bool>(""))
+    assert raises("convert.invalid") { convert<bool>("yes", invalid: .fail) }
+    assert convert<str>(convert<bytes>("h\u{e9}llo"), invalid: .fail) == "h\u{e9}llo"
+    assert convert<datetime>(@2026-03-01) == @2026-03-01T00:00:00Z
+    assert convert<date>(@2026-03-01T23:59:59Z) == @2026-03-01
+}

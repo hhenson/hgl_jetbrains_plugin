@@ -15,6 +15,7 @@ import io.github.hhenson.hgl.psi.HglBlock
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglImportSet
 import io.github.hhenson.hgl.psi.HglNativeContractBody
+import io.github.hhenson.hgl.psi.HglNativeTypeBody
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglSwitchStmt
 import io.github.hhenson.hgl.psi.HglTestContext
@@ -56,7 +57,7 @@ class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
             val node = element.node
             val foldable = when {
                 element is HglBlock || element is HglStructBody || element is HglNativeContractBody ||
-                    element is HglTestContext || element is HglImportSet || element is HglEnumDecl ||
+                    element is HglNativeTypeBody || element is HglTestContext || element is HglImportSet || element is HglEnumDecl ||
                     element is HglSwitchStmt -> braceRange(node)
                 node.elementType == HglTypes.DOC_COMMENT || node.elementType == HglTypes.BLOCK_COMMENT -> node.textRange
                 else -> null

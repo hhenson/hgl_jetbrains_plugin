@@ -1,0 +1,11 @@
+module core part lists
+
+# The operations that give a list more entries. Each takes its list as a
+# `var` parameter (the language's FN-15): the call assigns the place it is
+# given. Contract: spec/list-operations.md.
+
+# LIST-1: `item` after the last entry of `values`.
+export native const fn append<V>(var values: list<V>, item: V)
+
+# LIST-2: each entry of `items`, in order, after the last entry of `values`.
+export native const fn extend<V>(var values: list<V>, items: list<V>)

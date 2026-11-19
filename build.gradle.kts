@@ -123,6 +123,8 @@ intellijPlatformTesting {
 
 // A parser regression must fail CI instead of leaving an editor test spinning.
 tasks.withType<Test>().configureEach {
+    inputs.dir("src/test/testData").withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file("spec/hgl_spec/spec/language/source-text.md").withPathSensitivity(PathSensitivity.RELATIVE)
     timeout = Duration.ofMinutes(5)
 }
 

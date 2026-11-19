@@ -1,0 +1,87 @@
+module conformance part conditional_graphs
+
+fn count_inside_branch(enabled: bool, value: i64) -> i64 {
+    if enabled { count_publications(value) }
+}
+
+/**
+A temporal if keeps its child on an equal selector and starts it fresh on re-entry.
+The counter advances through the second true, and the false branch stays silent
+even as the input continues to tick.
+
+:Rules: CTRL-2, CTRL-3, CTRL-13
+:Status: agreed
+*/
+test a_conditional_child_restarts_only_after_leaving_its_branch {
+    assert eval(count_inside_branch(
+        enabled: [true, true, false, _, true, _],
+        value:   [10,   20,   30,    40, 50,  60])) ==
+                 [1,    2,    _,     _,  1,   2]
+}
+
+fn count_outside_branch(enabled: bool, value: i64) -> i64 {
+    let count = count_publications(value)
+    if enabled { count }
+}
+
+/**
+A producer composed before a temporal if keeps running while its output is hidden.
+On re-entry its fifth publication is visible, including the two ticks spent
+in the false branch.
+
+:Rules: CTRL-2, CTRL-3, CTRL-13
+:Status: agreed
+*/
+test an_outer_producer_keeps_its_lifetime_across_branches {
+    assert eval(count_outside_branch(
+        enabled: [true, true, false, _, true, _],
+        value:   [10,   20,   30,    40, 50,  60])) ==
+                 [1,    2,    _,     _,  5,   6]
+}
+
+fn bypass_ratio(bypass: bool, divisor: f64) -> f64 {
+    if bypass { return divisor }
+    return checked_ratio(divisor)
+}
+
+/**
+An early return in a temporal branch runs its continuation only on the other path.
+Each zero would fail in checked_ratio. Both arrive while the bypass returns
+the input directly.
+
+:Rules: CTRL-2, CTRL-5, CTRL-14
+:Status: agreed
+*/
+test an_early_return_skips_the_continuation {
+    assert eval(bypass_ratio(
+        bypass:  [true, false, true, false],
+        divisor: [0.0,  3.0,   0.0,  2.0])) ==
+                 [0.0,  2.0,   0.0,  3.0]
+}
+
+fn switch_input(route: str, left: i64, right: i64, fallback: i64) -> i64 {
+    var selected = fallback
+    switch route {
+        case "left": selected = left
+        case "right": selected = right
+        default: selected = fallback
+    }
+    return selected
+}
+
+/**
+A temporal switch forwards the connection selected by the current label.
+An unmatched label selects the default, and later ticks on the selected
+connection still pass when the selector is silent.
+
+:Rules: CTRL-4, CTRL-6, CTRL-15
+:Status: agreed
+*/
+test a_switch_forwards_the_selected_connection {
+    assert eval(switch_input(
+        route:    ["left", "right", _, "other", _, "left"],
+        left:     [1,      2,       3, 4,       5, 6],
+        right:    [10,     20,      _, 40,     50, 60],
+        fallback: [100,    200,   300, 400,   500, 600])) ==
+                  [1,      20,      _, 400,   500, 6]
+}

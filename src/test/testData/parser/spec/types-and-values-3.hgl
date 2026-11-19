@@ -11,4 +11,6 @@ test members {
     assert Side.buy != Side.sell
     assert str(Side.sell) == "sell"
     assert opposite(.buy) == Side.sell
+    assert Side(1) == Side.sell
+    assert Side("buy") == Side.buy
 }

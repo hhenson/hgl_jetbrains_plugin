@@ -1,0 +1,21 @@
+module conformance part node_cache
+
+# A node that keeps what it has seen in a cache, and publishes the first.
+fn first_gathered(value: i64) -> i64 {
+    cache seen: list<i64> = []
+    when {
+        append(seen, value)
+        return seen[0]
+    }
+}
+
+/**
+A node cache keeps its contents across evaluations.
+After a silent cycle the first entry is still 7 when the node appends 9.
+
+:Rules: TIME-6
+:Status: agreed
+*/
+test a_cache_gathers_across_evaluations {
+    assert eval(first_gathered(value: [7, _, 9])) == [7, _, 7]
+}

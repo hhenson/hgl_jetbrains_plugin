@@ -9,27 +9,29 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement
 import io.github.hhenson.hgl.psi.HglAnonymousParameter
 import io.github.hhenson.hgl.psi.HglCacheDecl
 import io.github.hhenson.hgl.psi.HglCallExpr
+import io.github.hhenson.hgl.psi.HglConstantDecl
+import io.github.hhenson.hgl.psi.HglEnumDecl
+import io.github.hhenson.hgl.psi.HglEnumMember
 import io.github.hhenson.hgl.psi.HglFieldExpr
 import io.github.hhenson.hgl.psi.HglForBinding
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglGenericParameter
+import io.github.hhenson.hgl.psi.HglIdent
 import io.github.hhenson.hgl.psi.HglImportItem
 import io.github.hhenson.hgl.psi.HglInjectItem
 import io.github.hhenson.hgl.psi.HglLocalDecl
-import io.github.hhenson.hgl.psi.HglModulePath
-import io.github.hhenson.hgl.psi.HglIdent
 import io.github.hhenson.hgl.psi.HglMemberName
-import io.github.hhenson.hgl.psi.HglEnumMember
+import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglNamedType
 import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
+import io.github.hhenson.hgl.psi.HglNativeProperty
+import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglParameter
 import io.github.hhenson.hgl.psi.HglQualifiedName
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStateDecl
-import io.github.hhenson.hgl.psi.HglEnumDecl
-import io.github.hhenson.hgl.psi.HglNativeTypeDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglStructMember
 import io.github.hhenson.hgl.psi.HglTestDecl
@@ -83,7 +85,7 @@ class HglAnnotator : Annotator {
             is HglGenericParameter -> HglColors.TYPE_PARAMETER
             is HglLocalDecl, is HglForBinding -> HglColors.LOCAL_VARIABLE
             is HglStateDecl, is HglCacheDecl -> HglColors.STATE_VARIABLE
-            is HglStructMember -> HglColors.FIELD
+            is HglStructMember, is HglNativeProperty, is HglConstantDecl -> HglColors.FIELD
             is HglInjectItem -> HglColors.INJECTABLE
             is HglImportItem -> keyForTargets(owner.reference?.let { (it as? com.intellij.psi.PsiPolyVariantReference)?.multiResolve(false)?.mapNotNull { r -> r.element } } ?: emptyList())
             is HglUseAlias -> HglColors.MODULE_PATH
@@ -120,7 +122,7 @@ class HglAnnotator : Annotator {
         val target = targets.firstOrNull() ?: return null
         return when (target) {
             is HglStructDecl, is HglEnumDecl, is HglNativeTypeDecl -> HglColors.STRUCT_REFERENCE
-            is HglEnumMember -> HglColors.FIELD
+            is HglEnumMember, is HglNativeProperty, is HglConstantDecl -> HglColors.FIELD
             is HglFunctionDecl, is HglNativeFunctionDecl -> HglColors.FUNCTION_CALL
             is HglOperatorDecl -> HglColors.FUNCTION_CALL
             is HglParameter, is HglAnonymousParameter -> HglColors.PARAMETER

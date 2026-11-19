@@ -12,7 +12,7 @@ conformance fixtures. Both are pinned under `spec/` at revisions selected by
 [hgl-compiler](https://github.com/hhenson/hgl-compiler).
 
 Run `tools/refresh_test_data.sh` after changing the pins. The parser corpus
-includes complete specification examples and every core HGL file.
+includes complete specification modules and applications and every core HGL file.
 [Fixture sources](src/test/testData/parser/SOURCES.md) records their revisions.
 
 ## Build and install
@@ -25,7 +25,7 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.2.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.3.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
@@ -36,7 +36,7 @@ Add `PUBLISH_TOKEN` as a repository Actions secret using a token from
 The initial Marketplace listing must already exist.
 
 1. Update `pluginVersion` in `gradle.properties` and merge to `main`.
-2. Publish a GitHub release with the matching tag, for example `v0.2.1`.
+2. Publish a GitHub release with the matching tag, for example `v0.3.0`.
 3. The workflow tests both IDEs, verifies the ZIP, uploads it to Marketplace,
    and attaches the installable ZIP directly to the GitHub release.
 

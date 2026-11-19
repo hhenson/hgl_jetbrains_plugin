@@ -1,0 +1,26 @@
+module core_implementation part recorded_ticks
+
+fn forward_nullable(value: i64?) -> i64? {
+    when { return value }
+}
+
+const fn nullable_publications(ticks: list<tuple<datetime, delta<i64?>>>) ->
+    list<tuple<datetime, delta<i64?>>> => ticks
+
+/**
+A recorded null has its own timestamp and delta. A silent slot adds no tuple.
+Two nulls separated by a number and a silent slot expose their exact positions.
+
+:Rules: CEVAL-4, CRUN-8, TST-16
+:Status: agreed
+*/
+test a_null_publication_has_a_tuple_in_the_recording {
+    let opening = @2026-01-05T09:30:00Z
+    let ticks = eval(forward_nullable(value: [_, null, 7, _, null]),
+                     RunConfig(start: opening))
+    let published_null = delta<i64?>()
+    assert nullable_publications(ticks) == [
+        (opening + 1us, published_null),
+        (opening + 2us, delta<i64?>(value: 7)),
+        (opening + 4us, published_null)]
+}

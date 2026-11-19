@@ -1,9 +1,15 @@
 module core
 
 # Core's mandatory module: every module binds its public declarations
-# without a `use` (UNIT-11). Contracts: spec/numeric-operators.md and
-# spec/scalar-operators.md. The native candidates are in
-# hgl/native/scalar_operators.hgl.
+# without a `use` (UNIT-11). Contracts: spec/numeric-operators.md,
+# spec/scalar-operators.md, spec/capabilities.md,
+# spec/temporal-endpoints.md, spec/list-operations.md,
+# spec/tenor-operations.md and spec/execution.md. The native candidates
+# are in hgl/native/scalar_operators.hgl, the capabilities in
+# hgl/native/capabilities.hgl, the endpoint operations in
+# hgl/native/endpoints.hgl, the list operations in hgl/native/lists.hgl
+# and a tenor's in hgl/native/tenors.hgl. The calendar, the rolling rule
+# and the candidates that move a date are in hgl/core/calendar.hgl.
 
 # The outcome of a full comparison, `<=>` (OPS-3, NUM-6).
 export enum CmpResult { less, equivalent, greater, unordered }
@@ -16,6 +22,89 @@ export enum Rounding { truncate, floor, ceiling, half_even, half_up, half_down }
 
 # What a conversion does when it fails (OPS-8).
 export enum InvalidPolicy { error, fail }
+
+# Admission for same-type temporal addition/subtraction (OPS-9).
+export enum InvalidInputPolicy { identity }
+
+# The level of a log record (CAP-2).
+export enum LogLevel { debug, info, warning, error }
+
+# The named times of a run (CRUN-3). `smallest_step` is the least by which
+# one cycle's evaluation time follows another's. `never` is before every
+# evaluation time and `forever` after every one: no cycle runs at either.
+# `earliest_start` is the first instant a run may start at, and
+# `latest_end` the last it may end at.
+export const smallest_step: duration = 1us
+export const never: datetime = @1970-01-01T00:00:00Z
+export const earliest_start: datetime = never + smallest_step
+export const forever: datetime = @2262-04-11T00:00:00Z
+export const latest_end: datetime = forever - smallest_step
+
+# What a run is given beside its entry and the entry's arguments (CRUN-2).
+# A null `start` is the earliest start in a simulation and the present in
+# real time. `end` and `length` each say when the run ends, `length`
+# counted from its start, and a run is given at most one of them. With
+# neither, a simulation ends when nothing is scheduled, and a real-time
+# run when its host stops it.
+export struct RunConfig {
+    start: datetime? = null
+    end: datetime? = null
+    length: duration? = null
+}
+
+# `log` at each level (CAP-2). The native `log` and the capability types
+# are in hgl/native/capabilities.hgl.
+export const fn log_debug(logger: Logger, message: str) {
+    log(logger, .debug, message)
+}
+
+export const fn log_info(logger: Logger, message: str) {
+    log(logger, .info, message)
+}
+
+export const fn log_warning(logger: Logger, message: str) {
+    log(logger, .warning, message)
+}
+
+export const fn log_error(logger: Logger, message: str) {
+    log(logger, .error, message)
+}
+
+# `replay` and `record` are a run's own (CEVAL-1, CRUN-8). They are not
+# exported: a run wires them, and no module names them, so a program may
+# use either name for a declaration of its own.
+
+# The publications a replay list holds, each at its time (CEVAL-2,
+# CEVAL-3). An eval's run wires one to each temporal input of its target
+# (CEVAL-1).
+fn replay<T>(const items: list<tuple<datetime, delta<T>>>) -> T {
+    for item in items {
+        yield item[0]: item[1]
+    }
+}
+
+# Each publication of `input`, with its evaluation time, put in the store
+# under `key` at stop (CEVAL-4). A run wires one to its entry's result
+# under the run's key (CRUN-8).
+fn record<T>(input: T, const key: str) {
+    cache entries: list<tuple<datetime, delta<T>>> = []
+    inject clock, global_state
+    when valid(input) && modified(input) {
+        append(entries, (clock.evaluation_time, delta_value(input)))
+    }
+    stop { put(global_state, key, entries) }
+}
+
+# Ask for a wake on a scheduler or an alarm (CAP-4, CAP-5). `at` is a
+# `duration` from the current evaluation time, or a `datetime`.
+operator schedule<C, W>(capability: C, at: W)
+
+# The global store (CAP-6): the value under a key, whether a key holds
+# one, and a value put under a key. A call of `get` gives `V` and leaves
+# the store and the key to be inferred, as `convert<T>(value)` does.
+operator get<V, S, K>(store: S, key: K) -> V
+operator has<S, K>(store: S, key: K) -> bool
+operator put<S, K, V>(store: S, key: K, value: V)
 
 # The symbol operators. Syntax binds each identity (the language's generics
 # chapter): `a + b` is `add_(a, b)`. An operator is neither value nor
@@ -55,3 +144,46 @@ operator or_(lhs: bool, rhs: bool) -> bool
 operator not_(value: bool) -> bool
 operator all_(values: ...bool) -> bool
 operator any_(values: ...bool) -> bool
+
+# Reverse-order candidates reuse one native body for each commutative pair.
+# Arguments have already been evaluated; only their bound values are swapped.
+
+# NUM-1: mixed numeric addition and multiplication.
+impl const fn add_(lhs: f64, rhs: i64) -> f64 => add_(rhs, lhs)
+impl const fn mul_(lhs: f64, rhs: i64) -> f64 => mul_(rhs, lhs)
+
+# OPS-1: temporal addition, duration scaling, and string repetition.
+impl const fn add_(lhs: duration, rhs: datetime) -> datetime => add_(rhs, lhs)
+impl const fn add_(lhs: duration, rhs: date) -> civil_datetime => add_(rhs, lhs)
+impl const fn add_(lhs: duration, rhs: civil_datetime) -> civil_datetime => add_(rhs, lhs)
+impl const fn add_(lhs: duration, rhs: zoned_datetime) -> zoned_datetime => add_(rhs, lhs)
+impl const fn add_(lhs: time, rhs: date) -> civil_datetime => add_(rhs, lhs)
+impl const fn mul_(lhs: i64, rhs: duration) -> duration => mul_(rhs, lhs)
+impl const fn mul_(lhs: f64, rhs: duration) -> duration => mul_(rhs, lhs)
+impl const fn mul_(lhs: i64, rhs: str) -> str => mul_(rhs, lhs)
+
+# NUM-2, NUM-4, NUM-5: preserve the integer's type and both tolerances.
+impl const fn eq_(lhs: f64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool =>
+    eq_(rhs, lhs, abs: abs, rel: rel)
+impl const fn ne_(lhs: f64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool =>
+    ne_(rhs, lhs, abs: abs, rel: rel)
+
+# OPS-9: the required option keeps these candidates out of unconfigured calls.
+# The requirements name value operations; a runtime body calls those candidates.
+impl fn add_<T, const invalid: InvalidInputPolicy>(lhs: T, rhs: T) -> T
+    requires invalid == .identity && add_(T, T) -> T {
+    inject out
+    when valid(lhs, rhs) { return add_(lhs, rhs) }
+    when valid(lhs) { return lhs }
+    when valid(rhs) { return rhs }
+    when valid([]) { invalidate(out) }
+}
+
+impl fn sub_<T, const invalid: InvalidInputPolicy>(lhs: T, rhs: T) -> T
+    requires invalid == .identity && sub_(T, T) -> T && neg_(T) -> T {
+    inject out
+    when valid(lhs, rhs) { return sub_(lhs, rhs) }
+    when valid(lhs) { return lhs }
+    when valid(rhs) { return neg_(rhs) }
+    when valid([]) { invalidate(out) }
+}

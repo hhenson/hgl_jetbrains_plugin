@@ -1,0 +1,88 @@
+module conformance part graph_cycles
+
+# Accumulation makes every invocation visible, even two in the same cycle.
+fn running_join(left: i64, right: i64) -> i64 {
+    state total: i64 = 0
+    when {
+        total += left + right
+        return total
+    }
+}
+
+/**
+A node with two valid inputs runs once when both publish in the same cycle.
+The first input waits for the second to become valid. A later tick on just
+one side uses the other side's retained value.
+
+:Rules: TIME-1, TIME-2, TIME-3, END-5
+:Status: agreed
+*/
+test two_inputs_wake_their_consumer_once {
+    assert eval(running_join(
+        left:  [2, _, 4,  6,  _],
+        right: [_, 5, 7,  _,  3])) ==
+               [_, 7, 18, 31, 40]
+}
+
+fn doubled_branch(value: i64) -> i64 {
+    when { return value * 2 }
+}
+
+fn incremented_branch(value: i64) -> i64 {
+    when { return value + 1 }
+}
+
+fn diamond_sum(value: i64) -> i64 {
+    let short_path = doubled_branch(value)
+    let long_path = incremented_branch(incremented_branch(value))
+    return running_join(short_path, long_path)
+}
+
+/**
+A consumer sees both completed branches of a diamond in one evaluation.
+The branches have different lengths. Each input tick adds exactly one pair
+to the total, even when a shorter path can notify the consumer first.
+
+:Rules: TIME-2, END-5
+:Status: agreed
+*/
+test a_diamond_settles_before_its_join_runs {
+    # The pairs at the join are (2, 3), (6, 5), and (8, 6).
+    assert eval(diamond_sum(value: [1, _, 3, 4])) == [5, _, 16, 30]
+}
+
+fn same_publication_time(left: i64, right: i64) -> bool {
+    when {
+        let left_time = last_modified(left)
+        let right_time = last_modified(right)
+        return left_time != null && right_time != null && left_time == right_time
+    }
+}
+
+fn compare_branch_times(value: i64) -> bool =>
+    same_publication_time(value, incremented_branch(incremented_branch(value)))
+
+/**
+Every producer in one propagation cycle publishes at the same logical time.
+Compare the source with a branch two nodes downstream. Both times must exist,
+including on the repeated value after a gap.
+
+:Rules: CRUN-3, END-6, TIME-2
+:Status: agreed
+*/
+test a_propagation_cycle_has_one_publication_time {
+    assert eval(compare_branch_times(value: [7, _, 7, 9])) == [true, _, true, true]
+}
+
+/**
+A simulation can resume after hours of logical silence with only the scheduled inputs.
+The first and last inputs are three hours apart. When the second input is
+one microsecond before the last, the counter still advances on both.
+
+:Rules: CRUN-3, CRUN-4, TIME-2
+:Status: agreed
+*/
+test a_simulation_resumes_at_each_scheduled_time {
+    assert eval(count_publications(value: [0s: 7, 3h - 1us: 7, 3h: 7])) ==
+        [0s: 1, 3h - 1us: 2, 3h: 3]
+}

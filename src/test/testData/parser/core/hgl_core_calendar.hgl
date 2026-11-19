@@ -1,0 +1,137 @@
+module core part calendar
+
+# A date moved by a tenor, on a calendar and under a rolling rule (TEN-4
+# to TEN-8). Contract: spec/tenor-operations.md. The native parts are in
+# hgl/native/tenors.hgl.
+
+# TEN-5: whether `day` is a business day of `calendar`. A calendar is any
+# value this has a candidate for.
+operator business_day<C>(calendar: C, day: date) -> bool
+
+# TEN-8: the business day a rolling rule gives for `day` on `calendar`. A
+# rolling rule is any value this has a candidate for.
+operator roll<R, C>(rolling_rule: R, calendar: C, day: date) -> date
+
+# TEN-8: the four common rolling rules, for any calendar.
+export enum Rolling { following, modified_following, preceding, modified_preceding }
+
+# TEN-5: the calendar a date is moved on where none is given. Every day
+# but a Saturday and a Sunday is a business day of it.
+export struct Weekdays {}
+
+impl const fn business_day(calendar: Weekdays, day: date) -> bool => !weekend(day)
+
+# The business day of `calendar` on or after `day`.
+const fn on_or_after<C>(day: date, calendar: C) -> date
+    requires business_day(C, date) -> bool {
+    var at: date = day
+    while !business_day(calendar, at) {
+        at = moved(at, 1D)
+    }
+    return at
+}
+
+# The business day of `calendar` on or before `day`.
+const fn on_or_before<C>(day: date, calendar: C) -> date
+    requires business_day(C, date) -> bool {
+    var at: date = day
+    while !business_day(calendar, at) {
+        at = moved(at, -1D)
+    }
+    return at
+}
+
+# TEN-6: the business day `count` business days after the one on or after
+# `day`, for a count that is not negative.
+const fn business_days_on<C>(day: date, count: i64, calendar: C) -> date
+    requires business_day(C, date) -> bool {
+    var at: date = on_or_after(day, calendar)
+    var left: i64 = count
+    while left > 0 {
+        at = moved(at, 1D)
+        if business_day(calendar, at) { left -= 1 }
+    }
+    return at
+}
+
+# TEN-6: the business day `count` business days before the one on or
+# before `day`, for a count that is not negative.
+const fn business_days_back<C>(day: date, count: i64, calendar: C) -> date
+    requires business_day(C, date) -> bool {
+    var at: date = on_or_before(day, calendar)
+    var left: i64 = count
+    while left > 0 {
+        at = moved(at, -1D)
+        if business_day(calendar, at) { left -= 1 }
+    }
+    return at
+}
+
+# TEN-4, TEN-6: `day + by`.
+const fn moved_on<C>(day: date, by: tenor, calendar: C) -> date
+    requires business_day(C, date) -> bool {
+    let count = business_days(by)
+    if count != null {
+        if count < 0 { return business_days_back(day, -count, calendar) }
+        return business_days_on(day, count, calendar)
+    }
+    return moved(day, by)
+}
+
+# TEN-4, TEN-6: `day - by`.
+const fn moved_back<C>(day: date, by: tenor, calendar: C) -> date
+    requires business_day(C, date) -> bool {
+    let count = business_days(by)
+    if count != null {
+        if count < 0 { return business_days_on(day, -count, calendar) }
+        return business_days_back(day, count, calendar)
+    }
+    return moved(day, -by)
+}
+
+# TEN-1, TEN-7: `date + tenor` and `date - tenor`. `calendar` and
+# `rolling_rule` are options, each declared by the candidates that take it.
+impl const fn add_(lhs: date, rhs: tenor) -> date => moved_on(lhs, rhs, Weekdays())
+
+impl const fn add_<C>(lhs: date, rhs: tenor, calendar: C) -> date
+    requires business_day(C, date) -> bool => moved_on(lhs, rhs, calendar)
+
+impl const fn add_<R>(lhs: date, rhs: tenor, rolling_rule: R) -> date
+    requires roll(R, Weekdays, date) -> date =>
+    roll(rolling_rule, Weekdays(), moved_on(lhs, rhs, Weekdays()))
+
+impl const fn add_<R, C>(lhs: date, rhs: tenor, rolling_rule: R, calendar: C) -> date
+    requires roll(R, C, date) -> date && business_day(C, date) -> bool =>
+    roll(rolling_rule, calendar, moved_on(lhs, rhs, calendar))
+
+impl const fn sub_(lhs: date, rhs: tenor) -> date => moved_back(lhs, rhs, Weekdays())
+
+impl const fn sub_<C>(lhs: date, rhs: tenor, calendar: C) -> date
+    requires business_day(C, date) -> bool => moved_back(lhs, rhs, calendar)
+
+impl const fn sub_<R>(lhs: date, rhs: tenor, rolling_rule: R) -> date
+    requires roll(R, Weekdays, date) -> date =>
+    roll(rolling_rule, Weekdays(), moved_back(lhs, rhs, Weekdays()))
+
+impl const fn sub_<R, C>(lhs: date, rhs: tenor, rolling_rule: R, calendar: C) -> date
+    requires roll(R, C, date) -> date && business_day(C, date) -> bool =>
+    roll(rolling_rule, calendar, moved_back(lhs, rhs, calendar))
+
+# TEN-2: a tenor scaled, in the other order.
+impl const fn mul_(lhs: i64, rhs: tenor) -> tenor => mul_(rhs, lhs)
+
+# TEN-8: core's rolling rules, on any calendar. Each looks only the way
+# its rule needs: a calendar may have no business day the other way.
+impl const fn roll<C>(rolling_rule: Rolling, calendar: C, day: date) -> date
+    requires business_day(C, date) -> bool {
+    if rolling_rule == .following { return on_or_after(day, calendar) }
+    if rolling_rule == .preceding { return on_or_before(day, calendar) }
+    if rolling_rule == .modified_following {
+        let after = on_or_after(day, calendar)
+        if same_month(after, day) { return after }
+        return on_or_before(day, calendar)
+    }
+    let before = on_or_before(day, calendar)
+    if same_month(before, day) { return before }
+    return on_or_after(day, calendar)
+}

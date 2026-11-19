@@ -44,10 +44,25 @@ class HglLexerTest : LexerTestCase() {
             assertTrue(word, io.github.hhenson.hgl.psi.HglTokenSets.KEYWORDS.contains(lexer.tokenType))
             assertEquals(word.length, lexer.tokenEnd)
         }
-        for (word in listOf("const", "native", "type", "switch", "case", "default", "raises")) {
+        for (word in listOf("const", "native", "type", "switch", "case", "default", "raises", "application", "run", "integration_test", "timeout", "rolling")) {
             val lexer = createLexer()
             lexer.start(word)
             assertEquals(word, io.github.hhenson.hgl.psi.HglTypes.IDENTIFIER, lexer.tokenType)
+        }
+    }
+
+    fun testTenorUnitsAndDurationUnits() {
+        for (text in listOf("1Y6M", "1W3D", "2B", "3M", "3m", "10us")) {
+            val lexer = createLexer()
+            lexer.start(text)
+            assertEquals(text, io.github.hhenson.hgl.psi.HglTypes.TEMPORAL_LITERAL, lexer.tokenType)
+            assertEquals(text.length, lexer.tokenEnd)
+        }
+        for (text in listOf("2.5Y", "1B1D", "1D1W", "1M2M", "1h2D")) {
+            val lexer = createLexer()
+            lexer.start(text)
+            assertEquals(text, com.intellij.psi.TokenType.BAD_CHARACTER, lexer.tokenType)
+            assertEquals(text.length, lexer.tokenEnd)
         }
     }
 

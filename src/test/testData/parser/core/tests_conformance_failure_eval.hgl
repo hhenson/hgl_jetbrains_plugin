@@ -4,10 +4,17 @@ fn checked_ratio(divisor: f64) -> f64 {
     when { return (6.0 /{zero: .error} divisor)? }
 }
 
+/**
+An evaluation failure escapes the run even after an earlier successful publication.
+Empty and successful runs provide controls for the same node.
+
+:Rules: CEVAL-6, ERR-5
+:Status: agreed
+*/
 test eval_preserves_failure {
-    assert eval(checked_ratio, divisor: []) == []
-    assert eval(checked_ratio, divisor: [2.0]) == [3.0]
+    assert eval(checked_ratio(divisor: [])) == []
+    assert eval(checked_ratio(divisor: [2.0])) == [3.0]
     assert raises("numeric.division_by_zero") {
-        eval(checked_ratio, divisor: [2.0, 0.0])
+        eval(checked_ratio(divisor: [2.0, 0.0]))
     }
 }

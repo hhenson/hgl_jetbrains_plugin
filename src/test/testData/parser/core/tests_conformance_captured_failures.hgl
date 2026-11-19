@@ -1,0 +1,110 @@
+module conformance part captured_failures
+
+const fn checked_attempt(value: i64, attempt: i64) -> result<i64, error> {
+    if value < 0 { return err(error(message: "negative input")) }
+    return ok(attempt)
+}
+
+fn attempt_number(value: i64) -> i64 {
+    state attempt: i64 = 0
+    when {
+        attempt += 1
+        return checked_attempt(value, attempt)?
+    }
+}
+
+fn successful_attempts(value: i64) -> i64 {
+    let boundary = capture(attempt_number, value)
+    return boundary.value
+}
+
+/**
+A captured evaluation failure ends that pass and keeps the node's earlier effects.
+The failing second attempt has no value. The next input observes attempt
+three, so the child kept its state and advanced only when input arrived.
+
+:Rules: ERR-5, ERR-7, ERR-8
+:Status: agreed
+*/
+test a_captured_failure_keeps_the_child_live {
+    assert eval(successful_attempts(value: [8, -1, _, 9])) == [1, _, _, 3]
+}
+
+fn describe_error(failure: error, sample: i64) -> str {
+    when modified(sample) && valid([]) {
+        if valid(failure) {
+            if modified(failure) { return failure.message }
+            return "retained"
+        }
+        return "clear"
+    }
+}
+
+fn sampled_failures(value: i64, sample: i64) -> str {
+    let boundary = capture(attempt_number, value)
+    return describe_error(boundary.error, sample)
+}
+
+/**
+The error stream starts invalid, publishes on every evaluation failure, and
+retains its last error through silence and later success. An independent
+sample observes every cycle, including the one with no input.
+
+:Rules: ERR-7, ERR-8
+:Status: agreed
+*/
+test a_captured_error_ticks_again_then_stays_valid {
+    assert eval(sampled_failures(
+        value:  [8,       -1,               -1,               _,          9],
+        sample: [1,       2,                3,                4,          5])) ==
+                ["clear", "negative input", "negative input", "retained", "retained"]
+}
+
+fn return_outcome(value: i64) -> result<i64, error> {
+    when { return checked_attempt(value, value) }
+}
+
+fn describe_outcome(outcome: result<i64, error>, failure: error) -> str {
+    when modified(outcome) && valid(outcome) {
+        if valid(failure) { return "captured failure" }
+        if is_err(outcome) { return outcome.error.message }
+        return "success"
+    }
+}
+
+fn captured_outcomes(value: i64) -> str {
+    let boundary = capture(return_outcome, value)
+    return describe_outcome(boundary.value, boundary.error)
+}
+
+/**
+An error returned as result data publishes on the value stream.
+Two equal errors each publish, and the capture's error stream stays invalid.
+
+:Rules: ERR-2, ERR-5, ERR-7
+:Status: agreed
+*/
+test a_returned_error_is_a_value_at_a_capture_boundary {
+    assert eval(captured_outcomes(value: [8, -1, -1, 9])) ==
+        ["success", "negative input", "negative input", "success"]
+}
+
+fn watch_sink_stop(divisor: i64) -> str {
+    let boundary = capture(divide_at_stop, divisor)
+    return describe_error(boundary.error, divisor)
+}
+
+/**
+A captured sink's stop failure escapes the run.
+The sink divides by its final input only in stop. With a nonzero final
+input the observer completes both samples with a clear error stream.
+
+:Rules: ERR-7, ERR-8, CRUN-6
+:Status: agreed
+*/
+test stop_failures_cross_a_capture_boundary {
+    assert eval(watch_sink_stop(divisor: [0, 2])) == ["clear", "clear"]
+    assert raises("numeric.division_by_zero") {
+        eval(watch_sink_stop(divisor: [2, 0]))
+    }
+}

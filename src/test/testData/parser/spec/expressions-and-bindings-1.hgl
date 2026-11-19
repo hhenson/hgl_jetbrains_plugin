@@ -1,0 +1,26 @@
+module examples.places
+
+struct Point {
+    x: f64
+    y: f64
+}
+
+const fn moved(origin: Point, by: f64) -> Point {
+    var point = origin
+    point.x += by
+    return point
+}
+
+const fn counted(words: list<str>) -> dict<str, i64> {
+    var counts: dict<str, i64> = []
+    for word in words {
+        counts[word] = 1
+    }
+    return counts
+}
+
+fn shifted(first: Point, price: f64) -> Point {
+    var point = first
+    point.x = price
+    return point
+}
