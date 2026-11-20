@@ -28,6 +28,12 @@ scopes and module index. Module parts share declarations and test helpers.
 Imports stay file-local. Other modules see exported declarations, operators,
 and the public `core` prelude. Applications have their own file scope.
 
+Operator gutters link a declaration to its HGL and native candidates in both
+directions (GEN-4). A name index narrows the search to files with an `impl`
+header. Any module can contribute overloads by selectively importing the operator
+in the file that declares them. Candidates also bind to operators in their own
+module or the core prelude. The chooser shows typed signatures and file paths.
+
 ## Compiler diagnostics on save
 
 Saving a local HGL file in a trusted project starts `hgl check --json` on
