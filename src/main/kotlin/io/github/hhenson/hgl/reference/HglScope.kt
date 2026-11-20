@@ -75,9 +75,11 @@ object HglScope {
      * while overloads declared side by side in one scope are all returned.
      * An import expands to what it imports.
      */
-    fun resolve(from: PsiElement, name: String): List<PsiElement> {
+    fun resolve(from: PsiElement, name: String): List<PsiElement> = resolve(from, name, includeImplementations = true)
+
+    internal fun resolve(from: PsiElement, name: String, includeImplementations: Boolean): List<PsiElement> {
         val direct = scopes(from)
-            .map { scope -> scope.filter { it.name == name } }
+            .map { scope -> scope.filter { it.name == name && (includeImplementations || !it.isOperatorImplementation) } }
             .firstOrNull { it.isNotEmpty() }
             ?: return emptyList()
         return direct.flatMap { declaration ->
@@ -155,6 +157,9 @@ object HglScope {
         return result
     }
 }
+
+internal val HglNamedElement.isOperatorImplementation: Boolean
+    get() = (this is HglFunctionDecl && implKw != null) || (this is HglNativeFunctionDecl && implKw != null)
 
 /** What an import item brings into scope: the declarations of that name in the imported module. */
 fun HglImportItem.importedDeclarations(): List<PsiElement> {

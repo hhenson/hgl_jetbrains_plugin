@@ -3,6 +3,9 @@
 Review HGL code in CLion and RustRover with one plugin. The plugin provides
 highlighting, folding, documentation, a structure view, completion and
 navigation for `.hgl` files. Run a named test or application from its gutter icon.
+Click **Implemented by** beside an operator to browse overloads by signature,
+including those added by other modules that import it. Click **Implements**
+beside an HGL or native implementation to jump back to its operator.
 
 ## Language sources
 
