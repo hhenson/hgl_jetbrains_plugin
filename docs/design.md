@@ -64,9 +64,12 @@ A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
 rejection cases in the supplied roots.
 
-Both configurations use the project’s HGL Test Runner settings for the
-executable and roots. Empty roots select the declaration's
-file. The IDE owns the Run console, stop and rerun actions. The compiler
+Diagnostics and both run configurations share one compiler command builder.
+It uses the project’s executable setting and the IDE console environment.
+On macOS it appends `/opt/homebrew/bin` to the child’s `PATH` when absent,
+so the compiler and its build tools are visible to desktop-launched IDEs.
+Empty roots select the declaration's file. The IDE owns the Run console,
+stop and rerun actions. The compiler
 owns selection and outcomes.
 
 ## Grammar and PSI
