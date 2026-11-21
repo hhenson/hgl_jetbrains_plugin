@@ -76,10 +76,9 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
         val roots = settings.sourceRoots()
         val command = GeneralCommandLine(settings.executable.trim())
             .withParameters(runType.command)
-            .withParameters(selector, "--target", "hgraph")
+            .withParameters(selector, "--target", "cpp")
             .withWorkDirectory(project.basePath)
             .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-        settings.python.trim().takeIf(String::isNotEmpty)?.let { command.addParameters("--python", it) }
         command.addParameter("--")
         command.addParameters(roots.ifEmpty { listOf(sourcePath) })
         return command

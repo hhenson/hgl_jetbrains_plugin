@@ -1,7 +1,7 @@
 module conformance part failure_eval
 
 fn checked_ratio(divisor: f64) -> f64 {
-    when { return (6.0 /{zero: .error} divisor)? }
+    when { return 6.0 /{zero: .error} divisor }
 }
 
 /**
@@ -12,9 +12,9 @@ Empty and successful runs provide controls for the same node.
 :Status: agreed
 */
 test eval_preserves_failure {
-    assert eval(checked_ratio(divisor: [])) == []
-    assert eval(checked_ratio(divisor: [2.0])) == [3.0]
+    assert eval checked_ratio(divisor: []) == []
+    assert eval checked_ratio(divisor: [2.0]) == [3.0]
     assert raises("numeric.division_by_zero") {
-        eval(checked_ratio(divisor: [2.0, 0.0]))
+        eval checked_ratio(divisor: [2.0, 0.0])
     }
 }

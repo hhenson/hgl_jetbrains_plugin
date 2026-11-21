@@ -1,0 +1,5 @@
+operator doubled<T>(value: T) -> T
+
+impl const fn doubled(value: i64) -> i64 => value * 2
+
+impl fn doubled(value: f64) -> f64 => value * 2.0

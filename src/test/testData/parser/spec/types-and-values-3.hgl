@@ -1,16 +1,20 @@
-module examples.enums
-
-export enum Side { buy, sell }
-
-const fn opposite(side: Side) -> Side {
-    if side == .buy { return .sell }
-    return .buy
+struct Node {
+    value: i64
+    next: atomic<Node?> = null
 }
 
-test members {
-    assert Side.buy != Side.sell
-    assert str(Side.sell) == "sell"
-    assert opposite(.buy) == Side.sell
-    assert Side(1) == Side.sell
-    assert Side("buy") == Side.buy
+struct Tree {
+    children: atomic<list<Tree>> = []
+}
+
+struct Index {
+    entries: atomic<dict<str, Index>> = []
+}
+
+struct Link {
+    next: Link?
+}
+
+struct Chain {
+    next: atomic<Chain>?
 }

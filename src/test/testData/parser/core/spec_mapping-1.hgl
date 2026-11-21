@@ -1,0 +1,33 @@
+module examples.mapping
+
+fn scaled(price: f64, factor: f64) -> f64 => price * factor
+
+fn labelled(key: str, price: f64) -> str => key
+
+fn spread(bid: f64, ask: f64) -> f64 => ask - bid
+
+fn all_scaled(prices: dict<str, f64>, factor: f64) -> dict<str, f64> =>
+    map(scaled, prices, factor)
+
+fn all_labelled(prices: dict<str, f64>) -> dict<str, str> =>
+    map(labelled, prices)
+
+fn spreads(bids: dict<str, f64>, asks: dict<str, f64>) -> dict<str, f64> =>
+    map(spread, bids, asks)
+
+fn wanted_spreads(bids: dict<str, f64>, asks: dict<str, f64>, wanted: set<str>) -> dict<str, f64> =>
+    map{keys: wanted}(spread, bids, asks)
+
+fn by_position(prices: list<f64>, factor: f64) -> list<f64> =>
+    map(scaled, prices, factor)
+
+fn three_scaled(prices: list<f64, 3>, factor: f64) -> list<f64, 3> =>
+    map(scaled, prices, factor)
+
+fn total(prices: dict<str, f64>) -> f64 => reduce(add_, prices, 0.0)
+
+struct Event { size: i64 }
+
+const fn applied(position: i64, event: Event) -> i64 => position + event.size
+
+fn position_after(events: list<Event>) -> i64 => reduce(applied, events, 0)

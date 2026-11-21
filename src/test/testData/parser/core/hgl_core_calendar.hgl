@@ -124,14 +124,16 @@ impl const fn mul_(lhs: i64, rhs: tenor) -> tenor => mul_(rhs, lhs)
 # its rule needs: a calendar may have no business day the other way.
 impl const fn roll<C>(rolling_rule: Rolling, calendar: C, day: date) -> date
     requires business_day(C, date) -> bool {
-    if rolling_rule == .following { return on_or_after(day, calendar) }
-    if rolling_rule == .preceding { return on_or_before(day, calendar) }
-    if rolling_rule == .modified_following {
-        let after = on_or_after(day, calendar)
-        if same_month(after, day) { return after }
-        return on_or_before(day, calendar)
+    switch rolling_rule {
+        case .following: return on_or_after(day, calendar)
+        case .preceding: return on_or_before(day, calendar)
+        case .modified_following:
+            let after = on_or_after(day, calendar)
+            if same_month(after, day) { return after }
+            return on_or_before(day, calendar)
+        case .modified_preceding:
+            let before = on_or_before(day, calendar)
+            if same_month(before, day) { return before }
+            return on_or_after(day, calendar)
     }
-    let before = on_or_before(day, calendar)
-    if same_month(before, day) { return before }
-    return on_or_after(day, calendar)
 }

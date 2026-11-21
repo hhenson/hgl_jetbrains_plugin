@@ -1,0 +1,9 @@
+operator each_slot<R, ...Ps, ...As, const key: str = "key", const index: str = "index">(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without key, index},
+) -> list<R>
+
+operator each_given<R, ...Ps, ...As, const given: set<str> = ["key", "index"]>(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without given},
+) -> list<R>

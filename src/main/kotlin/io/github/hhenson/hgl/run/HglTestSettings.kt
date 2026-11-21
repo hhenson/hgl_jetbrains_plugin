@@ -20,7 +20,6 @@ class HglTestSettings : PersistentStateComponent<HglTestSettings.Options> {
     data class Options(
         var executable: String = "hgl",
         var roots: String = "",
-        var python: String = "",
         var checkOnSave: Boolean = true,
     ) {
         fun sourceRoots(): List<String> = roots.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
@@ -45,10 +44,6 @@ class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL
         row("Source roots:") {
             textArea().bindText(settings::roots).align(AlignX.FILL)
                 .comment("One file or directory per line, relative to the project or absolute. Leave empty to use the selected source file.")
-        }
-        row("hgraph Python:") {
-            textField().bindText(settings::python).align(AlignX.FILL)
-                .comment("Optional. The compiler also accepts HGL_HGRAPH_PYTHON.")
         }
     }
 }

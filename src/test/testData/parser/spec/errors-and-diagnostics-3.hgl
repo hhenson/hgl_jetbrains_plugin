@@ -1,37 +1,52 @@
-module examples.capture
+module examples.results
 
 const fn checked(value: i64) -> result<i64, error> {
-    if value < 0 { return err(error(message: "negative price")) }
+    if value < 0 {
+        return err(error(message: "negative price", code: "price.negative"))
+    }
     return ok(value)
 }
 
+const fn doubled(value: i64) -> result<i64, error> {
+    let price: i64 = checked(value)
+    return ok(price * 2)
+}
+
+const fn recovered(value: i64) -> i64 {
+    let outcome = checked(value)
+    if is_err(outcome) { return 0 }
+    return outcome.value
+}
+
+const fn or_null(value: i64) -> i64? => checked(value)
+
+const fn or_zero(value: i64) -> i64 {
+    let price = checked(value)
+    if price == null { return 0 }
+    return price
+}
+
+const fn trusted(value: i64) -> i64 => checked(value)
+
+const fn present(outcome: result<i64?, error>) -> i64 => outcome
+
+const fn diagnostic(outcome: result<i64, error>) -> str {
+    if is_ok(outcome) { return "ok" }
+    return outcome.error.message
+}
+
 fn required(value: i64) -> i64 {
-    when { return checked(value)? }
+    when { return checked(value) }
 }
 
-fn forward(value: i64) -> i64 {
-    when { return value }
+fn tagged(value: i64) -> result<i64, error> {
+    when { return checked(value) }
 }
 
-fn failed(failure: error, step: i64) -> bool {
-    when modified(step) && valid(step) { return modified(failure) }
-}
+fn is_failure(value: result<i64, error>) -> bool => is_err(value)
 
-fn held(failure: error, step: i64) -> bool {
-    when modified(step) && valid(step) { return valid(failure) }
-}
+fn lifted_required(value: i64) -> i64 => checked(value)
 
-fn captured_value(value: i64) -> i64 {
-    let seen = capture(required, value)
-    forward(seen.value)
-}
+fn lifted_or_null(value: i64) -> i64? => checked(value)
 
-fn captured_events(value: i64, step: i64) -> bool {
-    let seen = capture(required, value)
-    failed(seen.error, step)
-}
-
-fn captured_presence(value: i64, step: i64) -> bool {
-    let seen = capture(required, value)
-    held(seen.error, step)
-}
+fn wired(const value: i64) -> i64 => checked(value)

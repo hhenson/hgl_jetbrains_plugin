@@ -1,0 +1,5 @@
+const fn ieee_ratio(a: f64, b: f64) -> f64 => a / b
+const fn checked_ratio(a: f64, b: f64) -> result<f64, error> =>
+    a /{zero: .error} b
+const fn unchecked_ratio(a: f64, b: f64) -> f64 =>
+    a /{zero: .error} b

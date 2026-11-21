@@ -1,0 +1,19 @@
+module examples.windows
+
+fn collect(price: f64) -> rolling_window<f64, 3s, 2s> {
+    when { return price }
+}
+
+fn readiness(prices: rolling_window<f64, 3s, 2s>) -> list<bool, 2> {
+    when valid([]) { return [valid(prices), all_valid(prices)] }
+}
+
+fn observed(price: f64) -> list<bool, 2> => readiness(collect(price))
+
+fn arrival(prices: rolling_window<f64, 3s, 2s>) -> result<f64, error> {
+    when modified(prices) { return delta_value(prices) }
+}
+
+fn departure(prices: rolling_window<f64, 3s, 2s>) -> result<f64, error> {
+    when modified(prices) { return removed_value(prices) }
+}

@@ -7,7 +7,12 @@ permissions:
   contents: read
 jobs:
   plugin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    env:
+      CXX: g++-15
+      HGRAPH_TAG: '0.9.23'
+      HGL_HGRAPH_DEPS: ${{ github.workspace }}/.hgraph/deps
+      HGL_HGRAPH_SDK: ${{ github.workspace }}/.hgraph/sdk
     steps:
       - uses: actions/checkout@v7
         with:
@@ -25,20 +30,28 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hhenson/hgl-compiler
-          ref: d26991b2a96da8223da57170ed100938e633ca10
+          ref: 02a8af668e9575168fbbb91087abfe38f8c11ebb
           path: build/test-compiler
           submodules: recursive
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/cache@v6
+        id: sdk
         with:
-          python-version: '3.14'
+          path: .hgraph
+          key: sdk-${{ runner.os }}-${{ runner.arch }}-ubuntu26-${{ env.HGRAPH_TAG }}-${{ hashFiles('build/test-compiler/scripts/provision-hgraph-sdk.sh') }}
+      - uses: mamba-org/setup-micromamba@v3
+        if: steps.sdk.outputs.cache-hit != 'true'
+        with:
+          micromamba-version: '2.10.0-0'
+      - name: Build the hgraph SDK
+        if: steps.sdk.outputs.cache-hit != 'true'
+        run: build/test-compiler/scripts/provision-hgraph-sdk.sh "$HGRAPH_TAG" "$HGL_HGRAPH_SDK"
       - name: Prepare the HGL test runner
         working-directory: build/test-compiler
         run: |
-          python -m pip install hgraph==0.9.5
+          echo "$HGL_HGRAPH_DEPS/bin" >> "$GITHUB_PATH"
           cargo build --locked --bin hgl
           echo "HGL_TEST_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
-          echo "HGL_HGRAPH_PYTHON=$(command -v python)" >> "$GITHUB_ENV"
       - run: ./gradlew prepareMarketplaceRelease
       - uses: actions/upload-artifact@v7
         with:

@@ -14,7 +14,7 @@ Both nulls produce output ticks, including the null after the silent cycle.
 :Status: agreed
 */
 test a_published_null_has_a_delta {
-    assert eval(nullable_delta_payload(input: [7, null, _, null, 0])) ==
+    assert eval nullable_delta_payload(input: [7, null, _, null, 0]) ==
         [7, null, _, null, 0]
 }
 
@@ -46,9 +46,9 @@ The sample input ticks every cycle so the observer also reports invalid times.
 */
 test last_modified_follows_the_last_publication {
     let t = earliest_start
-    assert eval(scalar_timestamp(
+    assert eval scalar_timestamp(
         action: [_, .write_seven, _, .write_seven, .clear_value, .write_null],
-        sample: [true, true, true, true, true, true])) ==
+        sample: [true, true, true, true, true, true]) ==
         [null, t + 1us, t + 1us, t + 3us, null, t + 5us]
 }
 
@@ -75,9 +75,9 @@ The stop hook signals that the output is older by dividing by zero.
 :Status: agreed
 */
 test stop_can_distinguish_input_and_output_publication_times {
-    assert eval(reject_stale_output(value: [7, _, 9])) == [7, _, 9]
+    assert eval reject_stale_output(value: [7, _, 9]) == [7, _, 9]
     assert raises("numeric.division_by_zero") {
-        eval(reject_stale_output(value: [7, _, 0]))
+        eval reject_stale_output(value: [7, _, 0])
     }
 }
 
@@ -97,7 +97,7 @@ handler has no validity requirement. Publishing 7 again supplies its next tick.
 :Status: agreed
 */
 test a_single_modified_guard_skips_invalidation {
-    assert eval(mark_produced_publications(command: [7, 0, 0, 7])) ==
+    assert eval mark_produced_publications(command: [7, 0, 0, 7]) ==
         [true, _, _, true]
 }
 
@@ -123,10 +123,10 @@ That input's modification guard runs.
 :Status: agreed
 */
 test an_active_invalidation_wakes_the_node_without_a_data_tick {
-    assert eval(describe_produced_wake(
+    assert eval describe_produced_wake(
         command: [          7,              0, 0,           9,            0],
         other:   [          _,              _, _,           _,         true],
-    )) ==        ["data tick", "data invalid", _, "data tick", "other tick"]
+    )  ==        ["data tick", "data invalid", _, "data tick", "other tick"]
 }
 
 enum WriteOrder { clear_then_publish, publish_then_clear }
@@ -155,11 +155,11 @@ The validity observer also reports the transition that emits no payload.
 :Status: agreed
 */
 test the_last_write_decides_validity {
-    assert eval(write_in_order(
-        order: [.clear_then_publish, .publish_then_clear, .clear_then_publish])) ==
+    assert eval write_in_order(
+        order: [.clear_then_publish, .publish_then_clear, .clear_then_publish]) ==
         [7, _, 7]
-    assert eval(validity_after_writes(
-        order: [.clear_then_publish, .publish_then_clear, .clear_then_publish])) ==
+    assert eval validity_after_writes(
+        order: [.clear_then_publish, .publish_then_clear, .clear_then_publish]) ==
         [true, false, true]
 }
 
@@ -181,6 +181,6 @@ value. The counter increments on every evaluation, including a spurious one.
 :Status: agreed
 */
 test two_writes_deliver_one_publication {
-    assert eval(write_twice(value: [7, 9])) == [7, 9]
-    assert eval(count_after_two_writes(value: [7, 9])) == [1, 2]
+    assert eval write_twice(value: [7, 9]) == [7, 9]
+    assert eval count_after_two_writes(value: [7, 9]) == [1, 2]
 }

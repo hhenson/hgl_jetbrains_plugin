@@ -1,0 +1,13 @@
+operator tick<V>(value: V) -> V
+
+impl fn tick(value: i64) -> i64 {
+    when { return value }
+}
+
+impl const fn tick(value: f64) -> f64 => value
+
+operator pass<T>(a: T) -> T
+
+impl fn pass<T>(a: T) -> T requires tick(T) -> T => tick(a)
+
+fn reals(x: f64) -> f64 => pass(x)

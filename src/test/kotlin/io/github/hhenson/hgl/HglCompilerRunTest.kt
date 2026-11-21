@@ -13,7 +13,7 @@ import io.github.hhenson.hgl.run.HglRunConfiguration
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
 
-/** Opt in with HGL_TEST_CLI and a Python environment containing hgraph. */
+/** Opt in with HGL_TEST_CLI and the native hgraph SDK. */
 class HglCompilerRunTest : HglEditorFixture() {
     // A reused light project can refer to a previous test's deleted process working directory.
     private val descriptor = LightProjectDescriptor()
@@ -62,20 +62,20 @@ class HglCompilerRunTest : HglEditorFixture() {
             root.resolve("$name.hgl").writeText("""
                 application demo.$name.backtest
                 use demo.source::{emit}
-                eval(emit(value: $value))
+                eval emit(value: $value)
             """.trimIndent())
         }
         val settings = project.service<HglTestSettings>()
         val before = settings.state
         try {
-            settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), root.name, System.getenv("HGL_HGRAPH_PYTHON").orEmpty()))
+            settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), root.name))
             for ((name, value) in apps) {
                 myFixture.configureByText("$name.hgl", "<caret>" + root.resolve("$name.hgl").readText())
                 val leaf = myFixture.file.findElementAt(myFixture.caretOffset)!!
                 val output = runInConsole(runConfigurationAt(leaf))
                 assertEquals(output.stdout + output.stderr, 0, output.exitCode)
                 assertEquals(listOf("1970-01-01T00:00:01.000001Z  $value",
-                    "ran demo.$name.backtest on hgraph: 1 publication"), output.stdout.trim().lines())
+                    "ran demo.$name.backtest on cpp: 1 publication"), output.stdout.trim().lines())
             }
         } finally {
             settings.loadState(before)
@@ -91,7 +91,7 @@ class HglCompilerRunTest : HglEditorFixture() {
             val output = ProcessOutput()
             handler.addProcessListener(CapturingProcessAdapter(output))
             handler.startNotify()
-            PlatformTestUtil.waitWithEventsDispatching("hgl timed out", { handler.isProcessTerminated }, 30)
+            PlatformTestUtil.waitWithEventsDispatching("hgl timed out", { handler.isProcessTerminated }, 150)
             output.exitCode = handler.exitCode!!
             return output
         } finally {

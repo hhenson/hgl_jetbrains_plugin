@@ -15,7 +15,7 @@ import io.github.hhenson.hgl.psi.HglTypes
 /** Files containing an `impl [const] fn name` header. The gutter checks its PSI and binding. */
 class HglImplementationIndex : ScalarIndexExtension<String>() {
     override fun getName() = NAME
-    override fun getVersion() = 1
+    override fun getVersion() = 2
     override fun getKeyDescriptor() = EnumeratorStringDescriptor.INSTANCE
     override fun getInputFilter() = DefaultFileTypeSpecificInputFilter(HglFileType)
     override fun dependsOnFileContent() = true

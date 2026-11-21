@@ -119,7 +119,7 @@ class HglColorSettingsPage : ColorSettingsPage {
             }
 
             test <test>midpoint_ticks</test> {
-                assert eval(<call>midpoint</call>(<narg>tob</narg>: [(1.0, 2.0), _, (2.0, 3.0)])) == [1.5, _, 2.5]
+                assert eval <call>midpoint</call>(<narg>tob</narg>: [(1.0, 2.0), _, (2.0, 3.0)]) == [1.5, _, 2.5]
             }
         """.trimIndent()
     }

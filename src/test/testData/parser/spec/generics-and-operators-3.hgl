@@ -1,0 +1,3 @@
+const fn keep<const size: i64 = 3>(values: list<f64>) -> list<f64> => values
+struct Window<const size: i64 = 3> { values: list<f64, size> }
+operator window<T, const size: i64 = 3>(value: T) -> list<T, size>

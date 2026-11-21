@@ -34,3 +34,18 @@ fn bid_without_admission(quote: BookQuote) -> i64 {
         return quote.bid
     }
 }
+
+/**
+A struct is read whole only where it is all valid.
+The default admission, `valid(quote)`, is true once any field is valid
+and admits no whole read; `all_valid(quote)` would.
+
+:Rules: TIME-1, TIME-4, TIME-9
+:Status: agreed
+*/
+fn quote_without_admission(quote: BookQuote) -> BookQuote {
+    when {
+        # expect-error(phase, "payload.unguarded")
+        return quote
+    }
+}

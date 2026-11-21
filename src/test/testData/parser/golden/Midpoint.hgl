@@ -17,5 +17,5 @@ export fn smooth(
 }
 
 test midpoint_ticks {
-    assert eval(midpoint(tob: [(1.0, 2.0), _, (2.0, 3.0)])) == [1.5, _, 2.5]
+    assert eval midpoint(tob: [(1.0, 2.0), _, (2.0, 3.0)]) == [1.5, _, 2.5]
 }

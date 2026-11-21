@@ -12,11 +12,207 @@ the later A-only change silent after the reader switches to B.
 :Status: proposed
 */
 test switching_keys_follows_the_new_child {
-    assert eval(selected_price(
+    assert eval selected_price(
         key:         ["A",   _, "B",   _,   _],
         changed_key: ["A", "B",   _, "A", "B"],
         price:       [  7,  20,   _,   8,  21],
-    )) ==            [  7,   _,  20,   _,  21]
+    )  ==            [  7,   _,  20,   _,  21]
+}
+
+fn pick_reference(flag: bool, ref low: i64, ref high: i64) -> ref i64 {
+    when modified(flag) {
+        if flag { return high }
+        return low
+    }
+}
+
+fn follow_item(item: i64) -> i64 {
+    when { return item }
+}
+
+fn follow_picked(flag: bool, low: i64, high: i64) -> i64 =>
+    follow_item(pick_reference(flag, low, high))
+
+/**
+A reader of a `ref` result is undisturbed by a designation given again.
+The flag picks the high input three times. The second return gives the
+result the designation it holds in a cycle the high input publishes 3,
+which reaches the reader; the third in a cycle it does not, and the
+reader does not tick. The flag then picks the low input, which does not
+publish in that cycle: the reader ticks with the 1 that input holds, and
+follows it. A later tick of the high input, left behind, does not reach
+the reader.
+
+:Rules: TIME-10, FN-16, END-10
+:Status: agreed
+*/
+test a_reader_is_undisturbed_by_a_designation_given_again {
+    assert eval follow_picked(
+        flag: [true, true, true, false, _, _],
+        low:  [   1,    _,    _,     _, 4, _],
+        high: [   2,    3,    _,     _, _, 5],
+    )  ==     [   2,    3,    _,     1, 4, _]
+}
+
+fn item_is_valid(probe: bool, item: i64) -> bool {
+    when modified(probe) && valid(probe) { return valid(item) }
+}
+
+fn picked_is_valid(probe: bool, flag: bool, low: i64, high: i64) -> bool =>
+    item_is_valid(probe, pick_reference(flag, low, high))
+
+/**
+A reader of a `ref` result waits for a target that has not published.
+The flag picks the high input before it holds a value: the reader is
+silent until that input publishes 7. Picking the low input again ticks
+the reader with the 1 it holds.
+
+:Rules: TIME-10, FN-16, END-10
+:Status: agreed
+*/
+test a_reader_waits_for_a_target_that_has_not_published {
+    assert eval follow_picked(
+        flag: [false, true, _, _, false],
+        low:  [    1,    _, _, _,     _],
+        high: [    _,    _, 7, _,     _],
+    )  ==     [    1,    _, 7, _,     1]
+}
+
+/**
+An ordinary input given a `ref` result is not valid while the result's target holds no value.
+`item_is_valid` takes the result as `item: i64`, no `ref` parameter, and
+a probe reads `valid(item)` in every cycle of the same run: it is false
+in the one cycle the high input is picked and has not published.
+
+:Rules: TIME-10, END-10
+:Status: agreed
+*/
+test a_reader_is_not_valid_while_its_target_holds_no_value {
+    assert eval picked_is_valid(
+        probe: [ true,  true, true, true,  true],
+        flag:  [false,  true,    _,    _, false],
+        low:   [    1,     _,    _,    _,     _],
+        high:  [    _,     _,    7,    _,     _],
+    )  ==      [ true, false, true, true,  true]
+}
+
+fn reference_is_present(probe: bool, ref target: i64) -> bool {
+    when modified(probe) && valid(probe) { return valid(target) }
+}
+
+/**
+`valid` of a `ref` parameter is whether a reference is present.
+The parameter is given a connection that first publishes in the third
+cycle. A reference is present from the first, so `valid(target)` is true
+throughout: nothing of the target is seen through the parameter.
+
+:Rules: TIME-10, FN-16, END-10
+:Status: agreed
+*/
+test valid_of_a_ref_parameter_is_whether_a_reference_is_present {
+    assert eval reference_is_present(
+        probe:  [true, true, true],
+        target: [   _,    _,    7],
+    )  ==       [true, true, true]
+}
+
+fn count_wakes(ref target: i64) -> i64 {
+    state count: i64 = 0
+    when {
+        count += 1
+        return count
+    }
+}
+
+/**
+A `ref` parameter does not wake its node for its target.
+The node subscribes to its `ref` parameter and counts its wakes. It is
+woken where the parameter is given its designation, and not by the two
+later publications of the input designated.
+
+:Rules: TIME-10, TIME-3, FN-16, END-10
+:Status: agreed
+*/
+test a_ref_parameter_does_not_wake_its_node_for_its_target {
+    assert eval count_wakes(target: [1, 2, 3]) == [1, _, _]
+}
+
+fn follow_reference(ref target: i64) -> ref i64 {
+    when modified(target) { return target }
+}
+
+fn follow_followed(flag: bool, low: i64, high: i64) -> i64 =>
+    follow_item(follow_reference(pick_reference(flag, low, high)))
+
+/**
+A relay that subscribes to its `ref` parameter follows it.
+The relay returns its parameter where the parameter is given a
+designation, so its reader moves from the low input to the high one in
+the cycle the flag picks it, and follows that input after.
+
+:Rules: FN-16, TIME-3, TIME-10, END-10
+:Status: agreed
+*/
+test a_relay_subscribed_to_its_ref_parameter_follows_it {
+    assert eval follow_followed(
+        flag: [false, true,  _],
+        low:  [    1,    2,  3],
+        high: [   10,   10, 11],
+    )  ==     [    1,   10, 11]
+}
+
+fn route_item<T>(idx: i64, items: list<T, 3>) -> ref T {
+    when modified(idx) { return items[idx] }
+}
+
+fn set_one_item(slot: i64, reading: i64) -> list<i64, 3> {
+    when { return delta<list<i64, 3>>(updated: [slot: reading]) }
+}
+
+fn sample_reference(take: bool, ref target: i64) -> ref i64 {
+    when modified(take) { return target }
+}
+
+fn followed_sample(take: bool, high_first: bool, low: i64, high: i64) -> i64 =>
+    follow_item(sample_reference(take, pick_reference(high_first, low, high)))
+
+/**
+Returning a ref parameter samples the target selected when the node runs.
+The selector changes to high at step two. The relay continues to forward
+low until the next take, when it selects high and reads its retained value.
+
+:Rules: FN-16, TIME-10, END-10
+:Status: agreed
+*/
+test a_relay_samples_its_ref_parameter_when_it_runs {
+    assert eval followed_sample(
+        take:       [ true,    _,  _, true,  _],
+        high_first: [false, true,  _,    _,  _],
+        low:        [    1,    2,  3,    4,  5],
+        high:       [   10,   10, 11,    _, 12],
+    )  ==           [    1,    2,  3,   11, 12]
+}
+
+fn follow_routed_item(idx: i64, slot: i64, reading: i64) -> i64 =>
+    follow_item(route_item(idx, set_one_item(slot, reading)))
+
+/**
+A `ref` result designates the list's element it names, and its reader follows that element.
+`items` is no `ref` parameter, and `route_item` subscribes to `idx` alone. While
+`idx` is 1, a tick of element 1 reaches the reader and one of element 0
+does not. `idx` then selects element 2, which has not published: the
+reader is silent until it does. The last switch, to element 0, lands with
+that element's tick.
+
+:Rules: FN-16, TIME-1, TIME-3, TIME-10, END-10
+:Status: agreed
+*/
+test a_ref_result_follows_the_element_it_designates {
+    assert eval follow_routed_item(
+        idx:     [ 1,  _,  _, 2,  _,  0],
+        slot:    [ 1,  1,  0, _,  2,  0],
+        reading: [20, 21, 10, _, 30, 11],
+    )  ==        [20, 21,  _, _, 30, 11]
 }
 
 fn sample_selection(use_left: bool, left: i64, right: i64, probe: bool) -> i64 {
@@ -33,10 +229,10 @@ producer's 20 and, after switching back, the left producer's newer 9.
 :Status: agreed
 */
 test a_probe_reads_a_selected_producer_that_stayed_quiet {
-    assert eval(sample_selection(
+    assert eval sample_selection(
         use_left: [true, false,    _, _, true,    _],
         left:     [   7,     _,    _, 9,    _,    _],
         right:    [  20,     _,    _, _,    _,    _],
         probe:    [true,     _, true, _,    _, true],
-    )) ==         [   7,     _,   20, _,    _,    9]
+    )  ==         [   7,     _,   20, _,    _,    9]
 }

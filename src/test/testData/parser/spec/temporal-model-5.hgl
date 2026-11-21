@@ -1,23 +1,42 @@
-module examples.capabilities
+module examples.selectors
 
-const fn stamped(clock: Clock, value: f64) -> tuple<datetime, f64> =>
-    (clock.evaluation_time, value)
-
-fn stamp(value: f64) -> tuple<datetime, f64> {
-    inject clock
-    when { return stamped(clock, value) }
+fn default_sum(a: f64, b: f64) -> f64 {
+    when { return a + b }
 }
 
-fn poll(const every: duration = 1s) -> i64 {
-    inject alarm, global_state
-    start {
-        put(global_state, "count", 0)
-        schedule(alarm, every)
+fn explicit_sum(a: f64, b: f64) -> f64 {
+    when modified(a, b) && valid(a, b) { return a + b }
+}
+
+fn on_a(a: f64, b: f64) -> f64 {
+    when modified(a) { return a + b }
+}
+
+fn while_a_valid(a: f64, b: f64) -> f64 {
+    when valid(a) { return a }
+}
+
+fn latest_a(a: f64, b: f64) -> f64 {
+    when modified(a) && valid([]) { return a }
+}
+
+fn sum_or_zero(a: f64, b: f64) -> f64 {
+    when valid([]) {
+        if valid(a) && valid(b) { return a + b }
+        return 0.0
     }
-    when scheduled() {
-        schedule(alarm, every)
-        let count = get<i64>(global_state, "count") + 1
-        put(global_state, "count", count)
-        return count
+}
+
+fn sampled(a: f64, const every: duration = 1s) -> f64 {
+    inject scheduler
+    start { schedule(scheduler, every) }
+    when modified([]) && valid([]) {
+        schedule(scheduler, every)
+        if valid(a) { return a }
     }
+}
+
+@suppress_warning("node.no_activation")
+fn null_sink(a: f64) {
+    when modified([]) { }
 }

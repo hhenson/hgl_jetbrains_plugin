@@ -51,6 +51,6 @@ fn total_of(values: list<f64>) -> f64 => total(
 )
 
 test continued_assert {
-    assert eval(long_expression(a: [1.0], b: [2.0], c: [0.5]))
+    assert eval long_expression(a: [1.0], b: [2.0], c: [0.5])
         == [2.5]
 }

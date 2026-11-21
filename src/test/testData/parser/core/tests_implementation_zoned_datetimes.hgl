@@ -1,0 +1,50 @@
+module core_implementation part zoned_datetimes
+
+/**
+A duration added to a zoned datetime moves its instant, not its wall clock.
+London's clocks go forward an hour at 01:00 UTC on 29 March 2026. A day
+added across that change ends at 13:00 local time, 86,400 seconds later,
+and an hour added at 00:30 ends at 02:30. Taking the hour away again
+returns the first instant.
+
+:Rules: OPS-1, OPS-10, TYPE-2
+:Status: agreed
+*/
+test a_duration_moves_a_zoned_instant {
+    assert @2026-03-28T12:00+00:00[Europe/London] + 1d ==
+        @2026-03-29T13:00+01:00[Europe/London]
+    assert @2026-03-29T00:30+00:00[Europe/London] + 1h ==
+        @2026-03-29T02:30+01:00[Europe/London]
+    assert @2026-03-29T02:30+01:00[Europe/London] - 1h ==
+        @2026-03-29T00:30+00:00[Europe/London]
+}
+
+/**
+Two zoned datetimes are equal only when their instants and zone names both match.
+09:30 in London and 08:30 in UTC are one instant in two zones, and 09:30
+in UTC is another instant.
+
+:Rules: OPS-2, TYPE-2
+:Status: agreed
+*/
+test zoned_datetimes_are_equal_by_instant_and_zone {
+    let london = @2026-09-03T09:30+01:00[Europe/London]
+    assert london == @2026-09-03T09:30+01:00[Europe/London]
+    assert london != @2026-09-03T08:30+00:00[UTC]
+    assert london != @2026-09-03T09:30+00:00[UTC]
+}
+
+/**
+Compared as UTC, two zoned datetimes are equal when their instants are.
+The same values as the previous case, compared with the option `utc`
+(OPS-2).
+
+:Rules: OPS-2, TYPE-2, EXPR-10
+:Status: agreed
+*/
+test zoned_datetimes_compared_as_utc_are_equal_by_instant {
+    let london = @2026-09-03T09:30+01:00[Europe/London]
+    assert london =={utc: true} @2026-09-03T08:30+00:00[UTC]
+    assert london !={utc: true} @2026-09-03T09:30+00:00[UTC]
+    assert eq_(london, @2026-09-03T08:30+00:00[UTC], utc: true)
+}

@@ -1,0 +1,4 @@
+fn priced(price: f64, const lots: i64) -> f64 {
+    let doubled = scale(price)
+    if price > 0.0 { scaled(doubled, 3.0) } else { 0.0 }
+}

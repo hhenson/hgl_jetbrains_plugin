@@ -19,7 +19,6 @@ import io.github.hhenson.hgl.psi.HglExpr
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
 import io.github.hhenson.hgl.psi.HglFunctionDecl
-import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglTestDecl
@@ -57,7 +56,6 @@ class HglCompletionContributor : CompletionContributor() {
                 when (parent) {
                     is HglBlock -> return false
                     is HglFunctionDecl -> return child == parent.expr
-                    is HglOperatorDecl -> return child == parent.expr
                     is HglFnExpr -> return child == parent.expr
                 }
                 child = parent
@@ -77,8 +75,15 @@ class HglCompletionContributor : CompletionContributor() {
             val inStruct = position.parentOfType<HglStructBody>() != null
             return when {
                 previous == HglTypes.AT && !inBlock && !inStruct -> listOf("timeout", "suppress_warning")
-                inBlock -> STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS +
-                    if (position.parentOfType<HglTestDecl>() != null) listOf("run") else emptyList()
+                inBlock -> {
+                    val test = position.parentOfType<HglTestDecl>()
+                    val harness = when {
+                        test == null -> emptyList()
+                        test.testKw != null -> listOf("eval")
+                        else -> listOf("eval", "run")
+                    }
+                    STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS + harness
+                }
                 inStruct -> TYPE_KEYWORDS
                 (position.containingFile as? HglFile)?.applicationDecl != null -> listOf("use", "inject", "run", "eval")
                 position.containingFile is HglFile -> DECLARATION_KEYWORDS + TYPE_KEYWORDS
@@ -90,7 +95,7 @@ class HglCompletionContributor : CompletionContributor() {
     companion object {
         val DECLARATION_KEYWORDS = listOf(
             "application", "integration_test", "module", "part", "use", "as", "export", "abstract", "impl", "instantiate", "operator", "fn",
-            "const", "struct", "enum", "requires", "test", "native", "type", "properties", "each", "in", "is",
+            "const", "struct", "enum", "requires", "test", "native", "type", "properties", "each", "in", "is", "without",
         )
         val STATEMENT_KEYWORDS = listOf(
             "let", "var", "state", "cache", "inject", "return", "if", "else", "start", "when", "stop",
@@ -98,7 +103,7 @@ class HglCompletionContributor : CompletionContributor() {
         )
         private val PRIMARY_KEYWORDS = listOf("fn", "true", "false", "null", "delta")
         private val ARROW_EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + listOf("if", "str", "bytes", "any", "error")
-        val EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + listOf("eval", "const")
+        val EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + "const"
         val TYPE_KEYWORDS = listOf(
             "bool", "i64", "f64", "str", "date", "time", "datetime", "duration", "civil_datetime",
             "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling_window",

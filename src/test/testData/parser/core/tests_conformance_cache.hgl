@@ -17,5 +17,5 @@ After a silent cycle the first entry is still 7 when the node appends 9.
 :Status: agreed
 */
 test a_cache_gathers_across_evaluations {
-    assert eval(first_gathered(value: [7, _, 9])) == [7, _, 7]
+    assert eval first_gathered(value: [7, _, 9]) == [7, _, 7]
 }

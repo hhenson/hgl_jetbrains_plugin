@@ -12,9 +12,9 @@ switchable consumer. It returns to zero when that consumer starts listening agai
 :Status: agreed
 */
 test a_shared_output_keeps_its_other_subscribers {
-    assert eval(active_minus_selected(
+    assert eval active_minus_selected(
         value:   [10,   _,     20, 30, _,    40],
-        enabled: [true, false, _,  _,  true, _])) ==
+        enabled: [true, false, _,  _,  true, _]) ==
                  [0,    0,     10, 20, 0,    0]
 }
 
@@ -36,9 +36,9 @@ sees the passive data input's current publication.
 :Status: agreed
 */
 test a_manual_wake_still_checks_the_only_handlers_guard {
-    assert eval(data_on_manual_wake(
+    assert eval data_on_manual_wake(
         data: [1, _,  2,  3, 4],
-        wake: [_, 10, 20, _, 40])) ==
+        wake: [_, 10, 20, _, 40]) ==
               [1, _,  2,  _, 4]
 }
 
@@ -54,9 +54,9 @@ right input keeps receiving values, so recovery adds 3 + 3 to the original 11.
 :Status: agreed
 */
 test a_sibling_tick_cannot_admit_a_node_with_an_invalid_input {
-    assert eval(joined_after_invalidation(
+    assert eval joined_after_invalidation(
         command: [10, 0, _, 3,  _],
-        right:   [1,  2, 3, _,  4])) ==
+        right:   [1,  2, 3, _,  4]) ==
                  [11, _, _, 17, 24]
 }
 
@@ -72,8 +72,8 @@ zero stays silent. The default still applies when value changes to 5.
 :Status: agreed
 */
 test a_lifted_default_returns_after_invalidation {
-    assert eval(scaled_with_invalidation(
+    assert eval scaled_with_invalidation(
         value:          [3,  _, _, _, 5,  _],
-        factor_command: [4,  0, 0, _, _,  3])) ==
+        factor_command: [4,  0, 0, _, _,  3]) ==
                         [12, 6, _, _, 10, 15]
 }

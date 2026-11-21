@@ -1,9 +1,0 @@
-module examples.child_reads
-
-fn at(parts: list<i64, 2>, slot: i64) -> i64 {
-    when { return parts[slot] }
-}
-
-fn checked_at(parts: list<i64, 2>, slot: i64) -> result<i64, error> {
-    when { return parts[slot] }
-}

@@ -47,6 +47,17 @@ test reverse_scaling {
     assert mul_(integer, "ab") == "abab"
 }
 
+# OPS-1: a count of zero gives the empty text, and one below zero is an
+# error, in either order.
+test text_repeated_below_zero_times_is_an_error {
+    let none: i64 = 0
+    let below: i64 = -1
+    assert mul_("ab", none) == ""
+    assert mul_(none, "ab") == ""
+    assert raises("numeric.out_of_range") { mul_("ab", below) }
+    assert raises("numeric.out_of_range") { mul_(below, "ab") }
+}
+
 # NUM-2, NUM-4: converting this integer to f64 would erase the distinction.
 test mixed_equality_preserves_integer_precision {
     let integer: i64 = 9007199254740993

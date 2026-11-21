@@ -14,7 +14,7 @@ The second handler reads the state the first one has just updated.
 :Status: agreed
 */
 test a_handler_can_fall_through {
-    assert eval(total_after_update(value: [3, 4])) == [3, 7]
+    assert eval total_after_update(value: [3, 4]) == [3, 7]
 }
 
 fn count_unsuppressed(suppress: bool) -> i64 {
@@ -35,7 +35,7 @@ either suppressed evaluation changed the state.
 :Status: agreed
 */
 test a_return_skips_later_handlers {
-    assert eval(count_unsuppressed(suppress: [false, true, true, false])) ==
+    assert eval count_unsuppressed(suppress: [false, true, true, false]) ==
         [1, 1, 1, 2]
 }
 
@@ -53,12 +53,12 @@ become valid. When both handlers qualify the first return wins.
 :Status: agreed
 */
 test each_handler_checks_its_own_validity_requirements {
-    assert eval(first_ready(sample: [true], gate: [true], left: [], right: [])) == []
-    assert eval(first_ready(
+    assert eval first_ready(sample: [true], gate: [true], left: [], right: []) == []
+    assert eval first_ready(
         sample: [true, true, true],
         gate:   [_,    true, _],
         left:   [_,    _,    7],
-        right:  [9,    _,    _])) == [_, "right", "left"]
+        right:  [9,    _,    _]) == [_, "right", "left"]
 }
 
 fn report_on_change_or_request(value: i64, requested: bool) -> i64 {
@@ -73,9 +73,9 @@ in place. A request alone can wake the handler and publish the retained value.
 :Status: agreed
 */
 test a_disjunction_preserves_the_default_subscription {
-    assert eval(report_on_change_or_request(
+    assert eval report_on_change_or_request(
         value:     [7,     _,    _,     9],
-        requested: [false, true, false, _])) == [7, 7, _, 9]
+        requested: [false, true, false, _]) == [7, 7, _, 9]
 }
 
 fn which_inputs_published(left: i64, right: i64) -> str {
@@ -96,8 +96,8 @@ Zero clears the left input, first on its own and later alongside a right tick.
 :Status: agreed
 */
 test named_inputs_and_conjoined_guards_match_different_ticks {
-    assert eval(classify_publications(
+    assert eval classify_publications(
         left_command: [    7,     _,      8, 0,     9,     0],
         right:        [    _,     2,      3, _,     _,     4],
-    )) ==             ["one", "one", "both", _, "one", "one"]
+    )  ==             ["one", "one", "both", _, "one", "one"]
 }

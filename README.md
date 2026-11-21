@@ -11,11 +11,10 @@ beside an HGL or native implementation to jump back to its operator.
 
 [hgl_spec](https://github.com/hhenson/hgl_spec) owns the language rules.
 [hgl_core](https://github.com/hhenson/hgl_core) owns core declarations and
-conformance fixtures. Both are pinned under `spec/` at revisions selected by
-[hgl-compiler](https://github.com/hhenson/hgl-compiler).
+conformance fixtures. Their merged revisions are pinned under `spec/`. CI pins the compiler separately for diagnostics and execution tests.
 
 Run `tools/refresh_test_data.sh` after changing the pins. The parser corpus
-includes complete specification modules and applications and every core HGL file.
+includes specification modules, applications, declaration examples, core mapping declarations and every core HGL file.
 [Fixture sources](src/test/testData/parser/SOURCES.md) records their revisions.
 
 ## Build and install
@@ -49,7 +48,7 @@ or an `integration_test`. For `application demo.backtest`, the IDE runs
 window shows the output and exit status. Rerun repeats the same selection.
 
 Under **Settings → Languages & Frameworks → HGL Test Runner**, set the `hgl`
-executable and, when needed, a Python interpreter with hgraph installed.
+executable. Test and application runs use the C++ target and inherit the compiler’s native SDK environment.
 The default uses `hgl` from the IDE's PATH and the selected source file.
 For a multi-file program, enter its source roots, one per line. For the core
 conformance suite in `hgl-project`, use `hgl_core/hgl` and

@@ -1,0 +1,4 @@
+const fn value_or_zero(value: f64?) -> f64 {
+    if value == null { return 0.0 }
+    return value
+}

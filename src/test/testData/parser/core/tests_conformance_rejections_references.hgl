@@ -1,0 +1,89 @@
+module conformance.rejections part references
+
+/**
+A `ref` parameter's value is not read.
+The body may give it to an endpoint operation, as `valid` or `modified`,
+or return it to a `ref` result, and reads nothing of it.
+The read rejects with the code `ref.read`.
+
+:Rules: FN-16
+:Status: agreed
+*/
+fn doubled_reference(ref price: i64) -> i64 {
+    when {
+        # expect-error(phase, "ref.read")
+        return price * 2
+    }
+}
+
+/**
+A `ref` parameter's `delta_value` is not read.
+It is the one endpoint operation that a `ref` parameter is not given; the
+header proves the parameter valid and modified, so nothing else rejects.
+The read rejects with the code `ref.read`.
+
+:Rules: FN-16, TIME-9
+:Status: agreed
+*/
+fn reference_delta(ref price: i64) -> i64 {
+    when modified(price) {
+        # expect-error(phase, "ref.read")
+        return delta_value(price)
+    }
+}
+
+struct RoutedQuote {
+    bid: i64
+    ask: i64
+}
+
+/**
+A part of `out` of a `ref` result is not assigned.
+A `ref` result designates one endpoint whole. The header admits every
+field of the quote, so nothing else rejects. The assignment rejects with
+the code `binding.immutable`.
+
+:Rules: FN-16, TIME-7
+:Status: agreed
+*/
+fn designated_bid(quote: RoutedQuote) -> ref RoutedQuote {
+    inject out
+    when all_valid(quote) {
+        # expect-error(name, "binding.immutable")
+        out.bid = quote.bid
+    }
+}
+
+/**
+A `signal` parameter is not marked `ref`.
+A signal has no payload to designate. The mark rejects with the code
+`ref.position`.
+
+:Rules: FN-16, TYPE-12
+:Status: agreed
+*/
+fn counted_ticks(
+    # expect-error(function-kind, "ref.position")
+    ref tick: signal,
+) -> i64 {
+    state count: i64 = 0
+    when {
+        count += 1
+        return count
+    }
+}
+
+/**
+A window parameter is not marked `ref`.
+`ref` stands on no window, as a parameter or as a result. The mark
+rejects with the code `ref.position`.
+
+:Rules: FN-16, END-10
+:Status: agreed
+*/
+fn latest_price(
+    # expect-error(function-kind, "ref.position")
+    ref prices: rolling_window<f64, 5>,
+) -> f64 {
+    when modified(prices) { return 0.0 }
+}

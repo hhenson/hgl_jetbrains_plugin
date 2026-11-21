@@ -1,0 +1,27 @@
+module conformance part generic_resolution
+
+# Each result is the type parameter and nothing more, and each function
+# gives one for every argument. The membership of `larger` lists `i64` and
+# not `i64?`.
+const fn kept<T>(a: T, b: T) -> T => a
+
+const fn larger<T>(a: T, b: T) -> T
+    requires T in {i64, f64} => if a < b { b } else { a }
+
+const fn kept_or_null(a: i64, b: i64) -> i64? => kept(a, b)
+
+/**
+A nullable place `U?` says of a result that is a type parameter alone only
+that the parameter is `U` or `U?`, and the arguments decide which.
+Two `i64` arguments make `T` an `i64` in each call, and the `i64` it gives
+fits the `i64?` place. Were `T` the place's `i64?`, the membership of
+`larger` would not hold.
+
+:Rules: GEN-2, GEN-3, TYPE-14
+:Status: agreed
+*/
+test a_nullable_place_leaves_a_bare_result_to_the_arguments {
+    assert kept_or_null(7, 8) == 7
+    let number: i64? = larger(7, 8)
+    assert number == 8
+}

@@ -29,19 +29,19 @@ class HglRunGutterTest : HglEditorFixture() {
             val configuration = runConfigurationAt(leaf)
             assertEquals("HglSingleTest", configuration.type.id)
             assertEquals("market.quotes::selected", configuration.selector)
-            assertEquals(listOf("test", "--test", "market.quotes::selected", "--target", "hgraph", "--", configuration.sourcePath),
+            assertEquals(listOf("test", "--test", "market.quotes::selected", "--target", "cpp", "--", configuration.sourcePath),
                 configuration.commandLine().parametersList.list)
         }
     }
 
     fun testApplicationHeaderHasOneActionAndUsesTheDeclaredPath() {
-        val leaf = atCaret("<caret>application demo.east\n.backtest\neval(ticks())")
+        val leaf = atCaret("<caret>application demo.east\n.backtest\neval ticks()")
         val marked = PsiTreeUtil.collectElements(myFixture.file) { marker.getInfo(it) != null }
         assertEquals(listOf(leaf), marked.toList())
         val configuration = runConfigurationAt(leaf)
         assertEquals("HglApplication", configuration.type.id)
         assertEquals("demo.east.backtest", configuration.name)
-        assertEquals(listOf("run", "--application", "demo.east.backtest", "--target", "hgraph", "--",
+        assertEquals(listOf("run", "--application", "demo.east.backtest", "--target", "cpp", "--",
             myFixture.file.virtualFile.path), configuration.commandLine().parametersList.list)
     }
 
@@ -50,7 +50,7 @@ class HglRunGutterTest : HglEditorFixture() {
         for (source in listOf("<caret>application", "<caret>application demo.", "<caret>application demo # path\n.",
                 "<caret>module demo",
                 "module demo\nfn <caret>application() {}", "application demo\nuse <caret>demo.lib",
-                "application demo\n<caret>eval(ticks())")) {
+                "application demo\n<caret>eval ticks()")) {
             val leaf = atCaret(source)
             assertNull(source, marker.getInfo(leaf))
             assertNull(source, producer.createConfigurationFromContext(ConfigurationContext(leaf)))
@@ -63,7 +63,7 @@ class HglRunGutterTest : HglEditorFixture() {
         val settings = project.service<HglTestSettings>()
         val before = settings.state
         try {
-            settings.loadState(HglTestSettings.Options("tools/my compiler", "app sources\nlib", "my python"))
+            settings.loadState(HglTestSettings.Options("tools/my compiler", "app sources\nlib"))
             val external = Element("configuration")
             configuration.writeExternal(external)
             val restored = configuration.factory!!.createTemplateConfiguration(project) as HglRunConfiguration
@@ -72,8 +72,7 @@ class HglRunGutterTest : HglEditorFixture() {
             assertTrue(producer.isConfigurationFromContext(restored, ConfigurationContext(leaf)))
             val command = restored.commandLine()
             assertEquals("tools/my compiler", command.exePath)
-            assertEquals(listOf("run", "--application", "demo.backtest", "--target", "hgraph", "--python",
-                "my python", "--", "app sources", "lib"), command.parametersList.list)
+            assertEquals(listOf("run", "--application", "demo.backtest", "--target", "cpp", "--", "app sources", "lib"), command.parametersList.list)
             val other = atCaret("application other.<caret>backtest")
             assertFalse(producer.isConfigurationFromContext(restored, ConfigurationContext(other)))
             restored.selector = "demo::backtest"
@@ -96,14 +95,14 @@ class HglRunGutterTest : HglEditorFixture() {
         val settings = project.service<HglTestSettings>()
         val before = settings.state
         try {
-            settings.loadState(HglTestSettings.Options("tools/my compiler", "core sources\nchecks", "my python"))
+            settings.loadState(HglTestSettings.Options("tools/my compiler", "core sources\nchecks"))
             val external = Element("configuration")
             configuration.writeExternal(external)
             val restored = configuration.factory!!.createTemplateConfiguration(project) as HglRunConfiguration
             restored.readExternal(external)
             val cmd = restored.commandLine()
             assertEquals("tools/my compiler", cmd.exePath)
-            assertEquals(listOf("test", "--test", "m::selected", "--target", "hgraph", "--python", "my python",
+            assertEquals(listOf("test", "--test", "m::selected", "--target", "cpp",
                 "--", "core sources", "checks"), cmd.parametersList.list)
             assertEquals(configuration.sourcePath, restored.sourcePath)
             restored.selector = ""

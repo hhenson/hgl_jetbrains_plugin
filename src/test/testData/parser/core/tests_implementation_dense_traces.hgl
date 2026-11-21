@@ -20,7 +20,7 @@ A trace made entirely of silent slots schedules no input publications.
 :Status: agreed
 */
 test all_silent_input_is_empty {
-    assert eval(replay_scalar(value: [_, _, _])) == []
+    assert eval replay_scalar(value: [_, _, _]) == []
 }
 
 /**
@@ -30,7 +30,7 @@ An empty input produces an empty recording for a node driven by that input.
 :Status: agreed
 */
 test empty_input_remains_empty {
-    assert eval(replay_scalar(value: [])) == []
+    assert eval replay_scalar(value: []) == []
 }
 
 /**
@@ -41,7 +41,7 @@ Trailing silence leaves the recording at its last publication.
 :Status: agreed
 */
 test leading_silence_locates_a_tick {
-    assert eval(replay_scalar(value: [_, 7, _, _])) == [_, 7]
+    assert eval replay_scalar(value: [_, 7, _, _]) == [_, 7]
 }
 
 /**
@@ -52,7 +52,7 @@ A run that publishes nothing gives an empty recording.
 :Status: agreed
 */
 test dense_result_ends_at_last_publication {
-    assert eval(forward_a(a: [7], b: [1])) == [7]
-    assert eval(forward_a(a: [7], b: [1, _, _, 2])) == [7]
-    assert eval(forward_a(a: [], b: [1, _, _, 2])) == []
+    assert eval forward_a(a: [7], b: [1]) == [7]
+    assert eval forward_a(a: [7], b: [1, _, _, 2]) == [7]
+    assert eval forward_a(a: [], b: [1, _, _, 2]) == []
 }

@@ -16,8 +16,7 @@ Two nulls separated by a number and a silent slot expose their exact positions.
 */
 test a_null_publication_has_a_tuple_in_the_recording {
     let opening = @2026-01-05T09:30:00Z
-    let ticks = eval(forward_nullable(value: [_, null, 7, _, null]),
-                     RunConfig(start: opening))
+    let ticks = eval{start: opening} forward_nullable(value: [_, null, 7, _, null])
     let published_null = delta<i64?>()
     assert nullable_publications(ticks) == [
         (opening + 1us, published_null),

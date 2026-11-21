@@ -44,7 +44,7 @@ class HglOperatorGutterTest : HglEditorFixture() {
     }
 
     fun testOperatorAndCandidatesNavigateBothWaysAcrossPartsAndSelectiveImports() {
-        val api = source("api.hgl", "module math.ops\noperator twice<T>(value: T) -> T")
+        val api = source("api.hgl", "module math.ops\nexport operator twice<T>(value: T) -> T")
         val local = source("local.hgl", """
             module math.ops part local
             impl const fn twice(value: i64) -> i64 => value + value
@@ -88,8 +88,16 @@ class HglOperatorGutterTest : HglEditorFixture() {
         for (file in listOf(sibling, alias, plain)) assertEmpty(markers(file))
     }
 
+    fun testPrivateOperatorIsVisibleOnlyToItsOwnModuleParts() {
+        val declaration = source("owner.hgl", "module owner\noperator size_of(x: i64) -> i64")
+        val local = source("local.hgl", "module owner part extra\nimpl fn size_of(x: i64) -> i64 => x")
+        val external = source("external.hgl", "module ext\nuse owner::{size_of}\nimpl fn size_of(x: str) -> i64 => 0")
+        assertEquals(local, targets(markers(declaration).single()).single().containingFile)
+        assertEmpty(markers(external))
+    }
+
     fun testCorePreludeApplicationScopeAndTestHelpers() {
-        val core = source("core.hgl", "module core\noperator add_<T>(lhs: T, rhs: T) -> T")
+        val core = source("core.hgl", "module core\nexport operator add_<T>(lhs: T, rhs: T) -> T")
         val app = source("app.hgl", """
             application demo
             native impl const fn add_(lhs: i64, rhs: i64) -> i64

@@ -12,9 +12,9 @@ publications before the right catches up and overtakes it.
 :Status: agreed
 */
 test two_counters_in_one_graph_keep_separate_state {
-    assert eval(counter_difference(
+    assert eval counter_difference(
         left:  [1, 2,  3, _,  _,  _],
-        right: [_, 10, _, 20, 30, 40])) ==
+        right: [_, 10, _, 20, 30, 40]) ==
                [_, 1,  2, 1,  0,  -1]
 }
 
@@ -30,9 +30,9 @@ shared the list, both first entries would be 4.
 :Status: agreed
 */
 test two_instances_start_with_independent_cache_lists {
-    assert eval(first_sample_difference(
+    assert eval first_sample_difference(
         left:  [4, _,  8, _],
-        right: [_, 30, _, 40])) ==
+        right: [_, 30, _, 40]) ==
                [_, 26, 26, 26]
 }
 
@@ -55,8 +55,8 @@ run's seed and accumulates both inputs.
 :Status: agreed
 */
 test a_cache_is_initialized_from_state_before_start {
-    assert eval(total_from_initial_state(value: [1, 2], seed: 3)) == [7, 9]
-    assert eval(total_from_initial_state(value: [1, 2], seed: 5)) == [11, 13]
+    assert eval total_from_initial_state(value: [1, 2], seed: 3) == [7, 9]
+    assert eval total_from_initial_state(value: [1, 2], seed: 5) == [11, 13]
 }
 
 /**
@@ -70,8 +70,8 @@ its own values and publication times.
 test an_earlier_recording_survives_a_second_run {
     let monday = @2026-01-05T09:30:00Z
     let tuesday = @2026-01-06T09:30:00Z
-    let first = eval(pass_i64(value: [7, _, 7]), RunConfig(start: monday))
-    let second = eval(pass_i64(value: [_, 9]), RunConfig(start: tuesday))
+    let first = eval{start: monday} pass_i64(value: [7, _, 7])
+    let second = eval{start: tuesday} pass_i64(value: [_, 9])
 
     assert recorded_ticks(first) == [(monday, 7), (monday + 2us, 7)]
     assert recorded_ticks(second) == [(tuesday + 1us, 9)]
@@ -91,8 +91,8 @@ The successful run makes the start hook's scale visible in the output.
 :Status: agreed
 */
 test start_failures_escape_an_empty_run {
-    assert eval(divide_on_start(value: [2], divisor: 3)) == [8]
+    assert eval divide_on_start(value: [2], divisor: 3) == [8]
     assert raises("numeric.division_by_zero") {
-        eval(divide_on_start(value: [], divisor: 0))
+        eval divide_on_start(value: [], divisor: 0)
     }
 }

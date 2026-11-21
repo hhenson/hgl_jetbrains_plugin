@@ -1,0 +1,25 @@
+module examples.store_order
+
+fn change(value: i64) -> i64 {
+    inject global_state
+    when {
+        put(global_state, "seen", value)
+        return 0
+    }
+}
+
+fn observe(value: i64) -> i64 {
+    inject global_state
+    when {
+        if has(global_state, "seen") { return get<i64>(global_state, "seen") }
+        return 0
+    }
+}
+
+fn ranked(value: i64) -> i64 => observe(change(value))
+
+fn level(value: i64) -> i64 {
+    let changed = change(value)
+    let observed = observe(value)
+    return changed + observed
+}

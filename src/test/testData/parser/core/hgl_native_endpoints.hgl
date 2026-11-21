@@ -4,21 +4,41 @@ module core part endpoints
 # endpoint itself. Activity belongs to the receiving node's input. Contract:
 # spec/temporal-endpoints.md.
 
-# END-1, END-4, END-7: whether the endpoint holds a payload.
+# END-1, END-4, END-7, END-9: whether the endpoint holds a payload, and for
+# a window whether it holds a value or exits emptied it. END-10: for a
+# `ref` parameter, whether it has been given a designation, whatever its
+# target holds.
 export native const fn valid<T>(input: endpoint<T>) -> bool
 
-# END-7: whether every element, field or entry of a list, tuple, struct
-# or dictionary is valid, one level deep.
+# END-7: whether a list, tuple, struct or dictionary is valid and every
+# element, field or entry of it is, one level deep. END-9: whether a window
+# holds at least its minimum.
 export native const fn all_valid<T>(input: endpoint<T>) -> bool
 
-# END-2: whether the endpoint published in the current cycle.
+# END-2: whether the endpoint published in the current cycle, or, for an
+# input of a branch as it starts, whether it is bound to one already
+# valid; as a guard it admits a read as `valid` does. END-9: for a window
+# of a duration, also whether a value left it. END-10: for a `ref`
+# parameter, whether the parameter was given a designation, and not
+# whether its target published.
 export native const fn modified<T>(input: endpoint<T>) -> bool
 
 # END-3: what the endpoint published in the current cycle (the language's
-# TYPE-16): the value itself for a scalar.
+# TYPE-16): the value itself for a scalar. Where the place takes a
+# `result`, an `err` for a tick with no delta. END-9: for a window, the
+# value that arrived; a window of a duration that a value only leaves has
+# no delta. A `ref` parameter is not given to it (the language's FN-16).
 export native const fn delta_value<T>(input: endpoint<T>) -> delta<T>
 
+# END-9: the value that left a window in the current cycle, read where
+# the place takes a `result<V, error>`, and an `err` where none left.
+# END-10: a window is not marked `ref`, and a window that is a child of
+# a `ref` parameter is not given to it.
+export native const fn removed_value<V, Max, Min>(input: endpoint<rolling_window<V, Max, Min>>) -> V
+
 # END-6: when the retained publication was made; null while invalid.
+# END-10: for a `ref` parameter, when the parameter was last given a
+# designation.
 export native const fn last_modified<T>(input: endpoint<T>) -> datetime?
 
 # END-4: clear validity, modification, payload, and delta.

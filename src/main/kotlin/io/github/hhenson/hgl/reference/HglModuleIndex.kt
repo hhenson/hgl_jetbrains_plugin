@@ -39,7 +39,7 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
 
     override fun dependsOnFileContent(): Boolean = true
 
-    override fun getVersion(): Int = 2
+    override fun getVersion(): Int = 3
 
     companion object {
         val NAME: ID<String, Void> = ID.create("io.github.hhenson.hgl.module")

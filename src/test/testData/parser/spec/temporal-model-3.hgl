@@ -1,14 +1,17 @@
-module examples.sampled
+module examples.empty_deltas
 
-fn sampled(price: f64, const every: duration = 1s) -> f64 {
-    state last: f64 = 0.0
-    inject scheduler
-    start { schedule(scheduler, every) }
-    when modified(price) && valid(price) {
-        last = price
-    }
-    when scheduled() {
-        schedule(scheduler, every)
-        return last
+fn publish_members(step: i64) -> set<i64> {
+    inject out
+    when {
+        if step == 0 { return delta<set<i64>>() }
+        if step == 1 { return [] }
+        if step == 2 { return delta<set<i64>>(added: [1]) }
+        invalidate(out)
     }
 }
+
+fn woken(members: set<i64>) -> bool {
+    when valid([]) { return valid(members) }
+}
+
+fn watched(step: i64) -> bool => woken(publish_members(step))

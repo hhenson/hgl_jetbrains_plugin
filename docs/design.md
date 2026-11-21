@@ -6,12 +6,11 @@ produces the parser and PSI. Kotlin implements editor features over that PSI.
 
 ## Authority and updates
 
-The submodules under `spec/` pin hgl_spec and hgl_core to the compiler's
-selected revisions. The specification owns syntax and meaning. The plugin
+The submodules under `spec/` pin the reviewed hgl_spec and hgl_core revisions. The specification owns syntax and meaning. The plugin
 implements editor behavior and tolerates incomplete source during editing.
 
 `tools/refresh_test_data.sh` extracts complete fenced HGL modules and applications from the
-specification and copies core declarations and fixtures. Parser tests use
+specification, includes language declaration fragments and core’s mapping contract, and copies core HGL sources. Parser tests use
 that corpus. Golden tests cover tree structure and recovery. Platform tests
 exercise navigation, documentation, completion and the structure view.
 
@@ -25,7 +24,7 @@ phase checking, overload resolution and runtime conformance belong to the
 compiler. The editor reads its structured diagnostics on save. Current
 navigation uses the plugin's syntax
 scopes and module index. Module parts share declarations and test helpers.
-Imports stay file-local. Other modules see exported declarations, operators,
+Imports stay file-local. Other modules see exported declarations, including exported operators,
 and the public `core` prelude. Applications have their own file scope.
 
 Operator gutters link a declaration to its HGL and native candidates in both
@@ -58,15 +57,15 @@ in an IDE Run configuration.
 
 | Declaration | Compiler invocation |
 | --- | --- |
-| `application demo.backtest` | `hgl run --application demo.backtest --target hgraph` |
-| `test prices` or `integration_test prices` in module `demo.feed` | `hgl test --test demo.feed::prices --target hgraph` |
+| `application demo.backtest` | `hgl run --application demo.backtest --target cpp` |
+| `test prices` or `integration_test prices` in module `demo.feed` | `hgl test --test demo.feed::prices --target cpp` |
 
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
 rejection cases in the supplied roots.
 
 Both configurations use the project’s HGL Test Runner settings for the
-executable, Python interpreter and roots. Empty roots select the declaration's
+executable and roots. Empty roots select the declaration's
 file. The IDE owns the Run console, stop and rerun actions. The compiler
 owns selection and outcomes.
 
@@ -81,7 +80,7 @@ Named declarations implement HglNamedElement. Typed PSI views support folding,
 structure, documentation and references. Generated sources live under
 `src/main/gen` and are rebuilt from the grammar.
 
-Keyword completion in a function, operator or anonymous function's `=>` body
+Keyword completion in a named or anonymous function's `=>` body
 offers expression starters at operands. A nested block resumes statement
 completion. Test bodies also admit `eval`, and integration tests admit `run`.
 Names in scope are supplied independently by reference completion.
@@ -93,9 +92,7 @@ distribution once, then pass that ZIP to Plugin Verifier for both products.
 These checks validate editor integration. Execution conformance runs through
 the compiler and runtime.
 
-The compiler-backed process tests run when `HGL_TEST_CLI` names a compiler and
-`HGL_HGRAPH_PYTHON` names a Python interpreter with hgraph installed. CI
-builds the pinned compiler and exercises both IDEs against hgraph 0.9.5.
+CI pins the compiler independently and exercises both IDEs with the native hgraph SDK. Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process tests locally.
 
 ## Performance baseline
 

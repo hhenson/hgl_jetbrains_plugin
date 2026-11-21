@@ -1,0 +1,38 @@
+module conformance.rejections part generic_instances
+
+# Each instance `climb<N>` calls for `climb<N + 1>`, whatever `x` is. A run
+# of `climb<0>(3)` would return 3 once `x` reached zero.
+const fn climb<const N: i64>(x: i64) -> i64 {
+    if x <= 0 { return N }
+    return climb<N + 1>(x - 1)
+}
+
+/**
+A call whose instances never end when the program is compiled is rejected.
+`climb<0>(3)` makes `climb<0>`, `climb<1>`, `climb<2>` and on without end.
+An implementation has a bound on the instances of one declaration, and
+rejects the program where they pass it, with the code
+`generic.instance_limit`, reported at the call that makes the first of
+them.
+
+:Rules: GEN-13
+:Status: agreed
+*/
+const fn climbed() -> i64 {
+    # expect-error(type, "generic.instance_limit")
+    return climb<0>(3)
+}
+
+/**
+A generic body is judged where it is declared, by what its `requires`
+states, and not again for the types a call gives it.
+With no `requires`, no candidate of `<` takes every `T`, so the body
+rejects whatever `T` a call would give.
+
+:Rules: GEN-7
+:Status: agreed
+*/
+const fn less_without_requires<T>(a: T, b: T) -> bool {
+    # expect-error(operator, "operator.no_candidate")
+    return a < b
+}

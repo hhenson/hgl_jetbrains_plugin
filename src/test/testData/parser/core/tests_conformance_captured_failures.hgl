@@ -9,7 +9,7 @@ fn attempt_number(value: i64) -> i64 {
     state attempt: i64 = 0
     when {
         attempt += 1
-        return checked_attempt(value, attempt)?
+        return checked_attempt(value, attempt)
     }
 }
 
@@ -27,7 +27,7 @@ three, so the child kept its state and advanced only when input arrived.
 :Status: agreed
 */
 test a_captured_failure_keeps_the_child_live {
-    assert eval(successful_attempts(value: [8, -1, _, 9])) == [1, _, _, 3]
+    assert eval successful_attempts(value: [8, -1, _, 9]) == [1, _, _, 3]
 }
 
 fn describe_error(failure: error, sample: i64) -> str {
@@ -54,9 +54,9 @@ sample observes every cycle, including the one with no input.
 :Status: agreed
 */
 test a_captured_error_ticks_again_then_stays_valid {
-    assert eval(sampled_failures(
+    assert eval sampled_failures(
         value:  [8,       -1,               -1,               _,          9],
-        sample: [1,       2,                3,                4,          5])) ==
+        sample: [1,       2,                3,                4,          5]) ==
                 ["clear", "negative input", "negative input", "retained", "retained"]
 }
 
@@ -85,7 +85,7 @@ Two equal errors each publish, and the capture's error stream stays invalid.
 :Status: agreed
 */
 test a_returned_error_is_a_value_at_a_capture_boundary {
-    assert eval(captured_outcomes(value: [8, -1, -1, 9])) ==
+    assert eval captured_outcomes(value: [8, -1, -1, 9]) ==
         ["success", "negative input", "negative input", "success"]
 }
 
@@ -103,8 +103,8 @@ input the observer completes both samples with a clear error stream.
 :Status: agreed
 */
 test stop_failures_cross_a_capture_boundary {
-    assert eval(watch_sink_stop(divisor: [0, 2])) == ["clear", "clear"]
+    assert eval watch_sink_stop(divisor: [0, 2]) == ["clear", "clear"]
     assert raises("numeric.division_by_zero") {
-        eval(watch_sink_stop(divisor: [2, 0]))
+        eval watch_sink_stop(divisor: [2, 0])
     }
 }

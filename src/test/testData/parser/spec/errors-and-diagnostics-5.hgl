@@ -1,0 +1,7 @@
+fn checked_data(value: f64) -> result<f64, error> {
+    when { return value /{zero: .error} 0.0 }
+}
+
+fn propagated(value: f64) -> f64 {
+    when { return value /{zero: .error} 0.0 }
+}

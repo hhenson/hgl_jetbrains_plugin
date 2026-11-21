@@ -1,0 +1,5 @@
+operator first_of<T>(values: ...T{1:*}) -> T
+
+operator pair_of<...Ts{2}>(values: ...Ts) -> str
+
+operator labelled<...Fields>(values: ...{Fields}{1:4}) -> str

@@ -1,0 +1,8 @@
+module examples.shapes
+
+operator scaled_by<T>(value: T, factor: f64) -> T
+impl const fn scaled_by(value: f64, factor: f64) -> f64 => value * factor
+impl const fn scaled_by(value: i64, factor: f64) -> i64 => value
+
+export operator area<S>(shape: S) -> f64
+impl const fn area(side: f64) -> f64 => scaled_by(side, side)

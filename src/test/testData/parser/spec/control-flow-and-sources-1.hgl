@@ -1,0 +1,34 @@
+fn sized(price: f64, const wide: bool) -> f64 {
+    if wide { window(price, 20) } else { price }
+}
+
+fn gated(price: f64, open: bool) -> f64 {
+    if open { price }
+}
+
+fn adjusted(price: f64, rising: bool) -> f64 {
+    var chosen = price
+    if rising {
+        chosen = scale(price)
+    }
+    return chosen
+}
+
+fn chained(price: f64, const factors: list<f64>) -> f64 {
+    var running = price
+    for factor in factors {
+        running = running * factor
+    }
+    return running
+}
+
+struct Order {
+    price: f64
+    size: i64
+}
+
+fn each_field(order: Order) {
+    for name in order {
+        log_tick(getattr_(order, name))
+    }
+}

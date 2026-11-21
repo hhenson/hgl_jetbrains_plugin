@@ -1,0 +1,13 @@
+module examples.branch_start
+
+fn counted(value: i64) -> i64 {
+    state count: i64 = 0
+    when {
+        count += 1
+        return count
+    }
+}
+
+fn counted_while(open: bool, value: i64) -> i64 {
+    if open { counted(value) }
+}

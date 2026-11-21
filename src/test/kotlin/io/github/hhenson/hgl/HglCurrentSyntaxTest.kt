@@ -40,14 +40,14 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         assertEquals("const", PsiTreeUtil.findChildOfType(file, HglFunctionDecl::class.java)?.name)
     }
 
-    fun testOptionsAndPropagationInEval() {
+    fun testOptionsInEval() {
         accepted("""
             module current
             fn ratio(value: f64) -> f64 {
-                when { return (6.0 /{zero: .error} value)? }
+                when { return 6.0 /{zero: .error} value }
             }
             test failure {
-                assert raises("numeric.division_by_zero") { eval(ratio(value: [0.0])) }
+                assert raises("numeric.division_by_zero") { eval ratio(value: [0.0]) }
             }
         """)
     }
@@ -84,14 +84,14 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
     fun testRunUsesItsTestMeaningOnlyInsideTestBodies() {
         val file = accepted("""
             module demo
-            fn run(value: i64) -> i64 => value
-            fn ordinary() -> i64 => run(1)
+            fn step(value: i64) -> i64 => value
+            fn ordinary() -> i64 => step(1)
             @timeout(5s)
-            integration_test live { let observation = run(ordinary(), RunConfig(length: 1s)) }
-            fn also_ordinary() -> i64 => run(2)
+            integration_test live { let observation = run{length: 1s} ordinary() }
+            fn also_ordinary() -> i64 => step(2)
         """)
         val runs = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglRunExpr::class.java)
-        assertEquals(listOf("run(ordinary(), RunConfig(length: 1s))"), runs.map { it.text })
+        assertEquals(listOf("run{length: 1s} ordinary()"), runs.map { it.text })
     }
 
     fun testApplicationStoreAndRunHaveDistinctNodes() {
@@ -99,17 +99,66 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
             application demo.live
             inject global_state
             put(global_state, "limit", 2)
-            run(heartbeat())
+            run heartbeat()
         """)
         assertNotNull(PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglApplicationDecl::class.java))
         assertEquals("put(global_state, \"limit\", 2)", PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglStoreCall::class.java)?.text)
-        assertEquals("run(heartbeat())", PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglRunStatement::class.java)?.text)
+        assertEquals("run heartbeat()", PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglRunStatement::class.java)?.text)
     }
 
     fun testEvalRejectsReplayArgumentsOutsideTheTargetCall() {
         val file = createPsiFile("old.hgl", "module demo\ntest old { assert eval(target, value: [1]) == [1] }\n")
         assertFalse(PsiTreeUtil.findChildrenOfType(file, PsiErrorElement::class.java).isEmpty())
-        accepted("module demo\ntest updated { assert eval(target(value: [1])) == [1] }")
+        accepted("module demo\ntest updated { assert eval target(value: [1]) == [1] }")
+    }
+
+    fun testConfiguredCallsReferencesAndRanges() {
+        val file = accepted("""
+            module demo
+            fn adapt(f: fn(key: str) -> ref i64, ref price: i64) -> ref i64 => price
+            fn ranges(n: i64) -> list<i64> => [for i in 0..<n: i + 1]
+            fn choose(a: i64, b: i64, c: i64) -> bool => a < b > (c)
+            fn probe(x: i64) => apply(op::scale<i64>, op::scale<i64>{places: 2}(x))
+            integration_test live {
+                inject run_config{length: 2s}
+                let result_ = run{length: 1s} op::sample<i64>{places: 2}(x: 1)
+            }
+        """)
+        assertEquals("op::scale<i64>", PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglFunctionReference::class.java)?.text)
+        assertEquals("0..<n", PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglIterable::class.java)?.text)
+    }
+
+    fun testHeaderBracesAndParenthesizedConfiguredCalls() {
+        accepted("""
+            module demo
+            fn pick(x: i64) -> bool {
+                if (pred{limit: 2}(x)) { return true }
+                if x >{limit: 2} 0 { return true }
+                return false
+            }
+        """)
+        rejected("fn pick(x: i64) { if pred{limit: 2}(x) { return x } }")
+    }
+
+    private fun rejected(declaration: String) {
+        val file = createPsiFile("rejected.hgl", "module demo\n$declaration\n")
+        assertFalse(declaration, PsiTreeUtil.collectElementsOfType(file, PsiErrorElement::class.java).isEmpty())
+    }
+
+    fun testRejectsRetiredAndMisplacedForms() {
+        for (declaration in listOf(
+            "fn run() {}",
+            "test old { assert eval(target(x: [1])) == [1] }",
+            "integration_test old { run(target()) }",
+            "test ordinary { run target() }",
+            "fn old(x: ref<i64>) => x",
+            "fn old(x: i64?) => x?",
+            "fn range(n: i64) => 0..<n",
+            "fn mixed() => [1, 2: 3]",
+            "fn mixed() => [1: 2, 3]",
+            "operator identity(x: i64) -> i64 => x",
+            "fn wrong() => combine(a in arg_keys(a, b))",
+        )) rejected(declaration)
     }
 
     fun testSeparatedCallDelimiterRejects() {

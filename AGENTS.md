@@ -3,7 +3,7 @@
 - Keep documentation and discussion terse.
 - Read docs/design.md. Update it with changes to the editor architecture.
 - hgl_spec owns language rules. hgl_core owns portable conformance cases.
-- Pin both under spec/ to the revisions selected by hgl-compiler.
+- Pin merged hgl_spec and hgl_core revisions under spec/. Pin the compiler independently for process tests.
 - Keep open language questions in the owning repository's issues.
 - Run tools/refresh_test_data.sh after grammar or pin changes. Review fixture diffs.
 - Test editor behavior on both CLion and RustRover and verify the same distribution ZIP.

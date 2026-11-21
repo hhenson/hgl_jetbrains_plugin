@@ -27,3 +27,28 @@ test a_value_taken_before_is_as_it_was {
     assert before == [1, 2]
     assert entries == [1, 2, 3, 1, 2]
 }
+
+# The language's EXPR-7: a read at an index outside a list fails, below
+# zero as at or past its size.
+const fn entry_at(entries: list<i64>, position: i64) -> i64 => entries[position]
+
+test a_read_outside_a_list_is_an_error {
+    assert entry_at([1, 2], 1) == 2
+    assert raises("value.index_out_of_range") { entry_at([1, 2], 2) }
+    assert raises("value.index_out_of_range") { entry_at([1, 2], -1) }
+    assert raises("value.index_out_of_range") { entry_at([], 0) }
+}
+
+# The language's EXPR-3: an assignment at an index outside a list fails,
+# and adds no entry.
+const fn replaced(entries: list<i64>, position: i64, entry: i64) -> list<i64> {
+    var changed = entries
+    changed[position] = entry
+    return changed
+}
+
+test an_assignment_outside_a_list_is_an_error {
+    assert replaced([1, 2], 1, 5) == [1, 5]
+    assert raises("value.index_out_of_range") { replaced([1, 2], 2, 5) }
+    assert raises("value.index_out_of_range") { replaced([1, 2], -1, 5) }
+}

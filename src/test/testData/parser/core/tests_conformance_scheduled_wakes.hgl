@@ -15,7 +15,7 @@ the two replayed inputs.
 */
 test the_clock_reports_the_time_of_each_input {
     let start_time = @2026-01-05T09:30:00Z
-    assert eval(time_of_input(value: [10, _, 20]), RunConfig(start: start_time)) ==
+    assert eval{start: start_time} time_of_input(value: [10, _, 20]) ==
         [start_time, _, start_time + 2us]
 }
 
@@ -33,7 +33,7 @@ the scheduler property. This node requests no wakes.
 :Status: agreed
 */
 test an_input_tick_alone_is_not_a_scheduler_wake {
-    assert eval(scheduler_due_on_input(value: [7, _, 9])) == [false, _, false]
+    assert eval scheduler_due_on_input(value: [7, _, 9]) == [false, _, false]
 }
 
 fn cause_of_wake(value: i64) -> str {
@@ -58,8 +58,27 @@ the other after the final input.
 :Status: proposed
 */
 test a_scheduler_wake_can_coincide_with_an_input {
-    assert eval(cause_of_wake(value: [7, _, 9])) ==
+    assert eval cause_of_wake(value: [7, _, 9]) ==
         ["input", _, "input and scheduler", _, "scheduler"]
+}
+
+fn empty_selection_at_wake(value: i64) -> list<bool, 2> {
+    inject scheduler
+    start { schedule(scheduler, 2us) }
+    when modified([]) && valid([]) { return [modified([]), modified(value)] }
+}
+
+/**
+In a handler whose header selects `modified([])`, it is true at a wake that lands with an input's tick.
+No input wakes the handler, so the first input leaves it silent. The
+proposed duration deadline places the wake on the second input: each
+tick is `[modified([]), modified(value)]`.
+
+:Rules: TIME-3, CAP-4
+:Status: proposed
+*/
+test an_empty_selection_is_true_in_its_handler_when_an_input_ticks {
+    assert eval empty_selection_at_wake(value: [7, _, 9]) == [_, _, [true, true]]
 }
 
 enum PendingWakes { keep_both, cancel_later, reset_all }
@@ -83,8 +102,8 @@ pending wake. Run the same node with and without a reset.
 :Status: agreed
 */
 test a_reset_removes_all_wakes_from_an_inputless_node {
-    assert eval(wake_without_inputs(pending: .keep_both)) != []
-    assert eval(wake_without_inputs(pending: .reset_all)) == []
+    assert eval wake_without_inputs(pending: .keep_both) != []
+    assert eval wake_without_inputs(pending: .reset_all) == []
 }
 
 /**
@@ -96,8 +115,30 @@ deadlines from the start hook.
 :Status: proposed
 */
 test cancelling_the_later_tag_preserves_the_earlier_wake {
-    assert eval(wake_without_inputs(pending: .keep_both)) == [_, true, _, true]
-    assert eval(wake_without_inputs(pending: .cancel_later)) == [_, true]
+    assert eval wake_without_inputs(pending: .keep_both) == [_, true, _, true]
+    assert eval wake_without_inputs(pending: .cancel_later) == [_, true]
+}
+
+fn wall_clock_wakes() -> bool {
+    inject scheduler, clock
+    start {
+        schedule(scheduler, 1us, tag: "early", on_wall_clock: true)
+        schedule(scheduler, clock.evaluation_time + 3us, tag: "late", on_wall_clock: true)
+    }
+    when modified([]) { return scheduler.is_scheduled_now }
+}
+
+/**
+In simulation the wall-clock option changes nothing.
+A wake asked for with `on_wall_clock: true` is timed on evaluation time
+there, as one asked for without it: the duration 1us after the start, and
+the datetime at 3us from it.
+
+:Rules: CAP-4
+:Status: agreed
+*/
+test the_wall_clock_option_changes_nothing_in_simulation {
+    assert eval wall_clock_wakes() == [_, true, _, true]
 }
 
 fn alarm_or_input(value: i64) -> str {
@@ -116,6 +157,133 @@ holds regardless of whether the best-effort alarm is delivered.
 :Status: agreed
 */
 test an_alarm_cannot_hide_an_input_tick {
-    assert eval(alarm_or_input(value: [1, 2, 3, 4]), RunConfig(length: 4us)) ==
+    assert eval{length: 4us} alarm_or_input(value: [1, 2, 3, 4]) ==
         ["input", "input", "input", "input"]
+}
+
+fn wake_after(delay: duration) -> bool {
+    inject scheduler
+    when modified(delay) {
+        schedule(scheduler, delay)
+        return true
+    }
+}
+
+fn wake_failures(delay: duration) -> bool {
+    let boundary = capture(wake_after, delay)
+    return failure_seen(boundary.error)
+}
+
+/**
+A wake asked of the scheduler outside `start` with a duration that is not more than zero fails.
+The delay is an input, asked for in a `when`, so the compiler does not see
+it. A delay of 1us is asked for without failure; one of 0s fails the node,
+and its capture's error stream ticks.
+
+:Rules: TIME-8, CAP-4, ERR-7
+:Status: agreed
+*/
+test a_zero_duration_asked_of_the_scheduler_fails {
+    assert eval wake_failures(delay: [1us, 0s]) == [_, true]
+}
+
+fn wake_at_start(value: i64) -> str {
+    inject scheduler
+    start { schedule(scheduler, 0s) }
+    when scheduled() && valid([]) { return "scheduled" }
+    when modified(value) { return "input" }
+}
+
+/**
+A zero duration asked of the scheduler in `start` wakes the node's first evaluation.
+The input is silent at the start, so the first evaluation is the scheduled
+wake alone; the input's later tick is handled as an input.
+
+:Rules: TIME-8, CAP-4, TIME-7
+:Status: agreed
+*/
+test a_zero_duration_in_start_wakes_the_first_evaluation {
+    assert eval wake_at_start(value: [_, 7]) == ["scheduled", "input"]
+}
+
+fn alarm_at_start(value: i64) -> str {
+    inject alarm
+    start { schedule(alarm, 0s) }
+    when scheduled() && valid([]) { return "alarm" }
+    when modified(value) { return "input" }
+}
+
+/**
+A zero duration asked of the alarm in `start` wakes the node's first evaluation.
+The input is silent at the start, so the first evaluation is the alarm's
+wake alone; the input's later tick is handled as an input.
+
+:Rules: TIME-8, CAP-5, TIME-7
+:Status: agreed
+*/
+test a_zero_duration_in_start_wakes_the_alarm_at_the_first_evaluation {
+    assert eval alarm_at_start(value: [_, 7]) == ["alarm", "input"]
+}
+
+fn wake_in_the_past(value: i64) -> str {
+    inject scheduler
+    when scheduled() { return "woken" }
+    when modified(value) {
+        schedule(scheduler, never)
+        return "asked"
+    }
+}
+
+fn alarm_in_the_past(value: i64) -> str {
+    inject alarm
+    when scheduled() { return "woken" }
+    when modified(value) {
+        schedule(alarm, never)
+        return "asked"
+    }
+}
+
+/**
+A wake asked for at a datetime before now is dropped, with no failure.
+`never` is before every evaluation time. Each input tick asks the scheduler,
+or the alarm, for a wake then; none comes, and the run does not fail.
+
+:Rules: TIME-8, CAP-4, CAP-5, CRUN-3
+:Status: agreed
+*/
+test a_wake_before_now_is_dropped {
+    assert eval wake_in_the_past(value: [7, _, 9]) == ["asked", _, "asked"]
+    assert eval alarm_in_the_past(value: [7, _, 9]) == ["asked", _, "asked"]
+}
+
+fn due_after_reset() -> bool {
+    inject scheduler
+    start {
+        schedule(scheduler, 1us, tag: "first")
+        schedule(scheduler, 3us, tag: "second")
+    }
+    when scheduled() {
+        reset(scheduler)
+        return scheduler.is_scheduled_now
+    }
+}
+
+# The values a trace of a bool result holds, whenever each was published.
+const fn published(seen: list<tuple<datetime, bool>>) -> list<bool> {
+    var values: list<bool> = []
+    for tick in seen { append(values, tick[1]) }
+    return values
+}
+
+/**
+After `reset` inside a wake, `is_scheduled_now` stays true for the rest of that wake.
+Two wakes are asked for in `start`. The first resets the scheduler, which
+cancels the second, and then reads the property. The run publishes once,
+true, wherever the wake lands.
+
+:Rules: CAP-4, TIME-9, TST-16
+:Status: agreed
+*/
+test a_wake_stays_due_after_a_reset_inside_it {
+    assert published(eval due_after_reset()) == [true]
 }
