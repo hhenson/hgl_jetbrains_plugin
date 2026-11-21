@@ -13,9 +13,9 @@ even as the input continues to tick.
 :Status: agreed
 */
 test a_conditional_child_restarts_only_after_leaving_its_branch {
-    assert eval(count_inside_branch(
+    assert eval count_inside_branch(
         enabled: [true, true, false, _, true, _],
-        value:   [10,   20,   30,    40, 50,  60])) ==
+        value:   [10,   20,   30,    40, 50,  60]) ==
                  [1,    2,    _,     _,  1,   2]
 }
 
@@ -33,9 +33,9 @@ in the false branch.
 :Status: agreed
 */
 test an_outer_producer_keeps_its_lifetime_across_branches {
-    assert eval(count_outside_branch(
+    assert eval count_outside_branch(
         enabled: [true, true, false, _, true, _],
-        value:   [10,   20,   30,    40, 50,  60])) ==
+        value:   [10,   20,   30,    40, 50,  60]) ==
                  [1,    2,    _,     _,  5,   6]
 }
 
@@ -53,9 +53,9 @@ the input directly.
 :Status: agreed
 */
 test an_early_return_skips_the_continuation {
-    assert eval(bypass_ratio(
+    assert eval bypass_ratio(
         bypass:  [true, false, true, false],
-        divisor: [0.0,  3.0,   0.0,  2.0])) ==
+        divisor: [0.0,  3.0,   0.0,  2.0]) ==
                  [0.0,  2.0,   0.0,  3.0]
 }
 
@@ -78,10 +78,27 @@ connection still pass when the selector is silent.
 :Status: agreed
 */
 test a_switch_forwards_the_selected_connection {
-    assert eval(switch_input(
+    assert eval switch_input(
         route:    ["left", "right", _, "other", _, "left"],
         left:     [1,      2,       3, 4,       5, 6],
         right:    [10,     20,      _, 40,     50, 60],
-        fallback: [100,    200,   300, 400,   500, 600])) ==
+        fallback: [100,    200,   300, 400,   500, 600]) ==
                   [1,      20,      _, 400,   500, 6]
+}
+
+/**
+A branch that starts while the program runs runs its nodes once with the values held.
+The value publishes 10 in the first cycle alone, while the branch is not
+selected. Each true starts the branch fresh: the value, valid since the
+first cycle, counts as modified there, and the counter runs once and
+publishes 1.
+
+:Rules: CTRL-2, CTRL-3, CTRL-13, TIME-3, END-2
+:Status: agreed
+*/
+test a_branch_runs_once_with_the_values_held_when_it_starts {
+    assert eval count_inside_branch(
+        enabled: [false, true, false, true],
+        value:   [   10,    _,     _,    _]) ==
+                 [    _,    1,     _,    1]
 }

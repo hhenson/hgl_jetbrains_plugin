@@ -29,11 +29,23 @@ export native type Scheduler {
 export native type Alarm
 export native type GlobalState
 
+# `inject run_config` (CAP-7): the configuration a run is given (CRUN-2),
+# as it is supplied. A field left out is null.
+export native type RunConfig {
+    start: datetime?
+    end: datetime?
+    length: duration?
+}
+
 # CAP-2: one record at `level`.
 export native const fn log(logger: Logger, level: LogLevel, message: str)
 
 # CAP-4: a wake on the scheduler, under a tag or without one, on the
-# engine's clock or the wall clock.
+# engine's clock or, in real time with `on_wall_clock`, the wall clock: a
+# wake of the option already due comes in the next cycle; in simulation
+# the option changes nothing. A duration must be more than zero, but
+# in `start`, where zero asks for a wake at the start; a datetime before
+# the evaluation time is dropped.
 native impl const fn schedule(
     capability: Scheduler,
     at: duration,
@@ -51,16 +63,20 @@ native impl const fn schedule(
 export native const fn un_schedule(scheduler: Scheduler, tag: str? = null)
 export native const fn reset(scheduler: Scheduler)
 
-# CAP-5: a wake on the alarm. It takes no tag and no clock.
+# CAP-5: a wake on the alarm. It takes no tag and no clock. What may be
+# asked of it is what may be asked of the scheduler (CAP-4).
 native impl const fn schedule(capability: Alarm, at: duration)
 native impl const fn schedule(capability: Alarm, at: datetime)
 
-# The language's ERR-6: the value a dictionary has for a key, or null
-# where it has none.
-native impl const fn get<K, T>(store: dict<K, T>, key: K) -> T?
+# The language's ERR-6: the value a dictionary has for a key, a read that
+# can fail and says so. A key the dictionary has not is a failure coded
+# `value.missing_key`; the place the call is given to takes the result, the
+# value, or a null for it (ERR-15).
+native impl const fn get<K, T>(store: dict<K, T>, key: K) -> result<T, error>
 
 # CAP-6: the global store's candidates. The key is fixed when the graph is
-# built (the language's FN-1).
-native impl const fn get<V>(store: GlobalState, const key: str) -> V
+# built (the language's FN-1). `get` can fail, as a dictionary's does: an
+# absent key is a failure, which takes its form from the call's place.
+native impl const fn get<V>(store: GlobalState, const key: str) -> result<V, error>
 native impl const fn has(store: GlobalState, const key: str) -> bool
 native impl const fn put<V>(store: GlobalState, const key: str, value: V)

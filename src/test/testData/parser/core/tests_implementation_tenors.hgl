@@ -77,6 +77,15 @@ test months_end_at_the_months_last_day {
     assert @2026-01-31 + -(1M) == @2025-12-31
 }
 
+# TEN-4: only the result is held to the range of a date: the months may
+# pass the last or the first date where the days bring the result back.
+test only_the_result_of_a_move_is_held_to_the_range {
+    assert @9999-12-15 + (1M - 30D) == @9999-12-16
+    assert @0001-01-15 + (30D - 1M) == @0001-01-14
+    assert raises("numeric.out_of_range") { @9999-12-15 + 1M }
+    assert raises("numeric.out_of_range") { @0001-01-15 - 1M }
+}
+
 # TEN-5, TEN-6: a count of business days starts from a business day. With
 # no calendar every day but a Saturday and a Sunday is one. 2026-01-03 is
 # a Saturday.

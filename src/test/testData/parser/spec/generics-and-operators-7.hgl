@@ -1,0 +1,8 @@
+struct Box<T> { value: T }
+const fn boxed() -> Box<i64> => Box<i64>(value: 7)
+
+fn preserve<T, N>(items: list<T, N>) -> list<T, N> => items
+
+fn numeric<T>(value: T) -> T requires T in {i64, f64} { return value }
+
+const fn configuration<N>() -> bool requires type(N) in {i64, f64} { return true }

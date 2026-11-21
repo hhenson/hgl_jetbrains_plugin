@@ -90,7 +90,7 @@ class HglCheckOnSaveTest : HglEditorFixture() {
             settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI")))
             val pidFile = dir.resolve("pid")
             val old = service.saved(file) {
-                runCheck(GeneralCommandLine(System.getenv("HGL_HGRAPH_PYTHON"), "-c",
+                runCheck(GeneralCommandLine("python3", "-c",
                     "import os, pathlib, sys, time; pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(60)",
                     pidFile.toString()))
             }!!

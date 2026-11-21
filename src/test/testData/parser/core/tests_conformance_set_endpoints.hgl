@@ -26,7 +26,7 @@ Adding and removing 2 cancels within the second cycle under the proposed set del
 :Status: proposed
 */
 test set_writes_coalesce {
-    assert eval(observe_set_updates(command: [1, 2])) == [
+    assert eval observe_set_updates(command: [1, 2]) == [
         delta<set<i64>>(added: [1]),
         delta<set<i64>>(added: [3], removed: [1])
     ]

@@ -33,10 +33,10 @@ an upstream node. The third sees the value written while the reader was idle.
 :Status: agreed
 */
 test an_ordered_reader_sees_the_latest_store_write {
-    assert eval(ordered_store_read(
+    assert eval ordered_store_read(
         value: [_,    7,    9, _],
         probe: [true, true, _, true]
-    )) ==      [null, 7,    _, 9]
+    )  ==      [null, 7,    _, 9]
 }
 
 fn stored_snapshot(value: i64) -> bool {
@@ -59,7 +59,7 @@ After saving a one-entry list, grow the original and read back the saved copy.
 :Status: agreed
 */
 test a_store_write_retains_the_value_at_the_write {
-    assert eval(stored_snapshot(value: [7, 8])) == [true, true]
+    assert eval stored_snapshot(value: [7, 8]) == [true, true]
 }
 
 fn read_before_write(value: i64?) -> str {
@@ -67,7 +67,7 @@ fn read_before_write(value: i64?) -> str {
     when {
         var previous: str = "absent"
         if has(global_state, "previous") {
-            let saved: i64? = get(global_state, "previous")
+            let saved: i64? = get<i64?>(global_state, "previous")
             if saved == null { previous = "null" }
             else { previous = "number" }
         }
@@ -84,7 +84,7 @@ Read the key before each write. It starts absent, then holds null, then 7.
 :Status: agreed
 */
 test a_stored_null_is_distinct_from_an_absent_key {
-    assert eval(read_before_write(value: [null, 7, 0])) == ["absent", "null", "number"]
+    assert eval read_before_write(value: [null, 7, 0]) == ["absent", "null", "number"]
 }
 
 fn write_on_update(update: i64) {
@@ -116,8 +116,8 @@ every read sees a completed write or the initial empty store.
 :Status: agreed
 */
 test a_store_write_does_not_wake_a_reader {
-    assert eval(independently_sampled_store(
+    assert eval independently_sampled_store(
         update: [   _, 7,    _, 8,    _],
         sample: [true, _, true, _, true],
-    )) ==       [   0, _,    7, _,    8]
+    )  ==       [   0, _,    7, _,    8]
 }

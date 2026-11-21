@@ -12,10 +12,10 @@ Thereafter it uses the retained factor. A repeated input still produces a tick.
 :Status: agreed
 */
 test lifted_default_gives_way_to_a_publication {
-    assert eval(scaled_value(
+    assert eval scaled_value(
         value:  [1, _, 3,  3],
         factor: [_, 4, _,  _]
-    )) ==       [2, 4, 12, 12]
+    )  ==       [2, 4, 12, 12]
 }
 
 /**
@@ -26,10 +26,10 @@ The factor ticks first. Its retained value is used when the required value arriv
 :Status: agreed
 */
 test lifted_default_still_requires_other_inputs {
-    assert eval(scaled_value(
+    assert eval scaled_value(
         value:  [_, _, 3],
         factor: [4, 5, _]
-    )) ==       [_, _, 15]
+    )  ==       [_, _, 15]
 }
 
 # The trigger can wake the helper while its nullable input is quiet.
@@ -44,10 +44,10 @@ Only a notification wakes the helper. The gap between the triggers stays silent.
 :Status: agreed
 */
 test lifted_nullable_binds_null_on_a_trigger {
-    assert eval(observed_input(
+    assert eval observed_input(
         trigger: [true, _, true, _],
         value:   [_,    _, _,    4]
-    )) ==        [null, _, null, 4]
+    )  ==        [null, _, null, 4]
 }
 
 /**
@@ -58,8 +58,28 @@ The first trigger sees the default. After null is published, a later trigger see
 :Status: agreed
 */
 test published_null_takes_precedence_over_a_default {
-    assert eval(observed_default(
+    assert eval observed_default(
         trigger: [true, _,    true, _],
         value:   [_,    null, _,    4]
-    )) ==        [9,    null, null, 4]
+    )  ==        [9,    null, null, 4]
+}
+
+# `<` has a candidate for each type the membership lists.
+const fn less_under_membership<T>(a: T, b: T) -> bool
+    requires T in {i64, f64} => a < b
+
+/**
+A generic body uses an operation that each type of its membership has a
+candidate for, and each instance selects its own.
+The `i64` instance compares two `i64` and the `f64` instance two `f64`;
+each is lifted over its two inputs.
+
+:Rules: GEN-3, GEN-7, FN-6
+:Status: agreed
+*/
+test a_membership_admits_what_each_listed_type_has {
+    assert eval less_under_membership<i64>(a: [1, 3], b: [2, 2]) ==
+        [true, false]
+    assert eval less_under_membership<f64>(a: [1.5, 2.5], b: [2.0, 2.0]) ==
+        [true, false]
 }

@@ -1,0 +1,36 @@
+module examples.source
+
+export fn two_values() -> i64 {
+    yield 1s: 7
+    yield 1s: 9
+}
+
+export fn greeting(const every: duration = 1s) -> str {
+    inject logger
+    start { log_info(logger, "greeting starts") }
+    {
+        yield every: "hello"
+        yield every: "world"
+    }
+    stop { log_info(logger, "greeting ends") }
+}
+
+export fn counter(const every: duration = 1s, const limit: i64 = 3) -> i64 {
+    inject logger
+    cache count: i64 = 0
+    while count < limit {
+        count += 1
+        yield every: count
+    }
+    stop { log_info(logger, str(count)) }
+}
+
+export fn replay(const values: list<f64>, const every: duration = 1s) -> f64 {
+    inject logger
+    start { log_info(logger, "replay starts") }
+    for value in values {
+        let doubled = value * 2.0
+        yield every: doubled
+    }
+    stop { log_info(logger, "replay ends") }
+}

@@ -1,0 +1,6 @@
+operator scaled<L, R, O>(lhs: L, rhs: R) -> O
+
+impl const fn scaled(lhs: f64, rhs: f64, exact: bool = false) -> f64 =>
+    lhs * rhs
+
+impl const fn scaled(lhs: str, rhs: i64) -> str => lhs * rhs

@@ -19,3 +19,22 @@ fn ask_or_zero(quote: Quote) -> f64 {
         return 0.0
     }
 }
+
+struct Order {
+    price: f64
+    note: str?
+}
+
+const fn label(order: Order) -> str {
+    let note = order.note
+    if note == null { return "plain" }
+    return note
+}
+
+fn labelled(order: Order) -> str {
+    when all_valid(order) { return label(order) }
+}
+
+fn noted(order: Order) -> bool {
+    when all_valid(order) { return valid(order.note) }
+}

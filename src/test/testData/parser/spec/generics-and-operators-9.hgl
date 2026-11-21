@@ -1,0 +1,5 @@
+operator maybe<X>(x: X) -> i64?
+
+impl const fn maybe(x: i64) -> i64? => x
+
+const fn required(value: i64) -> i64 => maybe(value)

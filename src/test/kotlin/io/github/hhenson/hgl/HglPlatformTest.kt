@@ -141,6 +141,18 @@ class HglPlatformTest : HglEditorFixture() {
         return (reference as PsiPolyVariantReference).multiResolve(false).mapNotNull { it.element }
     }
 
+    fun testConfigurationAndLoopBindingsResolveWhereVisible() {
+        fun target(code: String): PsiElement {
+            myFixture.configureByText("scope.hgl", "module scopes\n$code")
+            return resolveAtCaret().single()
+        }
+        assertTrue(target("fn scale{places: i64}(x: i64) => x * pla<caret>ces") is io.github.hhenson.hgl.psi.HglConfigurationParameter)
+        assertTrue(target("operator apply<...Ps, const key: str>(f: fn(...{Ps}), args: ...{Ps for f without <caret>key})") is io.github.hhenson.hgl.psi.HglGenericParameter)
+        assertTrue(target("fn loop(items: list<i64>) => [for k in items: <caret>k]") is io.github.hhenson.hgl.psi.HglForBinding)
+        assertTrue(target("fn loop(k: list<i64>) => [for k in <caret>k: k]") is HglParameter)
+        assertTrue(target("operator f<...Ps>(x: ...{Ps}) requires any k in arg_keys(Ps) { Ps[<caret>k] == i64 }") is io.github.hhenson.hgl.psi.HglForBinding)
+    }
+
     fun testParameterResolves() {
         myFixture.configureByText("a.hgl", "module a\n\nfn f(value: f64) -> f64 => val<caret>ue * 2.0\n")
         val target = resolveAtCaret().single()
@@ -273,7 +285,7 @@ class HglPlatformTest : HglEditorFixture() {
         myFixture.addFileToProject("core_native.hgl", """
             module core part native_ops
             export native fn snapshot(input: endpoint<i64>) -> i64
-            operator plus(a: i64, b: i64) -> i64
+            export operator plus(a: i64, b: i64) -> i64
         """.trimIndent())
         for (name in listOf("sn<caret>apshot", "pl<caret>us", "hi<caret>dden")) {
             myFixture.configureByText("user.hgl", "module user\nfn read() => $name\n")
@@ -292,7 +304,7 @@ class HglPlatformTest : HglEditorFixture() {
     }
 
     fun testAnApplicationIsNotAnImportableModule() {
-        myFixture.addFileToProject("app.hgl", "/*\nmodule phantom\n*/\napplication demo.app\nrun(work())\n")
+        myFixture.addFileToProject("app.hgl", "/*\nmodule phantom\n*/\napplication demo.app\nrun work()\n")
         myFixture.configureByText("consumer.hgl", "module client\nuse demo.a<caret>pp as app\n")
         assertEmpty(resolveAtCaret())
         myFixture.configureByText("consumer.hgl", "module client\nuse phan<caret>tom as ghost\n")
@@ -316,7 +328,7 @@ class HglPlatformTest : HglEditorFixture() {
             export fn twice(a: f64) -> f64 => midpoint(a, a) + midpoint(a, a)
 
             test t {
-                assert eval(midpoint(a: [1.0], b: [2.0])) == [1.5]
+                assert eval midpoint(a: [1.0], b: [2.0]) == [1.5]
             }
             """.trimIndent(),
         )
@@ -366,19 +378,19 @@ class HglPlatformTest : HglEditorFixture() {
         assertContainsElements(names, "true", "truth")
     }
 
-    fun testArrowCompletionInsideOperatorAndAnonymousFunction() {
-        val operand = completionsInModule("operator echo(input: i64) -> i64 => # on the next line\n input + <caret>")
+    fun testArrowCompletionInsideImplementationAndAnonymousFunction() {
+        val operand = completionsInModule("impl fn echo(input: i64) -> i64 => # on the next line\n input + <caret>")
         assertContainsElements(operand, "if", "null", "input")
         assertDoesntContain(operand, "module", "return", "i64")
 
         val argument = completionsInModule("""
-            fn run(x: i64) -> i64 => x
+            fn apply_one(x: i64) -> i64 => x
             fn outer(value: i64) -> i64 {
-                let apply = fn(x: i64) => run(<caret>)
+                let apply = fn(x: i64) => apply_one(<caret>)
                 return apply(value)
             }
         """.trimIndent())
-        assertContainsElements(argument, "if", "false", "x", "value", "run")
+        assertContainsElements(argument, "if", "false", "x", "value", "apply_one")
         assertDoesntContain(argument, "let", "return", "state", "eval", "list")
     }
 
@@ -442,12 +454,12 @@ class HglPlatformTest : HglEditorFixture() {
             test {
                 fn fixture(v: f64) -> f64 => v
                 test fixture_ticks {
-                    assert eval(fixture(v: [1.0])) == [1.0]
+                    assert eval fixture(v: [1.0]) == [1.0]
                 }
             }
 
             test midpoint_ticks {
-                assert eval(midpoint(quote: [Quote(bid: 1.0, ask: 2.0)])) == [1.5]
+                assert eval midpoint(quote: [Quote(bid: 1.0, ask: 2.0)]) == [1.5]
             }
             """.trimIndent(),
         )

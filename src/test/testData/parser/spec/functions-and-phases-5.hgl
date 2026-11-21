@@ -1,0 +1,37 @@
+const fn bump(var count: i64, by: i64) {
+    count += by
+}
+
+const fn set_first(var items: list<i64>, value: i64) {
+    items[0] = value
+}
+
+const fn total(values: list<i64>) -> i64 {
+    var sum: i64 = 0
+    for value in values {
+        bump(sum, value)
+    }
+    return sum
+}
+
+const fn kept() -> bool {
+    var entries: list<i64> = [1, 2]
+    let before = entries
+    set_first(entries, 9)
+    return before == [1, 2] && entries == [9, 2]
+}
+
+const fn fill(var rows: list<i64>, count: i64) {
+    append(rows, 1)
+    append(rows, 6 // count)
+}
+
+operator push<C, V>(values: C, item: V)
+
+impl const fn push(var values: list<i64>, item: i64) {
+    append(values, item)
+}
+
+impl const fn push(var values: dict<str, i64>, item: str) {
+    values[item] = 1
+}

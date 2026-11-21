@@ -1,0 +1,32 @@
+module conformance.rejections part window_reads
+
+/**
+The delta of a window of a duration is read only where its place takes a `result`.
+In a cycle in which a value only leaves the window it has no delta, so a
+plain read could fail at an exit. A result of `result<i64, error>` would
+be admitted, and so would a plain read of a window of ticks.
+
+:Rules: TYPE-11, ERR-14, END-3, END-9
+:Status: agreed
+*/
+fn arrival_read_plainly(readings: rolling_window<i64, 3us, 1us>) -> i64 {
+    when modified(readings) {
+        # expect-error(phase, "payload.unguarded")
+        return delta_value(readings)
+    }
+}
+
+/**
+A window's `removed_value` is read only where its place takes a `result`, a window of ticks included.
+In most cycles no value leaves a window. A result of `result<i64, error>`
+would be admitted.
+
+:Rules: TYPE-11, ERR-14, END-9
+:Status: agreed
+*/
+fn departure_read_plainly(readings: rolling_window<i64, 2>) -> i64 {
+    when modified(readings) {
+        # expect-error(phase, "payload.unguarded")
+        return removed_value(readings)
+    }
+}

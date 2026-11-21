@@ -104,6 +104,8 @@ native impl const fn sub_(lhs: civil_datetime, rhs: civil_datetime) -> duration
 # OPS-1: `*`, `/`, `//` on durations and strings.
 native impl const fn mul_(lhs: duration, rhs: i64) -> duration
 native impl const fn mul_(lhs: duration, rhs: f64) -> duration
+# OPS-1: the text repeated `rhs` times. A count below zero is an HGL error
+# with code `numeric.out_of_range`.
 native impl const fn mul_(lhs: str, rhs: i64) -> str
 native impl const fn div_<const zero: ZeroPolicy = .fail>(lhs: duration, rhs: i64) -> duration
     requires zero == .fail
@@ -133,6 +135,11 @@ native impl const fn ne_<T>(lhs: T, rhs: T) -> bool
 native impl const fn ne_(lhs: i64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
 native impl const fn ne_(lhs: f64, rhs: f64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
 native impl const fn ne_(lhs: i64, rhs: f64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
+
+# OPS-2: two zoned datetimes are equal by instant and zone name, or with
+# `utc` by instant alone.
+native impl const fn eq_(lhs: zoned_datetime, rhs: zoned_datetime, utc: bool = false) -> bool
+native impl const fn ne_(lhs: zoned_datetime, rhs: zoned_datetime, utc: bool = false) -> bool
 
 # OPS-2: the ordered types. NUM-6: numbers, an `i64` with an `f64` included.
 native impl const fn lt_<T>(lhs: T, rhs: T) -> bool

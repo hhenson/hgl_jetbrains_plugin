@@ -9,7 +9,7 @@ import com.intellij.psi.tree.TokenSet;
 import java.util.Map;
 import io.github.hhenson.hgl.psi.HglTypes;
 
-/** Contextual names and bounded generic look-ahead used by Hgl.bnf. */
+/** Contextual names and generic look-ahead used by Hgl.bnf. */
 @SuppressWarnings("unused")
 public final class HglParserUtil extends GeneratedParserUtilBase {
 
@@ -27,7 +27,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
 
     /** Tokens a generic-argument list may contain (can_occur_in_generic_arguments). */
     private static final TokenSet GENERIC_ARGUMENT_TOKENS = TokenSet.create(
-            HglTypes.IDENTIFIER, HglTypes.COLONCOLON, HglTypes.DOT, HglTypes.LT, HglTypes.GT, HglTypes.COMMA,
+            HglTypes.LBRACKET, HglTypes.RBRACKET, HglTypes.IDENTIFIER, HglTypes.COLONCOLON, HglTypes.DOT, HglTypes.LT, HglTypes.GT, HglTypes.COMMA,
             HglTypes.NEWLINE, HglTypes.INT_LITERAL, HglTypes.FLOAT_LITERAL, HglTypes.STRING_LITERAL,
             HglTypes.TEMPORAL_LITERAL, HglTypes.PLACEHOLDER, HglTypes.TRUE_KW, HglTypes.FALSE_KW,
             HglTypes.NULL_KW, HglTypes.LPAREN, HglTypes.RPAREN, HglTypes.PLUS, HglTypes.MINUS,
@@ -40,14 +40,11 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
             HglTypes.SIGNAL_KW, HglTypes.DELTA_KW, HglTypes.ERROR_KW);
 
     private static final TokenSet TRIVIA = TokenSet.create(
-            TokenType.WHITE_SPACE, HglTypes.LINE_COMMENT, HglTypes.BLOCK_COMMENT);
-
-    /** Upper bound on the raw tokens scanned by the applied-constructor look-ahead. */
-    private static final int LOOK_AHEAD_LIMIT = 512;
+            TokenType.WHITE_SPACE, HglTypes.LINE_COMMENT, HglTypes.BLOCK_COMMENT, HglTypes.DOC_COMMENT);
 
     /** Contextual keyword tokens by name; the grammar passes the name because Grammar-Kit passes a token reference as a parser. */
     private static final Map<String, IElementType> CONTEXTUAL_KEYWORDS = Map.ofEntries(
-            Map.entry("APPLICATION_KW", HglTypes.APPLICATION_KW), Map.entry("RUN_KW", HglTypes.RUN_KW),
+            Map.entry("APPLICATION_KW", HglTypes.APPLICATION_KW), Map.entry("WITHOUT_KW", HglTypes.WITHOUT_KW),
             Map.entry("INTEGRATION_TEST_KW", HglTypes.INTEGRATION_TEST_KW), Map.entry("TIMEOUT_KW", HglTypes.TIMEOUT_KW),
             Map.entry("SUPPRESS_WARNING_KW", HglTypes.SUPPRESS_WARNING_KW),
             Map.entry("CONST_KW", HglTypes.CONST_KW), Map.entry("TYPE_KW", HglTypes.TYPE_KW),
@@ -111,29 +108,52 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
     public static boolean adjacent(PsiBuilder b, int level) {
         IElementType previous = b.rawLookup(-1);
         return previous != null && previous != HglTypes.NEWLINE &&
-                previous != HglTypes.DOC_COMMENT && !TRIVIA.contains(previous);
+                !TRIVIA.contains(previous);
     }
 
-    private static final Key<Boolean> TEST_BODY = Key.create("hgl.test.body");
+    private static final Key<Integer> HEADER_START = Key.create("hgl.header.start");
 
-    public static boolean testBlock(PsiBuilder b, int level, Parser block) {
-        Boolean previous = b.getUserData(TEST_BODY);
-        b.putUserData(TEST_BODY, true);
+    public static boolean header(PsiBuilder b, int level, Parser parser) {
+        Integer previous = b.getUserData(HEADER_START);
+        b.putUserData(HEADER_START, b.rawTokenIndex());
         try {
-            return block.parse(b, level);
+            return parser.parse(b, level);
         } finally {
-            b.putUserData(TEST_BODY, previous);
+            b.putUserData(HEADER_START, previous);
         }
     }
 
-    /** A run form starts with the contextual name immediately followed by its call delimiter. */
-    public static boolean runKeyword(PsiBuilder b, int level) {
-        return isIdentifierWithText(b, HglTypes.RUN_KW) && b.rawLookup(1) == HglTypes.LPAREN &&
-                remapAndAdvance(b, HglTypes.RUN_KW);
+    /** CTRL-9: outside a group, a header's first non-operator brace opens the body. */
+    public static boolean braceInsideExpression(PsiBuilder b, int level) {
+        Integer start = b.getUserData(HEADER_START);
+        if (start == null) return true;
+        int depth = 0;
+        for (int i = start - b.rawTokenIndex(); i < 0; i++) {
+            IElementType token = b.rawLookup(i);
+            if (token == HglTypes.LPAREN || token == HglTypes.LBRACKET || token == HglTypes.LBRACE) depth++;
+            if (token == HglTypes.RPAREN || token == HglTypes.RBRACKET || token == HglTypes.RBRACE) depth--;
+        }
+        return depth > 0;
     }
 
-    public static boolean inTestBody(PsiBuilder b, int level) {
-        return Boolean.TRUE.equals(b.getUserData(TEST_BODY));
+    private static final Key<Boolean> INTEGRATION_BODY = Key.create("hgl.test.body");
+
+    public static boolean integrationBlock(PsiBuilder b, int level, Parser block) {
+        Boolean previous = b.getUserData(INTEGRATION_BODY);
+        b.putUserData(INTEGRATION_BODY, true);
+        try {
+            return block.parse(b, level);
+        } finally {
+            b.putUserData(INTEGRATION_BODY, previous);
+        }
+    }
+
+    public static boolean textIs(PsiBuilder b, int level, String name) {
+        return name.equals(b.getTokenText());
+    }
+
+    public static boolean inIntegrationBody(PsiBuilder b, int level) {
+        return Boolean.TRUE.equals(b.getUserData(INTEGRATION_BODY));
     }
 
     /** EXPR-1/10: configured unary operators bind above multiplicative operators. */
@@ -162,24 +182,34 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
      * matching {@code >} must be one a generic-argument list can contain, a
      * parenthesised group is skipped by balance alone, a newline is admitted
      * only after {@code <} or {@code ,} or before {@code >} or {@code ,}, and
-     * the closing {@code >} must be directly followed by {@code (}.
+     * the closing delimiter precedes call arguments or configuration, or ends a callable argument.
      * Consumes nothing.
      */
     public static boolean appliedConstructorAhead(PsiBuilder b, int level) {
+        return genericAhead(b, false);
+    }
+
+    public static boolean functionReferenceAhead(PsiBuilder b, int level) {
+        return genericAhead(b, true);
+    }
+
+    private static boolean genericAhead(PsiBuilder b, boolean argumentReference) {
         if (b.getTokenType() != HglTypes.IDENTIFIER) return false;
         RawCursor cursor = new RawCursor(b);
+        boolean touchesGeneric = cursor.followedBy(HglTypes.LT);
         cursor.next(); // past the identifier
         if (cursor.type() == HglTypes.COLONCOLON) {
             cursor.next();
             if (cursor.type() != HglTypes.IDENTIFIER) return false;
+            touchesGeneric = cursor.followedBy(HglTypes.LT);
             cursor.next();
         }
-        if (cursor.type() != HglTypes.LT) return false;
+        if (!touchesGeneric) return false;
 
         int depth = 0;
         int parens = 0;
         IElementType previous = HglTypes.LT;
-        for (; !cursor.exhausted(); cursor.next()) {
+        for (; cursor.type() != null; cursor.next()) {
             IElementType kind = cursor.type();
             if (kind == null) return false;
             if (parens > 0) {
@@ -205,7 +235,12 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
                 depth--;
                 if (depth == 0) {
                     cursor.next();
-                    return cursor.type() == HglTypes.LPAREN;
+                    IElementType next = cursor.type();
+                    if (argumentReference) {
+                        if (next == HglTypes.NEWLINE) next = cursor.peekPastNewlines();
+                        return next == HglTypes.COMMA || next == HglTypes.RPAREN;
+                    }
+                    return next == HglTypes.LPAREN || next == HglTypes.LBRACE;
                 }
             }
             previous = kind;
@@ -217,37 +252,34 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
     private static final class RawCursor {
         private final PsiBuilder builder;
         private int offset = 0;
-        private int scanned = 0;
 
         RawCursor(PsiBuilder builder) {
             this.builder = builder;
+        }
+
+        boolean followedBy(IElementType token) {
+            return builder.rawLookup(offset + 1) == token;
         }
 
         IElementType type() {
             return builder.rawLookup(offset);
         }
 
-        boolean exhausted() {
-            return scanned > LOOK_AHEAD_LIMIT || type() == null;
-        }
-
         void next() {
             do {
                 offset++;
-                scanned++;
-            } while (scanned <= LOOK_AHEAD_LIMIT && TRIVIA.contains(builder.rawLookup(offset)));
+                if ((offset & 255) == 0) com.intellij.openapi.progress.ProgressManager.checkCanceled();
+            } while (TRIVIA.contains(builder.rawLookup(offset)));
         }
 
         /** The first token type after the current run of newlines, without moving. */
         IElementType peekPastNewlines() {
             int probe = offset;
-            int steps = 0;
             IElementType kind;
             do {
                 probe++;
-                steps++;
                 kind = builder.rawLookup(probe);
-            } while (steps <= LOOK_AHEAD_LIMIT && (kind == HglTypes.NEWLINE || TRIVIA.contains(kind)));
+            } while (kind == HglTypes.NEWLINE || TRIVIA.contains(kind));
             return kind;
         }
     }

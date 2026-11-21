@@ -18,9 +18,9 @@ one side uses the other side's retained value.
 :Status: agreed
 */
 test two_inputs_wake_their_consumer_once {
-    assert eval(running_join(
+    assert eval running_join(
         left:  [2, _, 4,  6,  _],
-        right: [_, 5, 7,  _,  3])) ==
+        right: [_, 5, 7,  _,  3]) ==
                [_, 7, 18, 31, 40]
 }
 
@@ -48,7 +48,7 @@ to the total, even when a shorter path can notify the consumer first.
 */
 test a_diamond_settles_before_its_join_runs {
     # The pairs at the join are (2, 3), (6, 5), and (8, 6).
-    assert eval(diamond_sum(value: [1, _, 3, 4])) == [5, _, 16, 30]
+    assert eval diamond_sum(value: [1, _, 3, 4]) == [5, _, 16, 30]
 }
 
 fn same_publication_time(left: i64, right: i64) -> bool {
@@ -71,7 +71,7 @@ including on the repeated value after a gap.
 :Status: agreed
 */
 test a_propagation_cycle_has_one_publication_time {
-    assert eval(compare_branch_times(value: [7, _, 7, 9])) == [true, _, true, true]
+    assert eval compare_branch_times(value: [7, _, 7, 9]) == [true, _, true, true]
 }
 
 /**
@@ -83,6 +83,6 @@ one microsecond before the last, the counter still advances on both.
 :Status: agreed
 */
 test a_simulation_resumes_at_each_scheduled_time {
-    assert eval(count_publications(value: [0s: 7, 3h - 1us: 7, 3h: 7])) ==
+    assert eval count_publications(value: [0s: 7, 3h - 1us: 7, 3h: 7]) ==
         [0s: 1, 3h - 1us: 2, 3h: 3]
 }

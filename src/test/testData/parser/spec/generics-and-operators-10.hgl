@@ -1,0 +1,5 @@
+operator read_one<X, Y>(left: X, right: Y) -> i64
+
+impl const fn read_one<T, U>(left: T, right: U) -> i64
+    requires (T in {result<i64, error>} && U in {i64})
+          || (T in {i64} && U in {result<i64, error>}) => 0

@@ -23,7 +23,7 @@ object HglTokenSets {
         HglTypes.IS_KW, HglTypes.LET_KW, HglTypes.VAR_KW, HglTypes.STATE_KW, HglTypes.CACHE_KW,
         HglTypes.INJECT_KW, HglTypes.RETURN_KW, HglTypes.IF_KW, HglTypes.ELSE_KW, HglTypes.START_KW,
         HglTypes.WHEN_KW, HglTypes.STOP_KW, HglTypes.FOR_KW, HglTypes.WHILE_KW, HglTypes.YIELD_KW,
-        HglTypes.TEST_KW, HglTypes.ASSERT_KW, HglTypes.EVAL_KW,
+        HglTypes.TEST_KW, HglTypes.ASSERT_KW, HglTypes.EVAL_KW, HglTypes.RUN_KW, HglTypes.REF_KW,
     )
 
     @JvmField
@@ -33,7 +33,7 @@ object HglTokenSets {
     val TYPE_KEYWORDS: TokenSet = TokenSet.create(
         HglTypes.BYTES_KW, HglTypes.ANY_KW, HglTypes.DICT_KW, HglTypes.RESULT_KW, HglTypes.ERROR_KW,
         HglTypes.ATOMIC_KW, HglTypes.TUPLE_KW, HglTypes.LIST_KW, HglTypes.SET_KW,
-        HglTypes.ENDPOINT_KW, HglTypes.TENOR_KW, HglTypes.ROLLING_WINDOW_KW, HglTypes.REF_KW, HglTypes.SIGNAL_KW, HglTypes.DELTA_KW, HglTypes.BOOL_KW, HglTypes.I64_KW, HglTypes.F64_KW, HglTypes.STR_KW, HglTypes.DATE_KW,
+        HglTypes.ENDPOINT_KW, HglTypes.TENOR_KW, HglTypes.ROLLING_WINDOW_KW, HglTypes.SIGNAL_KW, HglTypes.DELTA_KW, HglTypes.BOOL_KW, HglTypes.I64_KW, HglTypes.F64_KW, HglTypes.STR_KW, HglTypes.DATE_KW,
         HglTypes.TIME_KW, HglTypes.DATETIME_KW, HglTypes.DURATION_KW, HglTypes.CIVIL_DATETIME_KW,
         HglTypes.ZONED_DATETIME_KW, HglTypes.ZONED_TIME_KW, HglTypes.TIMEZONE_KW,
     )
@@ -43,7 +43,7 @@ object HglTokenSets {
     val CONTEXTUAL_KEYWORDS: TokenSet = TokenSet.create(
         HglTypes.CONST_KW, HglTypes.TYPE_KW, HglTypes.SWITCH_KW, HglTypes.CASE_KW,
         HglTypes.DEFAULT_KW, HglTypes.RAISES_KW, HglTypes.IN_KW, HglTypes.NATIVE_KW, HglTypes.EACH_KW, HglTypes.PROPERTIES_KW,
-        HglTypes.APPLICATION_KW, HglTypes.RUN_KW, HglTypes.INTEGRATION_TEST_KW,
+        HglTypes.APPLICATION_KW, HglTypes.WITHOUT_KW, HglTypes.INTEGRATION_TEST_KW,
         HglTypes.TIMEOUT_KW, HglTypes.SUPPRESS_WARNING_KW, HglTypes.UNBOUNDED_KW,
     )
 
@@ -71,7 +71,7 @@ object HglTokenSets {
         HglTypes.PLUS, HglTypes.MINUS, HglTypes.STAR, HglTypes.SLASH, HglTypes.FLOOR_SLASH,
         HglTypes.PERCENT, HglTypes.BANG, HglTypes.ANDAND, HglTypes.OROR, HglTypes.EQ,
         HglTypes.PLUS_EQ, HglTypes.MINUS_EQ, HglTypes.STAR_EQ, HglTypes.SLASH_EQ,
-        HglTypes.ARROW, HglTypes.FAT_ARROW, HglTypes.COLONCOLON, HglTypes.ELLIPSIS, HglTypes.COLON,
+        HglTypes.ARROW, HglTypes.FAT_ARROW, HglTypes.COLONCOLON, HglTypes.ELLIPSIS, HglTypes.RANGE, HglTypes.COLON,
     )
 
 }

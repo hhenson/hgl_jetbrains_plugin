@@ -2,7 +2,9 @@ application examples.limited.three
 
 use examples.limited::{counted}
 
+inject run_config{start: @2026-01-05T09:30:00Z}
 inject global_state
 put(global_state, "limit", 3)
+put(global_state, "opened", run_config.start)
 
-eval(counted())
+eval counted()

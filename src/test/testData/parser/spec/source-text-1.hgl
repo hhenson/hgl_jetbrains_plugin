@@ -1,0 +1,21 @@
+struct Quote {
+    bid: f64
+    ask: f64
+}
+
+fn spread(quote: Quote) -> f64
+    => quote.ask - quote.bid
+
+fn low(quote: Quote, margin: f64) -> f64 {
+    let sum = quote
+        .bid
+        + quote.ask
+    let half = sum /
+        2.0
+    let reduced = half
+        - margin
+    let lowest =
+        (reduced)
+    return \
+        lowest
+}

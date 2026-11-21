@@ -6,6 +6,7 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import io.github.hhenson.hgl.psi.HglConfigurationParameter
 import io.github.hhenson.hgl.psi.HglAnonymousParameter
 import io.github.hhenson.hgl.psi.HglCacheDecl
 import io.github.hhenson.hgl.psi.HglCallExpr
@@ -81,7 +82,7 @@ class HglAnnotator : Annotator {
             is HglEnumDecl, is HglNativeTypeDecl -> HglColors.STRUCT_NAME
             is HglStructDecl -> if (owner.nameIdentifier === name) HglColors.STRUCT_NAME else null
             is HglTestDecl -> HglColors.TEST_NAME
-            is HglParameter, is HglAnonymousParameter -> HglColors.PARAMETER
+            is HglParameter, is HglConfigurationParameter, is HglAnonymousParameter -> HglColors.PARAMETER
             is HglGenericParameter -> HglColors.TYPE_PARAMETER
             is HglLocalDecl, is HglForBinding -> HglColors.LOCAL_VARIABLE
             is HglStateDecl, is HglCacheDecl -> HglColors.STATE_VARIABLE
@@ -125,7 +126,7 @@ class HglAnnotator : Annotator {
             is HglEnumMember, is HglNativeProperty, is HglConstantDecl -> HglColors.FIELD
             is HglFunctionDecl, is HglNativeFunctionDecl -> HglColors.FUNCTION_CALL
             is HglOperatorDecl -> HglColors.FUNCTION_CALL
-            is HglParameter, is HglAnonymousParameter -> HglColors.PARAMETER
+            is HglParameter, is HglConfigurationParameter, is HglAnonymousParameter -> HglColors.PARAMETER
             is HglGenericParameter -> HglColors.TYPE_PARAMETER
             is HglLocalDecl, is HglForBinding -> HglColors.LOCAL_VARIABLE
             is HglStateDecl, is HglCacheDecl -> HglColors.STATE_VARIABLE
@@ -148,7 +149,7 @@ class HglAnnotator : Annotator {
         val INTRINSICS: Set<String> = setOf(
             "modified", "valid", "all_valid", "last_modified", "delta", "scheduled", "passivate", "activate",
             "key_set", "elements", "values", "keys", "len", "types", "type_at", "fields", "has_fields",
-            "field_type", "schemas",
+            "field_type", "schemas", "arg_keys", "associative", "commutative",
         )
     }
 }

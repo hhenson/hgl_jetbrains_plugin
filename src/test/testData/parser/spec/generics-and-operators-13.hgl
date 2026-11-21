@@ -1,0 +1,10 @@
+operator call_through<R, ...Ps, ...As>(f: fn(...{Ps}) -> R, args: ...{As for f}) -> R
+    requires each arg in arg_keys(As) { As[arg] == Ps[arg] }
+
+operator each_key<K, R, ...Ps, ...As, const key: str = "key">(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without key},
+) -> dict<K, R>
+    requires each arg in arg_keys(As) {
+        As[arg] == Ps[arg] || As[arg] == dict<K, Ps[arg]>
+    }

@@ -29,9 +29,9 @@ The counter advances once per tick. A relay forwards the delta for each one.
 :Status: agreed
 */
 test replay_preserves_equal_ticks {
-    assert eval(count_publications(value: [7, _, 7, 7, _])) ==
+    assert eval count_publications(value: [7, _, 7, 7, _]) ==
         [1, _, 2, 3]
-    assert eval(pass_i64(value: [7, _, 7, 9])) == [7, _, 7, 9]
+    assert eval pass_i64(value: [7, _, 7, 9]) == [7, _, 7, 9]
 }
 
 /**
@@ -42,9 +42,9 @@ The silent slot separates two identical publications of each value.
 :Status: agreed
 */
 test zero_false_and_empty_text_are_present {
-    assert eval(pass_i64(value: [0, _, 0])) == [0, _, 0]
-    assert eval(pass_bool(value: [false, _, false, true])) == [false, _, false, true]
-    assert eval(pass_str(value: ["", _, "", "a"])) == ["", _, "", "a"]
+    assert eval pass_i64(value: [0, _, 0]) == [0, _, 0]
+    assert eval pass_bool(value: [false, _, false, true]) == [false, _, false, true]
+    assert eval pass_str(value: ["", _, "", "a"]) == ["", _, "", "a"]
 }
 
 /**
@@ -55,7 +55,7 @@ The counter starts at one again after an intervening empty run.
 :Status: agreed
 */
 test runs_are_independent {
-    assert eval(count_publications(value: [7, _, 7])) == [1, _, 2]
-    assert eval(count_publications(value: [])) == []
-    assert eval(count_publications(value: [7, _, 7])) == [1, _, 2]
+    assert eval count_publications(value: [7, _, 7]) == [1, _, 2]
+    assert eval count_publications(value: []) == []
+    assert eval count_publications(value: [7, _, 7]) == [1, _, 2]
 }

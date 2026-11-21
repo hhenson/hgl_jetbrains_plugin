@@ -2,4 +2,6 @@ application examples.entry.backtest
 
 use examples.entry::{heartbeat}
 
-eval(heartbeat(every: 500ms), RunConfig(length: 3s))
+inject run_config{length: 3s}
+
+eval heartbeat(every: 500ms)

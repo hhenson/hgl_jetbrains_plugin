@@ -1,0 +1,37 @@
+module examples.capture
+
+const fn checked(value: i64) -> result<i64, error> {
+    if value < 0 { return err(error(message: "negative price")) }
+    return ok(value)
+}
+
+fn required(value: i64) -> i64 {
+    when { return checked(value) }
+}
+
+fn forward(value: i64) -> i64 {
+    when { return value }
+}
+
+fn failed(failure: error, step: i64) -> bool {
+    when modified(step) && valid(step) { return modified(failure) }
+}
+
+fn held(failure: error, step: i64) -> bool {
+    when modified(step) && valid(step) { return valid(failure) }
+}
+
+fn captured_value(value: i64) -> i64 {
+    let seen = capture(required, value)
+    forward(seen.value)
+}
+
+fn captured_events(value: i64, step: i64) -> bool {
+    let seen = capture(required, value)
+    failed(seen.error, step)
+}
+
+fn captured_presence(value: i64, step: i64) -> bool {
+    let seen = capture(required, value)
+    held(seen.error, step)
+}

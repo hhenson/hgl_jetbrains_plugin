@@ -1,21 +1,23 @@
-module examples.seeded
+module examples.capabilities
 
-fn counted(const every: duration = 1s) -> i64 {
-    inject global_state
-    cache count: i64 = 0
-    while count < get<i64>(global_state, "limit") {
-        count += 1
-        yield every: count
+const fn stamped(clock: Clock, value: f64) -> tuple<datetime, f64> =>
+    (clock.evaluation_time, value)
+
+fn stamp(value: f64) -> tuple<datetime, f64> {
+    inject clock
+    when { return stamped(clock, value) }
+}
+
+fn poll(const every: duration = 1s) -> i64 {
+    inject alarm, global_state
+    start {
+        put(global_state, "count", 0)
+        schedule(alarm, every)
     }
-}
-
-fn seeded(const limit: i64) -> i64 {
-    inject global_state
-    put(global_state, "limit", limit)
-    return counted()
-}
-
-test the_store_is_set_where_the_graph_is_built {
-    assert eval(seeded(limit: 2)) == [1s: 1, 2s: 2]
-    assert eval(seeded(limit: 3)) == [1s: 1, 2s: 2, 3s: 3]
+    when scheduled() {
+        schedule(alarm, every)
+        let count = get<i64>(global_state, "count") + 1
+        put(global_state, "count", count)
+        return count
+    }
 }

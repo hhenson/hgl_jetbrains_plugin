@@ -3,6 +3,7 @@ package io.github.hhenson.hgl.structure
 import com.intellij.icons.AllIcons
 import com.intellij.psi.PsiElement
 import io.github.hhenson.hgl.HglIcons
+import io.github.hhenson.hgl.psi.HglConfigurationParameter
 import io.github.hhenson.hgl.psi.HglAnonymousParameter
 import io.github.hhenson.hgl.psi.HglCacheDecl
 import io.github.hhenson.hgl.psi.HglConstantDecl
@@ -39,7 +40,7 @@ object HglPresentation {
         is HglOperatorDecl -> AllIcons.Nodes.AbstractMethod
         is HglTestDecl -> AllIcons.Nodes.Test
         is HglTestContext -> AllIcons.Nodes.TestGroup
-        is HglParameter, is HglAnonymousParameter -> AllIcons.Nodes.Parameter
+        is HglParameter, is HglConfigurationParameter, is HglAnonymousParameter -> AllIcons.Nodes.Parameter
         is HglGenericParameter -> AllIcons.Nodes.Type
         is HglLocalDecl, is HglForBinding -> AllIcons.Nodes.Variable
         is HglStateDecl, is HglCacheDecl, is HglNativeProperty, is HglStructMember -> AllIcons.Nodes.Field
@@ -64,10 +65,12 @@ object HglPresentation {
         is HglNativeProperty -> "property"
         is HglConstantDecl -> "const"
         is HglParameter -> when {
+            element.refKw != null -> "ref parameter"
             element.varKw != null -> "var parameter"
             element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null -> "const parameter"
             else -> "parameter"
         }
+        is HglConfigurationParameter -> "configuration parameter"
         is HglAnonymousParameter -> "parameter"
         is HglGenericParameter -> if (element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null) "const generic" else "type parameter"
         is HglLocalDecl -> if (element.varKw != null) "var" else "let"
@@ -88,7 +91,8 @@ object HglPresentation {
         is HglOperatorDecl -> signatureText(element.functionSignature)
         is HglConstantDecl -> element.type?.let { ": " + collapse(it.text) } ?: ""
         is HglNativeProperty -> element.type?.let { ": " + collapse(it.text) } ?: ""
-        is HglParameter -> ": " + collapse(element.type.text)
+        is HglConfigurationParameter -> element.type?.let { ": " + collapse(it.text) }.orEmpty()
+        is HglParameter -> (element.functionType ?: element.pack ?: element.type)?.let { ": " + collapse(it.text) }.orEmpty()
         is HglStructMember -> element.type?.let { ": " + collapse(it.text) } ?: ""
         is HglStateDecl -> element.type?.let { ": " + collapse(it.text) } ?: ""
         is HglCacheDecl -> element.type?.let { ": " + collapse(it.text) } ?: ""
@@ -98,7 +102,7 @@ object HglPresentation {
     fun signatureText(signature: HglFunctionSignature?): String {
         if (signature == null) return ""
         val parameters = signature.parameterList.joinToString(", ") { it.name ?: "" }
-        val result = signature.type?.let { " -> " + collapse(it.text) } ?: ""
+        val result = signature.type?.let { (if (signature.refKw != null) " -> ref " else " -> ") + collapse(it.text) } ?: ""
         return "($parameters)$result"
     }
 

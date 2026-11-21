@@ -21,6 +21,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
 import io.github.hhenson.hgl.run.HglTestSettings
+import io.github.hhenson.hgl.run.hglCommandLine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,7 @@ class HglCheckService(private val project: Project, private val scope: Coroutine
         }
         if (!inRoots(file, roots)) return null
         running.remove(roots)?.cancel()
-        val executable = settings.executable.trim()
+        val executable = settings.executable
         val documents = FileDocumentManager.getInstance()
         val openFiles = FileEditorManager.getInstance(project).openFiles.toSet() + file
         val targets = openFiles.filter { it.isLocalHgl && inRoots(it, roots) }.mapNotNull { target ->
@@ -141,10 +142,9 @@ private suspend fun checkRoots(
     executable: String,
     execute: suspend (GeneralCommandLine) -> ProcessOutput,
 ): Map<Path, List<CheckDiagnostic>> = withContext(Dispatchers.IO) {
-    val command = GeneralCommandLine(executable, "check", "--json", "--")
+    val command = hglCommandLine(executable).withParameters("check", "--json", "--")
         .withWorkDirectory(directory.toFile()).withParameters(roots.map(Path::toString))
         .withCharset(Charsets.UTF_8)
-        .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
     val output = execute(command)
     if (output.exitCode !in 0..1) {
         throw ExecutionException(output.stderr.trim().ifEmpty { "hgl check exited ${output.exitCode}" })

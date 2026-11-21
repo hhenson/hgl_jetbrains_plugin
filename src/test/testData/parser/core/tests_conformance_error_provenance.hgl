@@ -4,7 +4,7 @@ fn forward_or_raise_again(first: error, repeat: bool) -> error {
     when modified(first) && valid(first) { return first }
     when modified(repeat) && valid(first) {
         let failure: result<error, error> = err(first)
-        return failure?
+        return failure
     }
 }
 
@@ -41,9 +41,9 @@ that error. A missing context or a different node or phase would publish null.
 */
 test propagating_a_retained_error_preserves_its_origin {
     let first_failure = earliest_start + 1us
-    assert eval(time_at_outer_boundary(
+    assert eval time_at_outer_boundary(
         value:  [8, -1],
-        repeat: [_, _,  _, true, _, true])) ==
+        repeat: [_, _,  _, true, _, true]) ==
                 [_, _,  _, first_failure, _, first_failure]
 }
 
@@ -66,8 +66,8 @@ the input has no publications.
 :Status: agreed
 */
 test a_start_failure_escapes_without_an_input_tick {
-    assert eval(captured_start(value: [7], divisor: 1)) == [7]
+    assert eval captured_start(value: [7], divisor: 1) == [7]
     assert raises("numeric.division_by_zero") {
-        eval(captured_start(value: [], divisor: 0))
+        eval captured_start(value: [], divisor: 0)
     }
 }

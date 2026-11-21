@@ -1,0 +1,5 @@
+native type Store
+native const fn held(store: Store, const key: str) -> bool
+
+const fn counted(store: Store) -> bool => held(store, "count")
+const fn named(store: Store, const key: str) -> bool => held(store, key)

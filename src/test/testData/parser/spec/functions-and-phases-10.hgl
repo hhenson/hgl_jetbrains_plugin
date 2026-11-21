@@ -1,0 +1,37 @@
+module examples.function_parameters
+
+const fn apply(f: const fn(i64) -> i64, x: i64) -> i64 => f(x)
+
+const fn add_one(x: i64) -> i64 => x + 1
+
+const fn scale<T>(x: T) -> T requires T in {i64, f64} { return x + x }
+
+const fn three() -> i64 => apply(add_one, 2)
+
+const fn four() -> i64 => apply(scale<i64>, 2)
+
+const fn five() -> i64 => apply(fn(x) => x + 2, 3)
+
+const fn apply_to<V>(f: const fn(V) -> V, x: V) -> V => f(x)
+
+const fn anything<R, ...Ps>(f: const fn(...{Ps}) -> R) -> i64 => 1
+
+const fn six() -> i64 => apply(scale, 3)
+
+const fn seven() -> f64 => apply_to(scale, 3.5)
+
+fn smoothed(price: f64) -> f64 {
+    state last: f64 = 0.0
+    when {
+        last = (last + price) / 2.0
+        return last
+    }
+}
+
+fn twice(f: fn(f64) -> f64, value: f64) -> f64 => f(f(value))
+
+fn calmer(price: f64) -> f64 => twice(smoothed, price)
+
+fn doubled(price: f64) -> f64 => twice(scale<f64>, price)
+
+fn steadier(price: f64) -> f64 => twice(fn(p) => smoothed(p) * 0.5, price)

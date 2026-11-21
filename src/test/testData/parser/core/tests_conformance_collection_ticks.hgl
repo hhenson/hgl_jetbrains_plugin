@@ -22,7 +22,7 @@ sums all current members, including the 2 shared by the first two sets.
 :Status: agreed
 */
 test a_whole_set_replaces_the_previous_members {
-    assert eval(total_of_adjacent_members(first: [1, 2, _, 4])) == [3, 5, _, 9]
+    assert eval total_of_adjacent_members(first: [1, 2, _, 4]) == [3, 5, _, 9]
 }
 
 /**
@@ -34,12 +34,12 @@ The replay uses the proposed set-delta publication profile.
 :Status: proposed
 */
 test a_set_delta_changes_only_the_named_members {
-    assert eval(sum_members(members: [
+    assert eval sum_members(members: [
         delta<set<i64>>(added: [2, 3]),
         delta<set<i64>>(added: [5]),
         _,
         delta<set<i64>>(removed: [2]),
-    ])) == [5, 10, _, 8]
+    ]) == [5, 10, _, 8]
 }
 
 fn list_snapshot(reading: i64?) -> list<i64> {
@@ -66,7 +66,7 @@ and [1, 5]. The intervening silence has no snapshot to process.
 :Status: agreed
 */
 test lifting_observes_the_complete_list_including_empty {
-    assert eval(total_of_snapshot(reading: [null, 2, _, 5])) == [0, 3, _, 6]
+    assert eval total_of_snapshot(reading: [null, 2, _, 5]) == [0, 3, _, 6]
 }
 
 fn resize_readings(size: i64) -> list<i64> {
@@ -87,7 +87,7 @@ without naming the dropped positions in `removed`. The helper sums [1].
 :Status: agreed
 */
 test a_size_only_delta_shrinks_the_list {
-    assert eval(total_after_resize(size: [3, _, 1])) == [6, _, 1]
+    assert eval total_after_resize(size: [3, _, 1]) == [6, _, 1]
 }
 
 const fn keep_readings(readings: list<i64>) -> list<i64> => readings
@@ -112,10 +112,10 @@ Saving the latest result makes the last read return 7.
 :Status: agreed
 */
 test a_retained_list_is_independent_of_later_input_changes {
-    assert eval(observe_saved_readings(
+    assert eval observe_saved_readings(
         reading: [   2,     7,    _],
         save:    [true, false, true],
-    )) ==        [   2,     2,    7]
+    )  ==        [   2,     2,    7]
 }
 
 const fn span(low: i64, high: i64) -> i64 => high - low
@@ -140,10 +140,10 @@ missing value. A later low tick reuses the retained high endpoint.
 :Status: agreed
 */
 test fixed_list_children_become_readable_independently {
-    assert eval(span_of_pair(
+    assert eval span_of_pair(
         slot:    [0, 1, _, 0],
         reading: [3, 8, _, 4],
-    )) ==        [_, 5, _, 4]
+    )  ==        [_, 5, _, 4]
 }
 
 fn read_pair_delta(pair: list<i64, 2>) -> list<i64, 2> {
@@ -162,10 +162,10 @@ removes a position or changes the size.
 :Status: agreed
 */
 test a_fixed_list_delta_reports_the_position_in_updated {
-    assert eval(pair_delta(
+    assert eval pair_delta(
         slot:    [0, _, 1],
         reading: [3, _, 8],
-    )) == [
+    ) == [
         delta<list<i64, 2>>(updated: [0: 3]),
         _,
         delta<list<i64, 2>>(updated: [1: 8]),
@@ -195,10 +195,10 @@ and publishes when its own value changes on the third cycle.
 :Status: agreed
 */
 test changing_a_sibling_field_does_not_publish_a_bid {
-    assert eval(bid_ticks(
+    assert eval bid_ticks(
         is_bid: [true, false, true],
         price:  [  10,    13,   11],
-    )) ==       [  10,     _,   11]
+    )  ==       [  10,     _,   11]
 }
 
 fn whole_quote(bid: i64, ask: i64) -> atomic<MarketQuote> {
@@ -216,10 +216,10 @@ projection, so the bid publishes 10 a second time.
 :Status: agreed
 */
 test an_atomic_quote_wakes_its_bid_projection {
-    assert eval(atomic_bid_ticks(
+    assert eval atomic_bid_ticks(
         bid: [10,  _, 11],
         ask: [12, 13,  _],
-    )) ==    [10, 10, 11]
+    )  ==    [10, 10, 11]
 }
 
 fn write_quote_fields(bid: i64, ask: i64) -> MarketQuote {
@@ -240,10 +240,10 @@ write and the final bid. The temporary bid of zero stays inside the producer.
 :Status: proposed
 */
 test a_struct_delta_keeps_the_final_write_to_each_field {
-    assert eval(write_quote_fields(
+    assert eval write_quote_fields(
         bid: [10, _, 11],
         ask: [12, _, 14],
-    )) == [
+    ) == [
         delta<MarketQuote>(bid: 10, ask: 12),
         _,
         delta<MarketQuote>(bid: 11, ask: 14),
@@ -273,11 +273,11 @@ The probe reads the list every cycle.
 :Status: agreed
 */
 test a_fixed_list_is_valid_once_one_position_is {
-    assert eval(observe_pair_valid(
+    assert eval observe_pair_valid(
         probe:   [true, true, true, true],
         slot:    [   _,    0,    _,    1],
         reading: [   _,    3,    _,    8],
-    )) ==        [false, true, true, true]
+    )  ==        [false, true, true, true]
 }
 
 /**
@@ -289,11 +289,11 @@ fourth cycle, when position 1 publishes.
 :Status: agreed
 */
 test a_fixed_list_is_all_valid_once_every_position_is {
-    assert eval(observe_pair_all_valid(
+    assert eval observe_pair_all_valid(
         probe:   [true,  true,  true,  true],
         slot:    [   _,     0,     _,     1],
         reading: [   _,     3,     _,     8],
-    )) ==        [false, false, false, true]
+    )  ==        [false, false, false, true]
 }
 
 fn quote_valid(probe: bool, quote: MarketQuote) -> bool {
@@ -319,11 +319,11 @@ The probe reads the struct every cycle.
 :Status: agreed
 */
 test a_struct_is_valid_once_one_field_is {
-    assert eval(observe_quote_valid(
+    assert eval observe_quote_valid(
         probe:  [true, true, true,  true],
         is_bid: [   _, true,    _, false],
         price:  [   _,   10,    _,    12],
-    )) ==       [false, true, true, true]
+    )  ==       [false, true, true, true]
 }
 
 /**
@@ -335,11 +335,11 @@ fourth cycle, when the ask publishes.
 :Status: agreed
 */
 test a_struct_is_all_valid_once_every_field_is {
-    assert eval(observe_quote_all_valid(
+    assert eval observe_quote_all_valid(
         probe:  [true,  true,  true,  true],
         is_bid: [   _,  true,     _, false],
         price:  [   _,    10,     _,    12],
-    )) ==       [false, false, false, true]
+    )  ==       [false, false, false, true]
 }
 
 fn set_one_part(first: bool, value: i64) -> tuple<i64, i64> {
@@ -367,11 +367,11 @@ position 1 on the fourth. Each tick is `[valid, all_valid]`.
 :Status: agreed
 */
 test a_tuple_is_valid_once_one_position_is_and_all_valid_once_both_are {
-    assert eval(observe_part_validity(
+    assert eval observe_part_validity(
         probe: [true, true, true, true],
         first: [   _, true,    _, false],
         value: [   _,    3,    _,     8],
-    )) == [[false, false], [true, false], [true, false], [true, true]]
+    ) == [[false, false], [true, false], [true, false], [true, true]]
 }
 
 fn relay_quote(quote: MarketQuote) -> MarketQuote {
@@ -388,11 +388,11 @@ result holds after its cycle.
 :Status: agreed
 */
 test a_whole_struct_is_a_trace_cell {
-    assert eval(relay_quote(quote: [
+    assert eval relay_quote(quote: [
         MarketQuote(bid: 10, ask: 12),
         _,
         delta<MarketQuote>(ask: 13),
-    ])) == [
+    ]) == [
         MarketQuote(bid: 10, ask: 12),
         _,
         MarketQuote(bid: 10, ask: 13),
@@ -412,11 +412,11 @@ from the relayed result.
 :Status: agreed
 */
 test a_whole_dictionary_is_a_trace_cell {
-    assert eval(relay_book(book: [
+    assert eval relay_book(book: [
         ["bid": 10, "ask": 12],
         _,
         ["bid": 11],
-    ])) == [
+    ]) == [
         ["bid": 10, "ask": 12],
         _,
         ["bid": 11],
@@ -439,9 +439,9 @@ which has never published, fails the run with `value.unset_read`.
 :Status: agreed
 */
 test reading_an_invalid_child_at_a_runtime_index_fails {
-    assert eval(slot_of_pair(position: [0], reading: [3], slot: [0])) == [3]
+    assert eval slot_of_pair(position: [0], reading: [3], slot: [0]) == [3]
     assert raises("value.unset_read") {
-        eval(slot_of_pair(position: [0, _], reading: [3, _], slot: [0, 1]))
+        eval slot_of_pair(position: [0, _], reading: [3, _], slot: [0, 1])
     }
 }
 
@@ -468,11 +468,11 @@ coded `value.unset_read`, and the node does not fail.
 :Status: agreed
 */
 test a_result_accepts_the_read_of_an_invalid_child {
-    assert eval(slot_outcome(
+    assert eval slot_outcome(
         position: [0, _],
         reading:  [3, _],
         slot:     [0, 1],
-    )) ==         ["ok", "value.unset_read"]
+    )  ==         ["ok", "value.unset_read"]
 }
 
 fn reduce_readings(count: i64) -> list<i64> {
@@ -493,7 +493,7 @@ drops the last position. The helper sums [1, 2].
 :Status: agreed
 */
 test a_negative_size_reduces_the_list_by_that_count {
-    assert eval(total_after_reduction(count: [0, _, 1])) == [6, _, 3]
+    assert eval total_after_reduction(count: [0, _, 1]) == [6, _, 3]
 }
 
 fn extend_readings(reading: i64) -> list<i64> {
@@ -514,7 +514,7 @@ writes no size. The helper sums [1, 2, 5].
 :Status: agreed
 */
 test an_entry_after_the_last_position_extends_the_list {
-    assert eval(total_after_extension(reading: [0, _, 5])) == [3, _, 8]
+    assert eval total_after_extension(reading: [0, _, 5]) == [3, _, 8]
 }
 
 /**
@@ -526,7 +526,7 @@ reduces it past its length. The helper sums the empty list.
 :Status: agreed
 */
 test reducing_a_list_past_its_length_leaves_it_empty {
-    assert eval(total_after_reduction(count: [0, _, 5])) == [6, _, 0]
+    assert eval total_after_reduction(count: [0, _, 5]) == [6, _, 0]
 }
 
 fn failure_seen(failure: error) -> bool {
@@ -547,7 +547,7 @@ position 2, and its capture's error stream ticks.
 :Status: agreed
 */
 test an_entry_past_a_fixed_lists_end_fails {
-    assert eval(fixed_entry_failures(slot: [0, 2], reading: [3, 8])) == [_, true]
+    assert eval fixed_entry_failures(slot: [0, 2], reading: [3, 8]) == [_, true]
 }
 
 fn extend_with_gap(reading: i64) -> list<i64> {
@@ -570,15 +570,314 @@ fn observe_gap(probe: bool, reading: i64) -> list<bool, 3> =>
 An entry more than one past a growing list's end leaves the positions between not valid.
 The list [1, 2] is published whole, then a delta updates position 3. The
 probe reads, as `[valid(values[2]), valid(values[3]), all_valid(values)]`,
-a gap at position 2 that is not valid. It depends on the proposed gap
-sentence of the language's TYPE-16.
+a gap at position 2 that is not valid.
 
 :Rules: TYPE-16, END-3, TIME-9, TIME-1
-:Status: proposed
+:Status: agreed
 */
 test an_entry_past_a_gap_leaves_the_positions_between_not_valid {
-    assert eval(observe_gap(
+    assert eval observe_gap(
         probe:   [_, _, true],
         reading: [0, _,    5],
-    )) ==        [_, _, [false, true, false]]
+    )  ==        [_, _, [false, true, false]]
+}
+
+struct NotedQuote {
+    bid: i64
+    note: str?
+}
+
+fn write_bid(bid: i64) -> NotedQuote {
+    when { return delta<NotedQuote>(bid: bid) }
+}
+
+const fn note_is_null(quote: NotedQuote) -> bool => quote.note == null
+
+fn read_noted_quote(probe: bool, quote: NotedQuote) -> list<bool, 3> {
+    when modified(probe) && all_valid(quote) {
+        return [all_valid(quote), note_is_null(quote), valid(quote.note)]
+    }
+}
+
+fn observe_noted_quote(probe: bool, bid: i64) -> list<bool, 3> =>
+    read_noted_quote(probe, write_bid(bid))
+
+/**
+A struct whose optional field never published is all valid, and is read whole with that field null.
+The bid publishes on the second cycle and the note never does. The tick is
+`[all_valid(quote), note_is_null(quote), valid(quote.note)]`: the whole
+value has a null note, and the field's own `valid` says nothing published it.
+
+:Rules: TIME-1, TIME-9, TYPE-15, END-7, END-8
+:Status: agreed
+*/
+test a_struct_with_an_optional_field_is_all_valid_and_read_whole {
+    assert eval observe_noted_quote(
+        probe: [true, true],
+        bid:   [   _,    5],
+    )  ==      [   _, [true, true, false]]
+}
+
+fn extend_f64_with_gap(reading: f64) -> list<f64> {
+    when {
+        if reading == 0.0 { return [1.0, 2.0] }
+        return delta<list<f64>>(updated: [3: reading])
+    }
+}
+
+# Whether the list has a fourth position and its third is NaN.
+const fn third_is_nan(values: list<f64>) -> bool {
+    var count: i64 = 0
+    for value in values { count += 1 }
+    if count < 4 { return false }
+    return values[2] != values[2]
+}
+
+fn nan_in_gap(reading: f64) -> bool => third_is_nan(extend_f64_with_gap(reading))
+
+/**
+A growing list of `f64` read whole gives NaN at a position that holds no value.
+The list [1.0, 2.0] is published whole, then a delta updates position 3. A
+lifted helper is given the whole list, whose third position is the gap.
+
+:Rules: TIME-1, TYPE-16, FN-12, END-8
+:Status: agreed
+*/
+test a_whole_f64_list_reads_nan_in_a_gap {
+    assert eval nan_in_gap(reading: [0.0, _, 5.0]) == [false, _, true]
+}
+
+fn total_with_gap(reading: i64) -> i64 => sum_readings(extend_with_gap(reading))
+
+/**
+A growing list of `i64` read whole fails while a position holds no value.
+The list [1, 2] alone is read whole. Once a delta updates position 3, the
+whole read that lifting makes fails with `value.unset_read`: an `i64` has
+no value for "not set".
+
+:Rules: TIME-1, TYPE-16, FN-12, END-8, CEVAL-6
+:Status: agreed
+*/
+test a_whole_i64_list_with_a_gap_fails {
+    assert eval total_with_gap(reading: [0]) == [3]
+    assert raises("value.unset_read") {
+        eval total_with_gap(reading: [0, _, 5])
+    }
+}
+
+fn resize_and_update(at: i64) -> list<i64> {
+    when {
+        if at < 0 { return [1, 2, 3] }
+        return delta<list<i64>>(updated: [at: 9], size_modified: 2)
+    }
+}
+
+fn contradiction_failures(at: i64) -> bool {
+    let boundary = capture(resize_and_update, at)
+    return failure_seen(boundary.error)
+}
+
+/**
+A delta with an `updated` entry at or past the size it writes fails.
+The list [1, 2, 3] is published whole. A delta that sets the size to 2 and
+updates position 1 is written; one that updates position 2 contradicts its
+own size, and the capture's error stream ticks.
+
+:Rules: TYPE-16, END-3, ERR-7
+:Status: agreed
+*/
+test an_entry_at_or_past_the_size_written_with_it_fails {
+    assert eval contradiction_failures(at: [-1, 1, 2]) == [_, _, true]
+}
+
+fn gap_then_removal(step: i64) -> list<i64> {
+    when {
+        if step == 0 { return [1, 2] }
+        if step == 1 { return delta<list<i64>>(updated: [3: 5]) }
+        return delta<list<i64>>(removed: [2])
+    }
+}
+
+fn observe_removal(probe: bool, step: i64) -> list<bool, 3> =>
+    gap_validity(probe, gap_then_removal(step))
+
+/**
+Removing a position of a list that holds no value is ignored, and is no failure.
+The list [1, 2] is published whole, a delta updates position 3, and a
+third delta removes position 2, the gap, which never held a value. The
+probe reads, as `[valid(values[2]), valid(values[3]), all_valid(values)]`,
+the list as it was.
+
+:Rules: TYPE-16, END-3, TIME-9
+:Status: agreed
+*/
+test removing_a_position_that_never_held_a_value_is_ignored {
+    assert eval observe_removal(
+        probe: [_, _, true],
+        step:  [0, 1,    2],
+    )  ==      [_, _, [false, true, false]]
+}
+
+# 0 writes a delta that names no change, 1 publishes [1] whole, 2 publishes
+# [1, 2] whole, 3 removes 9, which the set does not hold, and any other
+# step invalidates the set.
+fn write_members(step: i64) -> set<i64> {
+    inject out
+    when {
+        if step == 0 { return delta<set<i64>>() }
+        if step == 1 { return [1] }
+        if step == 2 { return [1, 2] }
+        if step == 3 { return delta<set<i64>>(removed: [9]) }
+        invalidate(out)
+    }
+}
+
+fn members_valid(members: set<i64>) -> bool {
+    when valid([]) { return valid(members) }
+}
+
+fn member_wakes(step: i64) -> bool => members_valid(write_members(step))
+
+fn total_of_members(step: i64) -> i64 => sum_members(write_members(step))
+
+/**
+An empty set delta ticks only where it makes the set valid.
+The first makes the set valid and empty, and the second finds it valid,
+changes nothing and wakes no reader. After an invalidation the next one
+makes the set valid again. The reader publishes `valid(members)` at each
+wake, and the lifted sum reads the set empty.
+
+:Rules: TIME-7, END-3, END-4, END-5, TIME-3, FN-12
+:Status: agreed
+*/
+test an_empty_set_delta_ticks_only_where_it_makes_the_set_valid {
+    assert eval member_wakes(step: [0, 0, 4, 0]) == [true, _, false, true]
+    assert eval total_of_members(step: [0, 0, 1]) == [0, _, 1]
+}
+
+/**
+A set delta that only removes a member the set does not hold is no tick.
+The set [1] is published whole; removing 9 changes nothing and wakes no
+reader, and publishing [1, 2] then does.
+
+:Rules: TIME-7, TYPE-16, END-3, END-5
+:Status: agreed
+*/
+test removing_only_an_absent_member_is_no_tick {
+    assert eval member_wakes(step: [1, 3, 2]) == [true, _, true]
+}
+
+/**
+A set given, whole, the members it holds is no tick.
+The set [1] is published whole twice, then [1, 2] twice. The second of
+each pair changes nothing and wakes no reader.
+
+:Rules: TIME-7, END-5
+:Status: agreed
+*/
+test a_set_given_the_members_it_holds_is_no_tick {
+    assert eval member_wakes(step: [1, 1, 2, 2]) == [true, _, true, _]
+}
+
+# 0 publishes the empty list whole, and any other step [1, 2] whole.
+fn write_whole_readings(step: i64) -> list<i64> {
+    when {
+        if step == 0 { return [] }
+        return [1, 2]
+    }
+}
+
+fn whole_reading_wakes(step: i64) -> bool =>
+    readings_valid(write_whole_readings(step))
+
+/**
+An empty list given whole to a valid empty list is no tick.
+The first empty list makes the list valid, and ticks; the second changes
+nothing. [1, 2] given twice ticks twice: each position given is a
+publication, as an equal scalar is. The empty list then drops both
+positions, and ticks; given again, it changes nothing.
+
+:Rules: TIME-7, END-5
+:Status: agreed
+*/
+test an_empty_list_given_to_an_empty_list_is_no_tick {
+    assert eval whole_reading_wakes(
+        step: [   0, 0,    1,    1,    0, 0],
+    )  ==     [true, _, true, true, true, _]
+}
+
+# 0 writes a delta that names no change, 1 publishes [1, 2] whole, 2
+# updates position 3, and 3 removes position 2. Step 4 invalidates the
+# whole list, 5 withdraws positions 0 and 1, 6 writes position 0,
+# 7 resizes to zero and 8 publishes the empty list whole.
+fn write_readings(step: i64) -> list<i64> {
+    inject out
+    when {
+        if step == 0 { return delta<list<i64>>() }
+        if step == 1 { return [1, 2] }
+        if step == 2 { return delta<list<i64>>(updated: [3: 5]) }
+        if step == 3 { return delta<list<i64>>(removed: [2]) }
+        if step == 5 { return delta<list<i64>>(removed: [0, 1]) }
+        if step == 6 { return delta<list<i64>>(updated: [0: 7]) }
+        if step == 7 { return delta<list<i64>>(size_modified: 0) }
+        if step == 8 { return [] }
+        invalidate(out)
+    }
+}
+
+fn readings_valid(readings: list<i64>) -> bool {
+    when valid([]) { return valid(readings) }
+}
+
+fn reading_wakes(step: i64) -> bool => readings_valid(write_readings(step))
+
+fn total_of_readings(step: i64) -> i64 => sum_readings(write_readings(step))
+
+/**
+An empty list delta ticks only where it makes the list valid.
+The first makes the list valid and empty, and the second finds it valid,
+changes nothing and wakes no reader. After an invalidation the next one
+makes the list valid again. The reader publishes `valid(readings)` at
+each wake, and the lifted sum reads the list empty.
+
+:Rules: TIME-7, END-3, END-4, END-5, TIME-3, FN-12
+:Status: agreed
+*/
+test an_empty_list_delta_ticks_only_where_it_makes_the_list_valid {
+    assert eval reading_wakes(step: [0, 0, 4, 0]) == [true, _, false, true]
+    assert eval total_of_readings(step: [0, 0, 1]) == [0, _, 3]
+}
+
+/**
+A list delta that only removes a position that holds no value is no tick.
+The list [1, 2] is published whole and a delta updates position 3. The
+removal of position 2, which never held a value, changes nothing and wakes
+no reader; publishing [1, 2] whole again does.
+
+:Rules: TIME-7, TYPE-16, END-3, END-5
+:Status: agreed
+*/
+test removing_only_a_position_that_holds_no_value_is_no_tick {
+    assert eval reading_wakes(step: [1, 2, 3, 1]) == [true, true, _, true]
+}
+
+fn readings_complete(probe: i64, readings: list<i64>) -> bool {
+    when modified(probe) && valid([]) { return all_valid(readings) }
+}
+
+fn sample_readings(step: i64) -> bool => readings_complete(step, write_readings(step))
+
+/**
+Withdrawing every position leaves the growing list invalid at its held size.
+Neither an empty delta nor an ignored removal wakes the subscriber.
+Rewriting only position 0 restores validity but leaves position 1 vacant.
+An explicit size of zero or a whole empty list publishes a valid empty list.
+
+:Rules: TIME-7, TIME-9, TYPE-16, END-3, END-5
+:Status: agreed
+*/
+test a_growing_list_keeps_its_vacant_positions {
+    assert eval reading_wakes(step: [1, 5, 0, 3, 6, 5, 7, 0]) == [true, false, _, _, true, false, true, _]
+    assert eval sample_readings(step: [1, 5, 0, 3, 6, 5, 7, 0]) == [true, false, false, false, false, false, true, true]
+    assert eval reading_wakes(step: [1, 5, 8, 0]) == [true, false, true, _]
 }

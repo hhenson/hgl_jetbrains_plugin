@@ -1,0 +1,24 @@
+module conformance.rejections part delta_constructors
+
+/**
+A delta that is another type has no constructor: a scalar's delta is written as the scalar.
+`delta<i64>` is `i64`, and 3 is written `3`.
+
+:Rules: TYPE-16
+:Status: agreed
+*/
+const fn scalar_delta_constructed() -> i64 {
+    # expect-error(name, "delta.argument_name")
+    return delta<i64>(added: 3)
+}
+
+/**
+A window's delta, its value, has no constructor, not in the empty form either.
+
+:Rules: TYPE-16, TYPE-11
+:Status: agreed
+*/
+const fn window_delta_constructed() -> i64 {
+    # expect-error(name, "delta.argument_name")
+    return delta<rolling_window<i64, 2>>()
+}

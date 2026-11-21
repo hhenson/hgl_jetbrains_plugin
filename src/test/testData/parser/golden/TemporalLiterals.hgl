@@ -26,5 +26,5 @@ const fn spellings() -> bool {
 fn windows(prices: rolling_window<f64, 5m, 1m>, ticks: rolling_window<f64, 20, 5>) -> f64 => 1.0
 
 test timed {
-    assert eval(windows(prices: [0s: 1.0, 2m: 3.0, 5m: 5.0], ticks: [1.0])) == [5m: 3.0]
+    assert eval windows(prices: [0s: 1.0, 2m: 3.0, 5m: 5.0], ticks: [1.0]) == [5m: 3.0]
 }

@@ -127,6 +127,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
   "endpoint" { return ENDPOINT_KW; }
   "tenor" { return TENOR_KW; }
   "result" { return RESULT_KW; }
+  "run" { return RUN_KW; }
   "ref" { return REF_KW; }
   "signal" { return SIGNAL_KW; }
   "delta" { return DELTA_KW; }
@@ -176,6 +177,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
   "["                            { return LBRACKET; }
   "]"                            { return RBRACKET; }
   ","                            { return COMMA; }
+  "..<"                          { return RANGE; }
   "..."                          { return ELLIPSIS; }
   "."                            { return DOT; }
   "%"                            { return PERCENT; }

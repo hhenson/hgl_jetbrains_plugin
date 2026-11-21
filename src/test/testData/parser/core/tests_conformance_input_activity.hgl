@@ -19,10 +19,10 @@ the data input was passive. The next data tick wakes the node by itself.
 :Status: agreed
 */
 test passivation_changes_wakes_and_preserves_data {
-    assert eval(switch_input_activity(
+    assert eval switch_input_activity(
         enabled: [true, false,  _, true,  _],
         value:   [  10,     _, 20,    _, 30],
-    )) ==        [  10,    10,  _,   20, 30]
+    )  ==        [  10,    10,  _,   20, 30]
 }
 
 fn sample_validity(sample: bool, watched: i64) -> bool {
@@ -43,10 +43,10 @@ recovery happen between samples.
 :Status: agreed
 */
 test passive_invalidation_is_visible_on_the_next_sample {
-    assert eval(sample_produced_validity(
+    assert eval sample_produced_validity(
         sample:  [true, _,  true, _, true],
         command: [   7, 0,     _, 9,    _],
-    )) ==        [true, _, false, _, true]
+    )  ==        [true, _, false, _, true]
 }
 
 fn count_data_ticks(control: bool, data: i64, sample: bool) -> i64 {
@@ -68,11 +68,11 @@ one. When 30 and the sample arrive together, the data handler counts 30.
 :Status: agreed
 */
 test a_passive_publication_counts_on_an_independent_wake {
-    assert eval(count_data_ticks(
+    assert eval count_data_ticks(
         control: [true, false,  _,    _,    _, true,    _],
         data:    [  10,     _, 20,    _,   30,    _,   40],
         sample:  [true,  true,  _, true, true, true, true],
-    )) ==        [   1,     1,  _,    1,    2,    2,    3]
+    )  ==        [   1,     1,  _,    1,    2,    2,    3]
 }
 
 fn describe_data_tick(control: bool, data: i64, sample: bool) -> str {
@@ -94,11 +94,11 @@ wakes it: the active-only guard skips the tick and the plain guard accepts it.
 :Status: agreed
 */
 test an_active_only_handler_queries_its_input {
-    assert eval(describe_data_tick(
+    assert eval describe_data_tick(
         control: [         true,    false,  _,        _,       _,     true,             _],
         data:    [           10,        _, 20,        _,      30,        _,            40],
         sample:  [         true,     true,  _,     true,    true,     true,             _],
-    )) ==        ["active data", "sample",  _, "sample", "data", "sample", "active data"]
+    )  ==        ["active data", "sample",  _, "sample", "data", "sample", "active data"]
 }
 
 fn compare_binding_activity(driving: i64, sampled: i64) -> bool {
@@ -116,7 +116,7 @@ and the activity query observes the subscription of the input it names.
 :Status: agreed
 */
 test activity_belongs_to_the_binding {
-    assert eval(compare_bindings(value: [7, _, 7])) == [true, _, true]
+    assert eval compare_bindings(value: [7, _, 7]) == [true, _, true]
 }
 
 fn count_publications_when_sampled(control: bool, data: i64, sample: bool) -> i64 {
@@ -141,11 +141,11 @@ publication of 9 increments the count. The final zero invalidates it again.
 :Status: agreed
 */
 test a_later_probe_does_not_replay_a_passive_invalidation {
-    assert eval(sample_notifications(
+    assert eval sample_notifications(
         control: [true, false, _,    _, true, _, _,    _],
         command: [   7,     _, 0,    _,    _, 9, 0,    _],
         sample:  [true,  true, _, true, true, _, _, true],
-    )) ==        [   1,     1, _,    1,    1, _, _,    2]
+    )  ==        [   1,     1, _,    1,    1, _, _,    2]
 }
 
 fn describe_notification(control: bool, data: i64, sample: bool) -> str {
@@ -174,9 +174,9 @@ A new publication on the following probe does reach the data handler.
 :Status: agreed
 */
 test a_passive_invalidation_is_visible_but_unmodified_on_a_probe {
-    assert eval(probe_clear(
+    assert eval probe_clear(
         control: [          true,   false,         _,              _],
         command: [             7,       _,         0,              9],
         sample:  [          true,    true,      true,           true],
-    )) ==        ["data handler", "valid", "invalid", "data handler"]
+    )  ==        ["data handler", "valid", "invalid", "data handler"]
 }

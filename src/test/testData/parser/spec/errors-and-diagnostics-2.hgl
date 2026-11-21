@@ -1,34 +1,9 @@
-module examples.results
+module examples.child_reads
 
-const fn checked(value: i64) -> result<i64, error> {
-    if value < 0 {
-        return err(error(message: "negative price", code: "price.negative"))
-    }
-    return ok(value)
+fn at(parts: list<i64, 2>, slot: i64) -> i64 {
+    when { return parts[slot] }
 }
 
-const fn doubled(value: i64) -> result<i64, error> {
-    let price = checked(value)?
-    return ok(price * 2)
+fn checked_at(parts: list<i64, 2>, slot: i64) -> result<i64, error> {
+    when { return parts[slot] }
 }
-
-const fn recovered(value: i64) -> i64 {
-    let outcome = checked(value)
-    if is_err(outcome) { return 0 }
-    return outcome.value
-}
-
-const fn diagnostic(outcome: result<i64, error>) -> str {
-    if is_ok(outcome) { return "ok" }
-    return outcome.error.message
-}
-
-fn required(value: i64) -> i64 {
-    when { return checked(value)? }
-}
-
-fn tagged(value: i64) -> result<i64, error> {
-    when { return checked(value) }
-}
-
-fn is_failure(value: result<i64, error>) -> bool => is_err(value)

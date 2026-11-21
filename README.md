@@ -11,11 +11,10 @@ beside an HGL or native implementation to jump back to its operator.
 
 [hgl_spec](https://github.com/hhenson/hgl_spec) owns the language rules.
 [hgl_core](https://github.com/hhenson/hgl_core) owns core declarations and
-conformance fixtures. Both are pinned under `spec/` at revisions selected by
-[hgl-compiler](https://github.com/hhenson/hgl-compiler).
+conformance fixtures. Their merged revisions are pinned under `spec/`. CI pins the compiler separately for diagnostics and execution tests.
 
 Run `tools/refresh_test_data.sh` after changing the pins. The parser corpus
-includes complete specification modules and applications and every core HGL file.
+includes specification modules, applications, declaration examples, core mapping declarations and every core HGL file.
 [Fixture sources](src/test/testData/parser/SOURCES.md) records their revisions.
 
 ## Build and install
@@ -36,9 +35,9 @@ requires platform build 262 or later.
 
 Save an HGL file to see compiler errors and warnings in the editor. Hover
 over an underline for its code, message and related locations. In
-**Settings → Languages & Frameworks → HGL Test Runner**, select an `hgl`
-executable that supports `check --json`. Set source roots for multi-file
-programs. **Check HGL sources on save** is enabled by default in trusted
+**Settings → Languages & Frameworks → HGL Test Runner**, you can override
+the compiler path. Set source roots for multi-file programs.
+**Check HGL sources on save** is enabled by default in trusted
 projects.
 
 ## Run an HGL application or test
@@ -48,9 +47,10 @@ or an `integration_test`. For `application demo.backtest`, the IDE runs
 `hgl run --application demo.backtest` with the configured roots. The Run
 window shows the output and exit status. Rerun repeats the same selection.
 
-Under **Settings → Languages & Frameworks → HGL Test Runner**, set the `hgl`
-executable and, when needed, a Python interpreter with hgraph installed.
-The default uses `hgl` from the IDE's PATH and the selected source file.
+On Apple Silicon, install the compiler with `brew install hhenson/hgraph/hgl`.
+Both IDEs look for `hgl` on their console `PATH`, then in `/opt/homebrew/bin`
+on macOS. This also lets the C++ runner find Homebrew’s CMake and Ninja.
+The formula bundles the native SDK. The default source root is the selected file.
 For a multi-file program, enter its source roots, one per line. For the core
 conformance suite in `hgl-project`, use `hgl_core/hgl` and
 `hgl_core/tests/conformance`. Paths are relative to the project or absolute.

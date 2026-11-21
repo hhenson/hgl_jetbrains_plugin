@@ -21,7 +21,7 @@ The set deltas used to observe retention follow the proposed set delta profile.
 :Status: proposed
 */
 test record_retains_each_delta {
-    assert eval(update_members(command: [1, _, 2])) == [
+    assert eval update_members(command: [1, _, 2]) == [
         delta<set<i64>>(added: [1, 2]),
         _,
         delta<set<i64>>(added: [3], removed: [1])
@@ -36,6 +36,6 @@ The fixture uses the proposed set delta profile.
 :Status: proposed
 */
 test record_can_be_empty {
-    assert eval(update_members(command: [])) == []
-    assert eval(update_members(command: [0])) == []
+    assert eval update_members(command: []) == []
+    assert eval update_members(command: [0]) == []
 }

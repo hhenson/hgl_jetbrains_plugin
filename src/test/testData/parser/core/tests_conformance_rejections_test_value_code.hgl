@@ -1,0 +1,31 @@
+module conformance.rejections part test_value_code
+
+# A graph.
+fn passed_reading(reading: i64) -> i64 => reading
+
+/**
+A test calls only `const fn`s outside an `eval`: a call of a graph there is rejected.
+The call would bind a connection in a test, which has no run of its own.
+Its code is proposed.
+
+:Rules: TST-3, UNIT-14, FN-3
+:Status: proposed
+*/
+test a_graph_called_outside_an_eval {
+    # expect-error(function-kind, "call.role")
+    let reading = passed_reading(1)
+}
+
+/**
+An operator applied in a test outside an `eval` must select a value candidate.
+The one candidate of `+` that takes the option `invalid` is temporal
+(OPS-9), so the application is rejected as a call of a temporal function
+is. Its code is proposed.
+
+:Rules: TST-3, GEN-5, OPS-9
+:Status: proposed
+*/
+test an_operator_with_a_temporal_candidate_outside_an_eval {
+    # expect-error(function-kind, "call.role")
+    assert 1 +{invalid: .identity} 2 == 3
+}

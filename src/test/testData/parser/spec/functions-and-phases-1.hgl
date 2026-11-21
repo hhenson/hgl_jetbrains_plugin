@@ -1,0 +1,49 @@
+module examples.pack_forms
+
+const fn squares(n: i64) -> list<i64> => [for i in 0..<n: i * i]
+
+const fn below(n: i64) -> i64 {
+    var sum = 0
+    for i in 0..<n { sum += i }
+    return sum
+}
+
+fn doubled(prices: list<f64, 3>) -> list<f64, 3> => [for i in 0..<3: prices[i] * 2.0]
+
+fn scaled(price: f64, factor: f64) -> f64 => price * factor
+
+fn passed_on<R, ...Ps, ...As>(f: fn(...{Ps}) -> R, args: ...{As for f}) -> R
+    requires each arg in arg_keys(As) { As[arg] == Ps[arg] }
+{
+    let given = {for arg in arg_keys(Ps): args[arg]}
+    return f(...given)
+}
+
+fn tagged<R, ...Ps, ...As, const key: str = "key">(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without key},
+) -> R {
+    let given = {for arg in arg_keys(Ps):
+        if arg == key { "fixed" } else if arg in arg_keys(As) { args[arg] }}
+    return f(...given)
+}
+
+fn weighted(price: f64, weight: f64 = 1.0) -> f64 => price * weight
+
+fn labelled(key: str, price: f64) -> str => key
+
+fn total(scale: f64, values: ...f64) -> f64 {
+    when {
+        var sum = 0.0
+        for value in values { sum += value }
+        return sum * scale
+    }
+}
+
+fn one(price: f64, factor: f64) -> f64 => passed_on(scaled, price, factor)
+
+fn two(price: f64) -> str => tagged(labelled, price)
+
+fn four(price: f64) -> f64 => tagged(weighted, price)
+
+fn three(a: f64, b: f64) -> f64 => passed_on(total, 2.0, a, b)

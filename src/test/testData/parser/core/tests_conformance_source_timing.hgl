@@ -17,7 +17,7 @@ computed before suspension. The second delay starts when the source resumes.
 */
 test a_delayed_yield_keeps_its_payload_until_it_wakes {
     let start_time = @2026-01-05T09:30:00Z
-    assert eval(time_before_each_delay(), RunConfig(start: start_time)) ==
+    assert eval{start: start_time} time_before_each_delay() ==
         [_, _, start_time, _, _, start_time + 2us]
 }
 
@@ -27,18 +27,17 @@ fn absolute_yields(const first: datetime, const second: datetime) -> i64 {
 }
 
 /**
-Under the proposed timing, absolute targets before the run start are skipped.
+Absolute targets before the run start are skipped, and the source goes on.
 A target exactly at the start publishes there, and a later target publishes
 at its stated time.
 
-:Rules: SOURCE-2, SOURCE-3
-:Status: proposed
+:Rules: SOURCE-3
+:Status: agreed
 */
 test absolute_targets_before_at_and_after_start {
     let opening = @2026-01-05T09:30:00Z
-    let times = RunConfig(start: opening)
-    assert eval(absolute_yields(first: opening - 2us, second: opening), times) == [20]
-    assert eval(absolute_yields(first: opening, second: opening + 2us), times) ==
+    assert eval{start: opening} absolute_yields(first: opening - 2us, second: opening) == [20]
+    assert eval{start: opening} absolute_yields(first: opening, second: opening + 2us) ==
         [10, _, 20]
 }
 
@@ -52,13 +51,12 @@ Both targets start in the past. Equal or decreasing times still fail.
 test skipped_targets_still_establish_source_order {
     let opening = @2026-01-05T09:30:00Z
     let past = opening - 2us
-    let times = RunConfig(start: opening)
-    assert eval(absolute_yields(first: past, second: past + 1us), times) == []
+    assert eval{start: opening} absolute_yields(first: past, second: past + 1us) == []
     assert raises("yield.non_increasing_time") {
-        eval(absolute_yields(first: past, second: past), times)
+        eval{start: opening} absolute_yields(first: past, second: past)
     }
     assert raises("yield.non_increasing_time") {
-        eval(absolute_yields(first: past, second: past - 1us), times)
+        eval{start: opening} absolute_yields(first: past, second: past - 1us)
     }
 }
 
@@ -75,10 +73,10 @@ With the same negative delay, a failing payload reports its own error first.
 */
 test yield_payload_failure_precedes_target_validation {
     assert raises("yield.negative_duration") {
-        eval(delayed_quotient(delay: -1us, divisor: 3))
+        eval delayed_quotient(delay: -1us, divisor: 3)
     }
     assert raises("numeric.division_by_zero") {
-        eval(delayed_quotient(delay: -1us, divisor: 0))
+        eval delayed_quotient(delay: -1us, divisor: 0)
     }
 }
 
@@ -101,6 +99,6 @@ second publication falls four steps after opening.
 :Status: proposed
 */
 test a_resumed_source_keeps_its_locals_until_it_returns {
-    assert eval(finish_or_resume(finish_early: false)) == [_, _, 10, _, 20]
-    assert eval(finish_or_resume(finish_early: true)) == [_, _, 10]
+    assert eval finish_or_resume(finish_early: false) == [_, _, 10, _, 20]
+    assert eval finish_or_resume(finish_early: true) == [_, _, 10]
 }

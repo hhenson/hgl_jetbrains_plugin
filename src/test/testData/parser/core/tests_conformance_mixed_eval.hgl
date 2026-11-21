@@ -19,7 +19,7 @@ no tick of its own. The fixture uses the proposed set delta profile.
 :Status: proposed
 */
 test mixed_replay {
-    assert eval(relay_members(
+    assert eval relay_members(
         enabled: [true, _, false, true, _],
         members: [
             _,
@@ -27,7 +27,7 @@ test mixed_replay {
             delta<set<i64>>(added: [5]),
             _,
             delta<set<i64>>(added: [3], removed: [1])
-        ])) == [
+        ]) == [
         _,
         delta<set<i64>>(added: [1, 2]),
         _,

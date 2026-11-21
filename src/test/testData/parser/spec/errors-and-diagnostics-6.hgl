@@ -1,0 +1,5 @@
+const fn unchecked(value: f64?) -> f64 => value
+
+const fn halved(value: f64) -> f64 => value / 2.0
+
+fn relayed(value: f64?) -> f64 => halved(value)

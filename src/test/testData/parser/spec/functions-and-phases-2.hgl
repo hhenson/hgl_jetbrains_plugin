@@ -1,0 +1,1 @@
+fn scaled(value: f64, factor: f64 = 2.0) -> f64 => value * factor

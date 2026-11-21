@@ -1,6 +1,10 @@
-module examples.rejection
+module examples.test_value_code
 
-# expect-error(type, "rolling_window.size_kind")
-fn invalid(value: rolling_window<f64, 5m, 3>) { when {} }
+fn pass(value: i64) -> i64 => value
 
-test survives { assert true }
+const fn twice(value: i64) -> i64 => value * 2
+
+test t {
+    let a = pass(1)
+    let b = twice(a)
+}

@@ -6,9 +6,12 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.psi.HglBlock
+import io.github.hhenson.hgl.psi.HglConfigurationParameters
 import io.github.hhenson.hgl.psi.HglCacheDecl
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
+import io.github.hhenson.hgl.psi.HglLoopEntries
+import io.github.hhenson.hgl.psi.HglConstraintEach
 import io.github.hhenson.hgl.psi.HglForStmt
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglGenericParameters
@@ -45,11 +48,13 @@ object HglScope {
         while (scope != null) {
             val declared: List<HglNamedElement> = when (scope) {
                 is HglBlock -> blockDeclarations(scope, useOffset)
-                is HglForStmt -> scope.forBindingList
+                is HglForStmt -> if (PsiTreeUtil.isAncestor(scope.block, from, false)) scope.forBindingList else emptyList()
+                is HglLoopEntries -> if (PsiTreeUtil.isAncestor(scope.expr, from, false)) listOfNotNull(scope.forBinding) else emptyList()
+                is HglConstraintEach -> if (PsiTreeUtil.isAncestor(scope.constraint, from, false)) listOfNotNull(scope.forBinding) else emptyList()
                 is HglFnExpr -> scope.anonymousParameterList
-                is HglFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
-                is HglNativeFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
-                is HglOperatorDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters)
+                is HglFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
+                is HglNativeFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
+                is HglOperatorDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
                 is HglStructDecl -> genericParameters(scope.genericParameters)
                 is HglTestContext, is HglTestDecl -> {
                     inTests = true
@@ -116,7 +121,7 @@ object HglScope {
         }
 
     private fun publicDeclarations(file: HglFile): List<HglNamedElement> =
-        declarations(file).filter { it is HglOperatorDecl || it.node.findChildByType(HglTypes.EXPORT_KW) != null }
+        declarations(file).filter { it.node.findChildByType(HglTypes.EXPORT_KW) != null }
 
     fun exportedDeclarations(file: HglFile, name: String): List<HglNamedElement> =
         publicDeclarations(file).filter { it.name == name }
@@ -142,7 +147,8 @@ object HglScope {
     private fun signatureDeclarations(
         signature: io.github.hhenson.hgl.psi.HglFunctionSignature?,
         generics: HglGenericParameters?,
-    ): List<HglNamedElement> = (signature?.parameterList ?: emptyList()) + genericParameters(generics)
+        configuration: HglConfigurationParameters?,
+    ): List<HglNamedElement> = signature?.parameterList.orEmpty() + configuration?.configurationParameterList.orEmpty() + genericParameters(generics)
 
     private fun blockDeclarations(block: HglBlock, useOffset: Int): List<HglNamedElement> {
         val result = ArrayList<HglNamedElement>()
