@@ -148,6 +148,7 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
     fun testRejectsRetiredAndMisplacedForms() {
         for (declaration in listOf(
             "fn run() {}",
+            "operator part<T>(x: T) -> T",
             "test old { assert eval(target(x: [1])) == [1] }",
             "integration_test old { run(target()) }",
             "test ordinary { run target() }",
