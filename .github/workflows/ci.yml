@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-26.04
     env:
       CXX: g++-15
-      HGRAPH_TAG: '0.9.23'
       HGL_HGRAPH_DEPS: ${{ github.workspace }}/.hgraph/deps
       HGL_HGRAPH_SDK: ${{ github.workspace }}/.hgraph/sdk
     steps:
@@ -30,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hhenson/hgl-compiler
-          ref: 02a8af668e9575168fbbb91087abfe38f8c11ebb
+          ref: 3f9b9abfe894dfeae27e82bea69c7b4ac3486f1e
           path: build/test-compiler
           submodules: recursive
           persist-credentials: false
@@ -38,14 +37,15 @@ jobs:
         id: sdk
         with:
           path: .hgraph
-          key: sdk-${{ runner.os }}-${{ runner.arch }}-ubuntu26-${{ env.HGRAPH_TAG }}-${{ hashFiles('build/test-compiler/scripts/provision-hgraph-sdk.sh') }}
+          key: sdk-${{ runner.os }}-${{ runner.arch }}-ubuntu26-${{ hashFiles('build/test-compiler/HGRAPH_TAG', 'build/test-compiler/scripts/provision-hgraph-sdk.sh', 'build/test-compiler/scripts/hgraph-dependencies.sh') }}
       - uses: mamba-org/setup-micromamba@v3
         if: steps.sdk.outputs.cache-hit != 'true'
         with:
           micromamba-version: '2.10.0-0'
       - name: Build the hgraph SDK
         if: steps.sdk.outputs.cache-hit != 'true'
-        run: build/test-compiler/scripts/provision-hgraph-sdk.sh "$HGRAPH_TAG" "$HGL_HGRAPH_SDK"
+        working-directory: build/test-compiler
+        run: scripts/provision-hgraph-sdk.sh "$(cat HGRAPH_TAG)" "$HGL_HGRAPH_SDK"
       - name: Prepare the HGL test runner
         working-directory: build/test-compiler
         run: |

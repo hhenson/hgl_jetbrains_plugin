@@ -33,3 +33,5 @@ fn twice(f: fn(f64) -> f64, value: f64) -> f64 => f(f(value))
 fn calmer(price: f64) -> f64 => twice(smoothed, price)
 
 fn doubled(price: f64) -> f64 => twice(scale<f64>, price)
+
+fn steadier(price: f64) -> f64 => twice(fn(p) => smoothed(p) * 0.5, price)
