@@ -64,7 +64,9 @@ class HglDebugApplicationTest : HglEditorFixture() {
             assertTrue(env.runner is HglDebugRunner)
             env.runner.execute(env)
             PlatformTestUtil.waitWithEventsDispatching("HGL breakpoint was not reached", {
-                manager.debugSessions.singleOrNull()?.suspendContext?.activeExecutionStack?.topFrame?.sourcePosition?.file == nodes
+                val session = manager.debugSessions.singleOrNull()
+                val position = session?.suspendContext?.activeExecutionStack?.topFrame?.sourcePosition
+                session?.isSuspended == true && position?.file == nodes && position.line == line
             }, 150)
             val session = manager.debugSessions.single()
             assertTrue(session.isSuspended)
