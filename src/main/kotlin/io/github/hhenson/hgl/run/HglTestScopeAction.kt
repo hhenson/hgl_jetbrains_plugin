@@ -58,7 +58,8 @@ abstract class HglTestScopeAction(private val integrationOnly: Boolean) : AnActi
         val path = if (selected.startsWith(base)) base.relativize(selected).joinToString("/").ifEmpty { "." } else file.path
         manager.getConfigurationSettingsList(type).firstOrNull {
             val configuration = it.configuration as HglScopedTestConfiguration
-            configuration.testPath == path && configuration.integrationOnly == integrationOnly
+            configuration.moduleName.isEmpty() && !configuration.allModules &&
+                configuration.testPath == path && configuration.integrationOnly == integrationOnly
         }?.let { return it }
         val kind = if (integrationOnly) "HGL Integration Tests" else "HGL Tests"
         val name = manager.suggestUniqueName("$kind in $path", type)

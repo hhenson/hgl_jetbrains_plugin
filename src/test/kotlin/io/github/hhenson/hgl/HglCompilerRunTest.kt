@@ -21,6 +21,8 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
+import io.github.hhenson.hgl.run.HglProjectTargets
+import com.intellij.execution.RunManager
 import io.github.hhenson.hgl.run.HglRunGutter
 import io.github.hhenson.hgl.run.HglRunTestsAction
 import io.github.hhenson.hgl.run.HglRunIntegrationTestsAction
@@ -153,6 +155,12 @@ class HglCompilerRunTest : HglEditorFixture() {
         assertEquals(root.toNioPath().resolve("native output/compile_commands.json"), database.toNioPath())
         val units = JsonParser.parseString(database.toNioPath().toFile().readText()).asJsonArray
             .map { File(it.asJsonObject["file"].asString).name }.toSet()
+        val releaseCommands = database.toNioPath().toFile().readText()
+        val debugDatabase = HglBuildAction.build(project, null, EmptyProgressIndicator(), debug = true)
+        assertEquals(root.toNioPath().resolve("native output/debug/compile_commands.json"), debugDatabase.toNioPath())
+        val debugCommands = debugDatabase.toNioPath().toFile().readText()
+        assertTrue(debugCommands, "-O0" in debugCommands && "-g" in debugCommands)
+        assertEquals(releaseCommands, database.toNioPath().toFile().readText())
         val expected = setOf("mod-hello.cpp", "app-hello-main.cpp")
         assertTrue(units.toString(), units.containsAll(expected))
         project.getService(HglCompilationDatabaseImporter::class.java)?.let { importer ->
@@ -227,6 +235,54 @@ class HglCompilerRunTest : HglEditorFixture() {
                 }
                 assertEquals(output.stdout + output.stderr, 0, output.exitCode)
             }
+        }
+    }
+
+    fun testToolbarApplicationsModulePartsAndAllTests() {
+        val root = File(project.basePath!!).resolve("src").apply { mkdirs() }
+        fun source(path: String, text: String) {
+            val file = root.resolve(path)
+            file.parentFile.mkdirs()
+            file.writeText(text)
+        }
+        source("primary.hgl", "module prices\nexport fn emit() -> i64 { yield 1s: 7 }\ntest ordinary { assert true }")
+        source("nested/parts.hgl", "module prices part extra\ntest extra_check { assert true }\nintegration_test live { assert true }")
+        source("other.hgl", "module other\ntest ordinary { assert true }\nintegration_test live { assert true }")
+        for (app in listOf("demo.east", "demo.west")) {
+            source("$app.hgl", "application $app\nuse prices::{emit}\neval emit()")
+        }
+        val shared = project.service<HglBuildFile>()
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
+        shared.save(HglBuild(compiler = compiler), null)
+        val targets = project.service<HglProjectTargets>()
+        targets.start()
+        val manager = RunManager.getInstance(project)
+        PlatformTestUtil.waitWithEventsDispatching("Toolbar did not discover both applications", {
+            manager.allSettings.any { it.name == "demo.west" }
+        }, 15)
+        fun target(name: String) = manager.allSettings.singleOrNull { it.name == name }?.configuration
+            ?: error("Missing $name among ${manager.allSettings.map { it.name }}")
+        for (app in listOf("demo.east", "demo.west")) {
+            val config = target(app)
+            val result = runInConsole(config)
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
+            assertTrue(result.stdout, result.stdout.contains("ran $app on cpp: 1 publication"))
+        }
+        val groups = mapOf(
+            "prices — Tests" to setOf("prices::ordinary", "prices::extra_check"),
+            "prices — Integration Tests" to setOf("prices::live"),
+            "All HGL Tests" to setOf("prices::ordinary", "prices::extra_check", "other::ordinary"),
+            "All HGL Integration Tests" to setOf("prices::live", "other::live"),
+        )
+        for ((name, expected) in groups) {
+            val configuration = target(name)
+            val result = runInConsole(configuration) { view ->
+                val tree = view.resultsViewer.testsRootNode
+                PlatformTestUtil.waitWithEventsDispatching("missing toolbar results", { tree.isFinal && tree.children.isNotEmpty() }, 10)
+                assertEquals(expected, tree.children.map { it.name }.toSet())
+                assertTrue(tree.children.all { it.isPassed })
+            }
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
         }
     }
 

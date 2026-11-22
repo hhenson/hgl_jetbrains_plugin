@@ -7,6 +7,7 @@ import com.intellij.execution.configurations.RunConfigurationOptions
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.configurations.SimpleConfigurationType
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
@@ -22,7 +23,7 @@ import java.nio.file.Path
 import javax.swing.JComboBox
 
 class HglScopedTestType : SimpleConfigurationType(
-    "HglScopedTests", "HGL Tests in File or Folder", "Run HGL tests in a file or folder",
+    "HglScopedTests", "HGL Test Suite", "Run HGL tests in a file, folder, module or project",
     NotNullLazyValue.createValue { HglIcons.FILE },
 ) {
     override fun createTemplateConfiguration(project: Project) = HglScopedTestConfiguration(project, this)
@@ -30,16 +31,28 @@ class HglScopedTestType : SimpleConfigurationType(
 }
 
 class HglScopedTestOptions : RunConfigurationOptions() {
+    var discoveredId by string("")
     var testPath by string("")
+    var moduleName by string("")
+    var allModules by property(false)
     var integrationOnly by property(false)
 }
 
 class HglScopedTestConfiguration(project: Project, type: HglScopedTestType) :
     RunConfigurationBase<HglScopedTestOptions>(project, type, type.displayName) {
     private val scope get() = options as HglScopedTestOptions
+    internal var discoveredId: String
+        get() = scope.discoveredId.orEmpty()
+        set(value) { scope.discoveredId = value }
     var testPath: String
         get() = scope.testPath.orEmpty()
         set(value) { scope.testPath = value }
+    var moduleName: String
+        get() = scope.moduleName.orEmpty()
+        set(value) { scope.moduleName = value }
+    var allModules: Boolean
+        get() = scope.allModules
+        set(value) { scope.allModules = value }
     var integrationOnly: Boolean
         get() = scope.integrationOnly
         set(value) { scope.integrationOnly = value }
@@ -50,7 +63,9 @@ class HglScopedTestConfiguration(project: Project, type: HglScopedTestType) :
         }
         private val kinds = JComboBox(arrayOf("Tests", "Integration tests"))
         override fun createEditor() = panel {
-            row("File or folder:") { cell(path).resizableColumn().align(AlignX.FILL) }
+            if (allModules) row("Scope:") { label("All modules") }
+            else if (moduleName.isEmpty()) row("File or folder:") { cell(path).resizableColumn().align(AlignX.FILL) }
+            else row("Module:") { label(moduleName) }
             row("Run:") { cell(kinds) }
         }
         override fun resetEditorFrom(configuration: HglScopedTestConfiguration) {
@@ -77,7 +92,7 @@ class HglScopedTestConfiguration(project: Project, type: HglScopedTestType) :
         }
     }
 
-    internal fun commandLine(): GeneralCommandLine {
+    internal fun commandLine(debugBuild: Path? = null): GeneralCommandLine {
         checkConfiguration()
         val build = project.buildSettings()
         val base = Path.of(requireNotNull(project.basePath))
@@ -86,18 +101,25 @@ class HglScopedTestConfiguration(project: Project, type: HglScopedTestType) :
         val containedRoots = rootPaths.filterValues { it.startsWith(selected) }.keys
         val withinRoot = rootPaths.values.any { selected.startsWith(it) }
         // An explicitly selected HGL file outside configured roots can still import from them.
-        val roots = if (withinRoot || containedRoots.isNotEmpty()) build.sourceRoots else build.sourceRoots + testPath
+        val roots = when {
+            allModules || moduleName.isNotEmpty() -> build.sourceRoots.ifEmpty { listOf(".") }
+            withinRoot || containedRoots.isNotEmpty() -> build.sourceRoots
+            else -> build.sourceRoots + testPath
+        }
         val command = hglCommandLine(build.compiler).withWorkDirectory(base.toFile())
             .withParameters("test", "--target", "cpp")
         // A project or group folder can contain several configured roots. Keep other roots for imports.
         val scopes = when {
+            allModules -> emptyList()
+            moduleName.isNotEmpty() -> project.service<HglProjectTargets>().moduleSources(moduleName, rootPaths.values.ifEmpty { listOf(base) })
             rootPaths.isEmpty() || containedRoots.size == rootPaths.size -> emptyList()
             withinRoot || containedRoots.isEmpty() -> listOf(testPath)
             else -> containedRoots
         }
         for (path in scopes) command.addParameters("--test-path", path)
         if (integrationOnly) command.addParameter("--integration-only")
-        if (build.buildDir.isNotBlank()) command.addParameters("--keep", build.buildDir)
+        if (debugBuild != null) command.addParameters("--debug-build", debugBuild.toString())
+        else if (build.buildDir.isNotBlank()) command.addParameters("--keep", build.buildDir)
         command.addParameter("--")
         command.addParameters(roots)
         return command

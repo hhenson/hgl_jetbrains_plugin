@@ -86,6 +86,9 @@ class HglTestScopeActionTest : HglEditorFixture() {
             arguments(normal, example))
 
         val configuration = otherKind.configuration as HglScopedTestConfiguration
+        val debug = configuration.commandLine(java.nio.file.Path.of("session")).parametersList.list
+        assertEquals(prefix + listOf("--test-path", "src/cases with spaces/checks.hgl", "--integration-only",
+            "--debug-build", "session", "--", "src", "lib"), debug)
         val serialized = Element("configuration")
         configuration.writeExternal(serialized)
         val restored = configuration.factory!!.createTemplateConfiguration(project) as HglScopedTestConfiguration
