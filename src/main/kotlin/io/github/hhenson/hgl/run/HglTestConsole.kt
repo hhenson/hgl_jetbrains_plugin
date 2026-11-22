@@ -1,6 +1,7 @@
 package io.github.hhenson.hgl.run
 
 import com.intellij.execution.Executor
+import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.process.ProcessOutputType
 import com.intellij.execution.testframework.TestConsoleProperties
 import com.intellij.execution.testframework.sm.SMCustomMessagesParsing
@@ -12,7 +13,7 @@ import com.intellij.execution.testframework.sm.runner.events.TestIgnoredEvent
 import com.intellij.execution.testframework.sm.runner.events.TestStartedEvent
 import com.intellij.openapi.util.Key
 
-internal class HglTestConsole(configuration: HglRunConfiguration, executor: Executor) :
+internal class HglTestConsole(configuration: RunConfiguration, executor: Executor) :
     SMTRunnerConsoleProperties(configuration, "HGL", executor), SMCustomMessagesParsing {
     override fun createTestEventsConverter(framework: String, properties: TestConsoleProperties) =
         HglTestEvents(framework, properties)
@@ -79,7 +80,10 @@ internal class HglTestEvents(framework: String, properties: TestConsolePropertie
         finishCase()
         if (exitCode == 1 && !reportedFailure || exitCode == 2 && !reportedFailure && !reportedSkip) {
             val name = "hgl test"
-            val message = stderr.toString().trim().ifBlank { "Compiler exited with code $exitCode. See the console output." }
+            val diagnostic = stderr.toString().trim().ifBlank { "Compiler exited with code $exitCode. See the console output." }
+            val missingOption = listOf("--test-path", "--integration-only").firstOrNull { "unexpected argument '$it'" in diagnostic }
+            val message = if (missingOption == null) diagnostic else
+                "This test selection requires an HGL compiler with hgl test $missingOption. Check the compiler in HGL build settings.\n$diagnostic"
             processor.onTestStarted(TestStartedEvent(name, null))
             processor.onTestFailure(TestFailedEvent(name, message, null, true, null, null))
             processor.onTestFinished(TestFinishedEvent(name, null as Long?))
