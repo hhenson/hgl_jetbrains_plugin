@@ -201,8 +201,9 @@ tests locally. Both IDEs build the starter and verify that its compilation datab
 includes the module and application. CLion also imports both generated C++ units.
 Set `HGL_TEST_SCOPE_CLI` to run the file and folder selection cases against a compiler
 with `--test-path` and `--integration-only`. Set `HGL_TEST_DEBUG_CLI` to a
-compiler supporting the version 1 test launch plan to exercise group Continue
-and Stop under LLDB in both IDEs.
+compiler supporting the version 1 test launch plan. Both IDEs check LLDB stops
+on the HGL assertion line for named, module and project selections of each test
+kind. They also exercise Continue and Stop across module boundaries.
 
 ## Performance baseline
 

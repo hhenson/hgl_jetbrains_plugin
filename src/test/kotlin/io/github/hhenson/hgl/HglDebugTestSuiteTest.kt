@@ -1,5 +1,7 @@
 package io.github.hhenson.hgl
 
+import com.intellij.execution.RunManager
+import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.execution.ui.RunContentManager
@@ -8,6 +10,7 @@ import com.intellij.notification.Notifications
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
@@ -18,6 +21,7 @@ import com.intellij.xdebugger.breakpoints.XLineBreakpoint
 import io.github.hhenson.hgl.debug.HglLineBreakpoint
 import io.github.hhenson.hgl.project.HglBuild
 import io.github.hhenson.hgl.project.HglBuildFile
+import io.github.hhenson.hgl.run.HglProjectTargets
 import io.github.hhenson.hgl.run.HglScopedTestConfiguration
 import io.github.hhenson.hgl.run.HglScopedTestType
 import java.nio.file.Files
@@ -27,6 +31,97 @@ import java.util.concurrent.CopyOnWriteArrayList
 class HglDebugTestSuiteTest : HglEditorFixture() {
     private val descriptor = LightProjectDescriptor()
     override fun getProjectDescriptor() = descriptor
+
+    fun testAssertionBreakpointsForNamedModuleAndProjectSelections() {
+        VfsRootAccess.allowRootAccess(testRootDisposable, "/usr/include")
+        val dir = Files.createDirectory(Path.of(project.basePath!!, "src"))
+        // An assertion is on its own line so a stop on the test declaration cannot pass.
+        val sources = mapOf("alpha" to "alpha", "beta" to "beta", "extra" to "beta part extra")
+        for ((file, header) in sources) Files.writeString(dir.resolve("$file.hgl"), """
+            module $header
+            test ${file}_unit {
+                assert true
+            }
+            integration_test ${file}_live {
+                assert true
+            }
+        """.trimIndent())
+        val root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
+        PsiTestUtil.addContentRoot(module, root)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_DEBUG_CLI")), null)
+        project.service<HglProjectTargets>().start()
+        val runManager = RunManager.getInstance(project)
+        PlatformTestUtil.waitWithEventsDispatching("Missing beta suite configurations", {
+            runManager.allSettings.any { it.name == "beta — Integration Tests" }
+        }, 15)
+        val manager = XDebuggerManager.getInstance(project)
+        val type = XDebuggerUtil.getInstance().findBreakpointType(HglLineBreakpoint::class.java)
+        val locations = mutableMapOf<Pair<VirtualFile, Int>, String>()
+        for (file in sources.keys) {
+            val source = root.findChild("$file.hgl")!!
+            locations[source to 2] = "${file}_unit"
+            locations[source to 5] = "${file}_live"
+        }
+        val breaks = WriteCommandAction.writeCommandAction(project)
+            .compute<Map<String, XLineBreakpoint<*>>, RuntimeException> {
+                locations.entries.associate { (position, name) ->
+                    name to manager.breakpointManager.addLineBreakpoint(type, position.first.url, position.second, null)
+                }
+            }
+        val outcomes = CopyOnWriteArrayList<String>()
+        project.messageBus.connect(testRootDisposable).subscribe(Notifications.TOPIC, object : Notifications {
+            override fun notify(notification: Notification) {
+                if (notification.groupId == "HGL compiler") outcomes.add(notification.title.ifEmpty { notification.content })
+            }
+        })
+        val executor = DefaultDebugExecutor.getDebugExecutorInstance()
+        fun verify(config: RunConfiguration, expected: Set<String>, modules: List<String>) {
+            outcomes.clear()
+            WriteCommandAction.runWriteCommandAction(project) { breaks.values.forEach { it.isEnabled = true } }
+            val env = ExecutionEnvironmentBuilder.create(executor, config).build()
+            env.runner.execute(env)
+            val hits = mutableSetOf<String>()
+            val sessions = mutableSetOf<com.intellij.xdebugger.XDebugSession>()
+            val expectedReports = modules.map { "Passed all HGL tests in $it" }
+            PlatformTestUtil.waitWithEventsDispatching("Missing assertion stop or result for ${config.name}", {
+                for (session in manager.debugSessions.filter { it.isSuspended }) {
+                    val pos = session.suspendContext?.activeExecutionStack?.topFrame?.sourcePosition ?: continue
+                    val name = locations[pos.file to pos.line] ?: error(
+                        "${config.name} suspended at ${pos.file.name}:${pos.line + 1} instead of an HGL assertion")
+                    val breakpoint = breaks.getValue(name)
+                    if (!breakpoint.isEnabled) continue // Resume may still be in flight.
+                    assertTrue("${config.name} reached unselected test $name", name in expected)
+                    hits.add(name)
+                    sessions.add(session)
+                    println("HGL_ASSERTION_BREAKPOINT ${config.name} $name ${pos.file.name}:${pos.line + 1}")
+                    WriteCommandAction.runWriteCommandAction(project) { breakpoint.isEnabled = false }
+                    session.resume()
+                }
+                assertTrue("Unexpected outcome for ${config.name}: $outcomes", outcomes.all { it in expectedReports })
+                outcomes.contains(expectedReports.last())
+            }, 120)
+            assertEquals(config.name, expected, hits)
+            assertEquals(config.name, expectedReports, outcomes.toList())
+            for (session in sessions) RunContentManager.getInstance(project).removeRunContent(executor, session.runContentDescriptor)
+        }
+        try {
+            val source = root.findChild("beta.hgl")!!
+            myFixture.configureFromExistingVirtualFile(source)
+            for ((kind, suffix) in listOf("Tests" to "unit", "Integration Tests" to "live")) {
+                val name = "beta_$suffix"
+                val leaf = myFixture.file.findElementAt(myFixture.file.text.indexOf(name))!!
+                verify(runConfigurationAt(leaf), setOf(name), listOf("beta"))
+                val moduleSuite = runManager.allSettings.single { it.name == "beta — $kind" }.configuration
+                verify(moduleSuite, setOf(name, "extra_$suffix"), listOf("beta"))
+                val projectSuite = runManager.allSettings.single { it.name == "All HGL $kind" }.configuration
+                verify(projectSuite, setOf("alpha_$suffix", name, "extra_$suffix"), listOf("alpha", "beta"))
+            }
+        } finally {
+            manager.debugSessions.forEach { it.stop() }
+            WriteCommandAction.runWriteCommandAction(project) { breaks.values.forEach(manager.breakpointManager::removeBreakpoint) }
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        }
+    }
 
     fun testContinueRunsTheNextModuleAndStopCancelsTheGroup() {
         VfsRootAccess.allowRootAccess(testRootDisposable, "/usr/include")
