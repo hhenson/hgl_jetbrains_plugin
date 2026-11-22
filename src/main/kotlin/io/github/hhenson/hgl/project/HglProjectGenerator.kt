@@ -1,7 +1,6 @@
 package io.github.hhenson.hgl.project
 
 import com.intellij.facet.ui.ValidationResult
-import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
@@ -10,18 +9,17 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.DirectoryProjectGenerator
 import io.github.hhenson.hgl.HglIcons
-import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.CREATE_NEW
-import java.nio.file.StandardOpenOption.WRITE
 
 class HglProjectGenerator : DirectoryProjectGenerator<Any> {
-    private val directories = listOf("src", "build", "bin")
-    private val files = listOf("src/main.hgl", "src/hello.hgl")
+    private val build = HglBuild()
+    private val directories = build.sourceRoots + listOf(build.buildDir, build.binDir, build.docsDir)
+    private val files = listOf("src/main.hgl", "src/hello.hgl", HglBuildFile.NAME)
 
     override fun getName() = "HGL"
     override fun getLogo() = HglIcons.FILE
@@ -55,14 +53,18 @@ class HglProjectGenerator : DirectoryProjectGenerator<Any> {
                 val dir = root.resolve(name)
                 if (!Files.isDirectory(dir, NOFOLLOW_LINKS)) created.add(Files.createDirectory(dir))
             }
-            for (name in files) {
+            val names = if (Files.exists(root.resolve(".gitignore"), NOFOLLOW_LINKS)) files else files + ".gitignore"
+            for (name in names) {
+                val text = when (name) {
+                    HglBuildFile.NAME -> HglBuildFile.encode(build)
+                    ".gitignore" -> "/build/\n/bin/\n/docs/\n/.idea/workspace.xml\n"
+                    else -> javaClass.getResourceAsStream("/projectTemplates/hello/$name")?.bufferedReader()?.use { it.readText() }
+                        ?: throw IOException("Missing starter file $name.")
+                }
                 val file = root.resolve(name)
-                javaClass.getResourceAsStream("/projectTemplates/hello/$name").use { source ->
-                    if (source == null) throw IOException("Missing starter file $name.")
-                    Files.newOutputStream(file, CREATE_NEW, WRITE).use {
-                        created.add(file)
-                        source.copyTo(it)
-                    }
+                Files.newBufferedWriter(file, CREATE_NEW).use {
+                    created.add(file)
+                    it.write(text)
                 }
             }
         } catch (error: IOException) {
@@ -77,7 +79,6 @@ class HglProjectGenerator : DirectoryProjectGenerator<Any> {
             return
         }
 
-        project.service<HglTestSettings>().state.roots = "src"
         VfsUtil.markDirtyAndRefresh(false, true, true, baseDir)
         baseDir.findFileByRelativePath("src/main.hgl")?.let { FileEditorManager.getInstance(project).openFile(it, true) }
     }

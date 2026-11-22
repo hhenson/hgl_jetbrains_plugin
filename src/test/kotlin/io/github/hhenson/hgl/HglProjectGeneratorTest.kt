@@ -11,6 +11,8 @@ import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.testFramework.PlatformTestUtil
+import io.github.hhenson.hgl.project.HglBuild
+import io.github.hhenson.hgl.project.HglBuildFile
 import io.github.hhenson.hgl.project.HglProjectGenerator
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.nio.file.Files
@@ -43,12 +45,14 @@ class HglProjectGeneratorTest : HglEditorFixture() {
             assertTrue(starter.validate(root.path).isOk)
             val dir = VfsUtil.findFileByIoFile(root, true)!!
             starter.generateProject(project, dir, starter.createPeer().settings, module)
-            assertEquals(listOf("src"), settings.state.sourceRoots())
+            assertEquals(HglBuild(), HglBuildFile.decode(root.resolve("hgl.json").readText()))
+            assertEquals(listOf("/build/", "/bin/", "/docs/", "/.idea/workspace.xml"), root.resolve(".gitignore").readLines())
             assertEquals("custom-hgl", settings.state.executable)
             assertFalse(settings.state.checkOnSave)
             assertNotNull(dir.findFileByRelativePath("src/hello.hgl"))
             assertEmpty(dir.findChild("build")!!.children.toList())
             assertEmpty(dir.findChild("bin")!!.children.toList())
+            assertEmpty(dir.findChild("docs")!!.children.toList())
             assertNull(dir.findChild("tests"))
             val main = dir.findFileByRelativePath("src/main.hgl")!!
             assertEquals(main, FileEditorManager.getInstance(project).selectedFiles.single())

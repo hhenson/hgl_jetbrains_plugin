@@ -53,9 +53,17 @@
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglApplicationProducer"/>
         <runLineMarkerContributor language="HGL" implementationClass="io.github.hhenson.hgl.run.HglRunGutter"/>
         <codeInsight.lineMarkerProvider language="HGL" implementationClass="io.github.hhenson.hgl.reference.HglOperatorGutter"/>
-        <projectConfigurable parentId="language" id="hgl.test.runner" displayName="HGL Test Runner"
+        <projectConfigurable parentId="build" id="hgl.test.runner" displayName="HGL"
                              instance="io.github.hhenson.hgl.run.HglTestSettingsPage"/>
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglModuleIndex"/>
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglImplementationIndex"/>
     </extensions>
+    <actions>
+        <action id="HGL.GenerateDocumentation" class="io.github.hhenson.hgl.documentation.HglGenerateDocs"
+                text="Generate HGL Documentation" description="Generate HTML and JSON documentation from the HGL source roots"
+                icon="AllIcons.Actions.Preview">
+            <add-to-group group-id="BuildMenu" anchor="last"/>
+            <add-to-group group-id="MainToolbarRight" anchor="first"/>
+        </action>
+    </actions>
 </idea-plugin>

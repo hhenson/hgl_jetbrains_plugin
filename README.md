@@ -37,11 +37,31 @@ requires platform build 262 or later.
 ## Create an HGL project
 
 Choose **New Project → HGL**, select a directory, and click **Create**.
-In `src/main.hgl`, click **Run** beside `application hello.main` to publish
-`"Hello, world!"` once. In `src/hello.hgl`, the inline test `says_hello`
-sits beside `greeting` and runs from its own gutter. The project also
-includes empty `build/` and `bin/` directories for build output and executables.
-Both actions use the compiler configured under **HGL Test Runner**.
+Run `application hello.main` from the gutter in `src/main.hgl` to publish
+`"Hello, world!"` once. Run the named test `says_hello` beside `greeting`
+in `src/hello.hgl`.
+
+**Settings → Build, Execution, Deployment → HGL** edits the `build` section
+of `hgl.json`. Commit this file to share the compiler command, source roots,
+and output paths. Paths are relative to the project or absolute. A workspace
+compiler override is private to your IDE. Existing projects retain their
+runner settings until they save shared build settings.
+
+| Directory | Purpose |
+| --- | --- |
+| `src/` | Application, module, and inline tests |
+| `build/` | Compiler workspace for Run and Test |
+| `bin/` | Destination reserved for standalone binaries |
+| `docs/` | Generated HTML site and IDE documentation model |
+
+Click **Generate HGL Documentation** on the main toolbar or in **Build**.
+Choose **Open documentation** in the completion notification to read the site.
+The equivalent compiler commands for the starter are:
+
+```sh
+hgl doc src --out docs
+hgl doc src --format json --out docs
+```
 
 ## Code documentation
 
@@ -53,8 +73,7 @@ to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
 and tables. Fenced formulas and diagrams display their source.
 
 For modules outside the project, use a version 1 `documentation.json` export.
-Put it at the project root or set **Documentation model** under **Languages &
-Frameworks → HGL Test Runner**. Generate it with the compiler’s JSON format:
+New projects read it from the configured documentation directory. Use **Documentation model override** in the HGL build settings for another file. Generate it with the compiler’s JSON format:
 
 ```sh
 hgl doc path/to/library --format json --out .
@@ -67,7 +86,7 @@ core prelude. Project source takes precedence, including unsaved edits.
 
 Save an HGL file to see compiler errors and warnings in the editor. Hover
 over an underline for its code, message and related locations. In
-**Settings → Languages & Frameworks → HGL Test Runner**, you can override
+**Settings → Build, Execution, Deployment → HGL**, you can override
 the compiler path. Set source roots for multi-file programs.
 **Check HGL sources on save** is enabled by default in trusted
 projects.

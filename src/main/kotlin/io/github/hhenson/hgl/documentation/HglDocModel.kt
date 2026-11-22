@@ -14,6 +14,7 @@ import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import io.github.hhenson.hgl.psi.HglFile
+import io.github.hhenson.hgl.project.HglBuildFile
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -36,7 +37,10 @@ internal class HglDocModel(private val byName: Map<String, List<ExportedDoc>>) {
         fun forFile(file: HglFile): HglDocModel {
             val project = file.project
             val root = project.basePath?.let { LocalFileSystem.getInstance().findFileByPath(it) }
-            val setting = project.service<HglTestSettings>().state.documentationModel.trim()
+            val setting = project.service<HglTestSettings>().state.documentationModel.trim().ifEmpty {
+                val docs = try { project.service<HglBuildFile>().read()?.docsDir } catch (_: IllegalArgumentException) { return empty }
+                docs?.let { Path.of(it).resolve("documentation.json").toString() }.orEmpty()
+            }
             val json = if (setting.isEmpty()) {
                 root?.findChild("documentation.json") ?: file.virtualFile?.let {
                     ProjectFileIndex.getInstance(project).getContentRootForFile(it)?.findChild("documentation.json")

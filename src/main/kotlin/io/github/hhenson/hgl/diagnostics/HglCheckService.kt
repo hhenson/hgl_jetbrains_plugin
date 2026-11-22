@@ -20,6 +20,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
+import io.github.hhenson.hgl.run.buildSettings
 import io.github.hhenson.hgl.run.HglTestSettings
 import io.github.hhenson.hgl.run.hglCommandLine
 import kotlinx.coroutines.CancellationException
@@ -58,15 +59,19 @@ class HglCheckService(private val project: Project, private val scope: Coroutine
         val settings = project.service<HglTestSettings>().state
         if (!settings.checkOnSave || !TrustedProjects.isProjectTrusted(project)) return null
         val directory = project.basePath?.let(Path::of) ?: return null
+        val build = try { project.buildSettings() } catch (error: IllegalArgumentException) {
+            warn(error.localizedMessage)
+            return null
+        }
         val roots = try {
-            settings.sourceRoots().map { directory.resolve(it).normalize() }.ifEmpty { listOf(file.toNioPath()) }
+            build.sourceRoots.map { directory.resolve(it).normalize() }.ifEmpty { listOf(file.toNioPath()) }
         } catch (e: IllegalArgumentException) {
             warn(e.message ?: "Invalid HGL source root")
             return null
         }
         if (!inRoots(file, roots)) return null
         running.remove(roots)?.cancel()
-        val executable = settings.executable
+        val executable = build.compiler
         val documents = FileDocumentManager.getInstance()
         val openFiles = FileEditorManager.getInstance(project).openFiles.toSet() + file
         val targets = openFiles.filter { it.isLocalHgl && inRoots(it, roots) }.mapNotNull { target ->
