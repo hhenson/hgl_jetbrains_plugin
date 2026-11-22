@@ -1,0 +1,21 @@
+module examples.categories
+
+struct Point {
+    x: f64
+    y: f64
+}
+
+struct Label {
+    text: str
+}
+
+operator shown<T>(value: T) -> str
+impl const fn shown<T>(value: T) -> str requires T in struct => "a struct"
+impl const fn shown(value: Point) -> str => "a point"
+impl const fn shown<...Ts>(value: tuple<Ts>) -> str => "a tuple"
+
+test selection {
+    assert shown(Label(text: "a")) == "a struct"
+    assert shown(Point(x: 1.0, y: 2.0)) == "a point"
+    assert shown((1, "a")) == "a tuple"
+}

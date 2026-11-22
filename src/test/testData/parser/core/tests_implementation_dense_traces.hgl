@@ -16,8 +16,11 @@ fn forward_a(a: i64, b: i64) -> i64 {
 /**
 A trace made entirely of silent slots schedules no input publications.
 
-:Rules: CEVAL-2, TST-6
-:Status: agreed
+Rules:
+    CEVAL-2, TST-6
+
+Status:
+    agreed
 */
 test all_silent_input_is_empty {
     assert eval replay_scalar(value: [_, _, _]) == []
@@ -26,8 +29,11 @@ test all_silent_input_is_empty {
 /**
 An empty input produces an empty recording for a node driven by that input.
 
-:Rules: CEVAL-2, CEVAL-4, TST-6
-:Status: agreed
+Rules:
+    CEVAL-2, CEVAL-4, TST-6
+
+Status:
+    agreed
 */
 test empty_input_remains_empty {
     assert eval replay_scalar(value: []) == []
@@ -37,8 +43,11 @@ test empty_input_remains_empty {
 Leading silence sets the position of the first publication.
 Trailing silence leaves the recording at its last publication.
 
-:Rules: CEVAL-2, TST-6
-:Status: agreed
+Rules:
+    CEVAL-2, TST-6
+
+Status:
+    agreed
 */
 test leading_silence_locates_a_tick {
     assert eval replay_scalar(value: [_, 7, _, _]) == [_, 7]
@@ -48,8 +57,11 @@ test leading_silence_locates_a_tick {
 A recording ends at the last output publication, even if another input keeps ticking.
 A run that publishes nothing gives an empty recording.
 
-:Rules: CEVAL-4, TST-6
-:Status: agreed
+Rules:
+    CEVAL-4, TST-6
+
+Status:
+    agreed
 */
 test dense_result_ends_at_last_publication {
     assert eval forward_a(a: [7], b: [1]) == [7]

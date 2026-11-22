@@ -17,8 +17,11 @@ Two `i64` arguments make `T` an `i64` in each call, and the `i64` it gives
 fits the `i64?` place. Were `T` the place's `i64?`, the membership of
 `larger` would not hold.
 
-:Rules: GEN-2, GEN-3, TYPE-14
-:Status: agreed
+Rules:
+    GEN-2, GEN-3, TYPE-14
+
+Status:
+    agreed
 */
 test a_nullable_place_leaves_a_bare_result_to_the_arguments {
     assert kept_or_null(7, 8) == 7

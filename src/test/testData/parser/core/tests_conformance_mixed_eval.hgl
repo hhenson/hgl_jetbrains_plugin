@@ -15,8 +15,11 @@ A node forwards a set delta only when the gate is open and the set publishes.
 One addition arrives while the gate is closed. Opening the gate again produces
 no tick of its own. The fixture uses the proposed set delta profile.
 
-:Rules: TIME-1, TIME-3, TYPE-16, CEVAL-3, TST-9
-:Status: proposed
+Rules:
+    TIME-1, TIME-3, TYPE-16, CEVAL-3, TST-9
+
+Status:
+    proposed
 */
 test mixed_replay {
     assert eval relay_members(

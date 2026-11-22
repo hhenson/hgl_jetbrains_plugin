@@ -1,12 +1,12 @@
 package io.github.hhenson.hgl.documentation
 
-private val headings = setOf(
+internal val docHeadings = setOf(
     "Args:", "Type Args:", "Returns:", "Raises:", "Ticks:", "Validity:",
-    "Properties:", "Requires:", "Notes:", "Examples:",
+    "Properties:", "Requires:", "Options:", "Rules:", "Status:", "Notes:", "Examples:",
 )
 
 /** SDOC-3. Only a known heading at column zero introduces four-space-indented content. */
-internal data class HglDocSection(val heading: String?, val lines: List<String>, val recognized: Boolean = heading in headings) {
+internal data class HglDocSection(val heading: String?, val lines: List<String>, val recognized: Boolean = heading in docHeadings) {
     fun description(name: String): HglDocSection? {
         val fences = fencedLines(lines.joinToString("\n"))
         val index = lines.indices.firstOrNull { it !in fences && lines[it].startsWith("$name:") } ?: return null
@@ -24,7 +24,7 @@ internal fun docSections(text: String): List<HglDocSection> {
     fun headingAt(index: Int): String? {
         if (index in fences) return null
         val line = lines[index].trimEnd(' ', '\t')
-        if (line in headings) return line
+        if (line in docHeadings) return line
         return line.takeIf { it.endsWith(':') && !it.startsWith(' ') && !it.startsWith('\t') &&
             lines.getOrNull(index + 1)?.startsWith("    ") == true }
     }

@@ -24,7 +24,7 @@ phase checking, overload resolution and runtime conformance belong to the
 compiler. The editor reads its structured diagnostics on save. Current
 navigation uses the plugin's syntax
 scopes and module index. Module parts share declarations and test helpers.
-Imports stay file-local. Other modules see exported declarations, including exported operators,
+Each named test has a private scope for its own declarations and operator candidates. Imports stay file-local. Other modules see exported declarations, including exported operators,
 and the public `core` prelude. Applications have their own file scope.
 
 Operator gutters link a declaration to its HGL and native candidates in both
@@ -54,8 +54,10 @@ Canonical names group overloads. Kind and source location distinguish them.
 A bundled `<core>/` location is a display name. Exported comments use their
 own module for links. The model does not record imports or call-site bindings.
 
-The language pin includes the [Markdown documentation contract](https://github.com/hhenson/hgl_spec/pull/213).
-The JSON fixture is a subset of the [compiler exporter’s test program](https://github.com/hhenson/hgl-compiler/tree/5a1b9f721b1223b7a2a62ec33816029bea394e7c/crates/hgl_cli/tests/fixtures/doc).
+CI regenerates the JSON fixture from a real export of the pinned compiler's
+documentation test program. Named constructor arguments select the struct's
+field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
+both source comments and exported documentation.
 
 ## Compiler diagnostics on save
 

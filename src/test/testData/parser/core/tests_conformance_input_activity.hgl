@@ -15,8 +15,11 @@ A passive input retains new values and can be made active again.
 The control stays active. Switching on samples the 20 that arrived while
 the data input was passive. The next data tick wakes the node by itself.
 
-:Rules: TIME-2, TIME-9, END-5
-:Status: agreed
+Rules:
+    TIME-2, TIME-9, END-5
+
+Status:
+    agreed
 */
 test passivation_changes_wakes_and_preserves_data {
     assert eval switch_input_activity(
@@ -39,8 +42,11 @@ Invalidating a passive input changes what a later sample observes.
 Only the sample input wakes the observer. Both the invalidation and the
 recovery happen between samples.
 
-:Rules: TIME-2, TIME-3, END-4, END-5
-:Status: agreed
+Rules:
+    TIME-2, TIME-3, END-4, END-5
+
+Status:
+    agreed
 */
 test passive_invalidation_is_visible_on_the_next_sample {
     assert eval sample_produced_validity(
@@ -64,8 +70,11 @@ A passive input can satisfy its modification guard when another input wakes the 
 The data-only tick at 20 leaves the node asleep. The next sample still reads
 one. When 30 and the sample arrive together, the data handler counts 30.
 
-:Rules: TIME-2, TIME-3, END-5
-:Status: agreed
+Rules:
+    TIME-2, TIME-3, END-5
+
+Status:
+    agreed
 */
 test a_passive_publication_counts_on_an_independent_wake {
     assert eval count_data_ticks(
@@ -90,8 +99,11 @@ An explicit activity check restricts a modification guard to active inputs.
 At 20 the data input is passive and nothing wakes the node. At 30 the sample
 wakes it: the active-only guard skips the tick and the plain guard accepts it.
 
-:Rules: TIME-2, TIME-3, TIME-9, END-5
-:Status: agreed
+Rules:
+    TIME-2, TIME-3, TIME-9, END-5
+
+Status:
+    agreed
 */
 test an_active_only_handler_queries_its_input {
     assert eval describe_data_tick(
@@ -112,8 +124,11 @@ Two inputs connected to one producer can report different activity.
 Only the driving input subscribes. Each publication reaches both bindings,
 and the activity query observes the subscription of the input it names.
 
-:Rules: TIME-2, TIME-3, TIME-9, END-5
-:Status: agreed
+Rules:
+    TIME-2, TIME-3, TIME-9, END-5
+
+Status:
+    agreed
 */
 test activity_belongs_to_the_binding {
     assert eval compare_bindings(value: [7, _, 7]) == [true, _, true]
@@ -137,8 +152,11 @@ An idle sample cannot turn an earlier passive invalidation into a new notificati
 Zero clears the data endpoint between samples. After reactivation only the
 publication of 9 increments the count. The final zero invalidates it again.
 
-:Rules: END-2, END-4, END-5, TIME-3
-:Status: agreed
+Rules:
+    END-2, END-4, END-5, TIME-3
+
+Status:
+    agreed
 */
 test a_later_probe_does_not_replay_a_passive_invalidation {
     assert eval sample_notifications(
@@ -170,8 +188,11 @@ The probe sees a valid retained 7 after passivation. When zero clears the
 endpoint, the data handler skips and the probe sees invalid, unmodified data.
 A new publication on the following probe does reach the data handler.
 
-:Rules: END-2, END-4, END-5, TIME-3
-:Status: agreed
+Rules:
+    END-2, END-4, END-5, TIME-3
+
+Status:
+    agreed
 */
 test a_passive_invalidation_is_visible_but_unmodified_on_a_probe {
     assert eval probe_clear(

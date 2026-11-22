@@ -17,8 +17,11 @@ fn update_members(command: i64) -> set<i64> {
 A recorder retains each publication independently. A later removal leaves the first delta intact.
 The set deltas used to observe retention follow the proposed set delta profile.
 
-:Rules: CEVAL-4, TST-6
-:Status: proposed
+Rules:
+    CEVAL-4, TST-6
+
+Status:
+    proposed
 */
 test record_retains_each_delta {
     assert eval update_members(command: [1, _, 2]) == [
@@ -32,8 +35,11 @@ test record_retains_each_delta {
 A recording is empty both when the input never ticks and when the node runs but publishes nothing.
 The fixture uses the proposed set delta profile.
 
-:Rules: CEVAL-4, TST-6
-:Status: proposed
+Rules:
+    CEVAL-4, TST-6
+
+Status:
+    proposed
 */
 test record_can_be_empty {
     assert eval update_members(command: []) == []

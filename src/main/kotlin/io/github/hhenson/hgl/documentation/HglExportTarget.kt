@@ -13,9 +13,17 @@ import io.github.hhenson.hgl.reference.HglScope
 internal fun exportTargets(file: HglFile, module: String, name: String, argument: String? = null): List<DocumentationTarget> {
     if (module == file.modulePath) return emptyList()
     val matches = HglDocModel.forFile(file).declarations("$module::$name")
-        .filter { it.exported && (argument == null || argument in it.arguments) }
+        .filter { it.exported }
     if (matches.isEmpty() || HglModuleIndex.findFiles(file.project, module).isNotEmpty()) return emptyList()
-    return matches.map { HglExportTarget(file, it, argument) }
+    return matches.mapNotNull { record ->
+        when {
+            argument == null || argument in record.arguments -> HglExportTarget(file, record, argument)
+            record.kind == "struct" -> record.members.singleOrNull {
+                it.kind == "field" && it.canonicalName == "${record.canonicalName}.$argument"
+            }?.let { HglExportTarget(file, it) }
+            else -> null
+        }
+    }
 }
 
 internal fun exportTargets(name: HglQualifiedName, argument: String? = null): List<DocumentationTarget> {

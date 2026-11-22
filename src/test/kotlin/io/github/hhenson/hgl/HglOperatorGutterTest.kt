@@ -29,6 +29,36 @@ class HglOperatorGutterTest : HglEditorFixture() {
     private fun targets(marker: LineMarkerInfo<*>): List<PsiElement> =
         (marker.navigationHandler as NavigationGutterIconRenderer).targetElements
 
+    fun testNamedTestsOwnTheirOperatorsAndCanExtendAVisibleOperator() {
+        val file = source("tests.hgl", """
+            module demo
+            operator shared(x: i64) -> i64
+            test first {
+                operator local(x: i64) -> i64
+                impl const fn local(x: i64) -> i64 => x
+                impl const fn shared(x: i64) -> i64 => x
+                assert local(2) == shared(2)
+            }
+            test second {
+                operator local(x: str) -> str
+                impl const fn local(x: str) -> str => x
+                assert local("a") == "a"
+            }
+        """)
+        val markers = markers(file)
+        assertSize(6, markers)
+        val first = file.text.indexOf("test first")
+        val second = file.text.indexOf("test second")
+        for (marker in markers) {
+            val target = targets(marker).single()
+            if (marker.element!!.text == "local") {
+                assertEquals(marker.startOffset < second, target.textOffset < second)
+            } else {
+                assertEquals(marker.startOffset < first, target.textOffset >= first)
+            }
+        }
+    }
+
     fun testClickingASingleTargetOpensTheDeclarationNameInBothDirections() {
         val api = source("lib/api.hgl", "module quotes\noperator bid() -> f64")
         val part = source("lib/feed.hgl", "module quotes part feed\nnative impl fn bid() -> f64")

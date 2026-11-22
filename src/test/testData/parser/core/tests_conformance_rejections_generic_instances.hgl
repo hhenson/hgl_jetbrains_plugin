@@ -15,8 +15,11 @@ rejects the program where they pass it, with the code
 `generic.instance_limit`, reported at the call that makes the first of
 them.
 
-:Rules: GEN-13
-:Status: agreed
+Rules:
+    GEN-13
+
+Status:
+    agreed
 */
 const fn climbed() -> i64 {
     # expect-error(type, "generic.instance_limit")
@@ -29,8 +32,11 @@ states, and not again for the types a call gives it.
 With no `requires`, no candidate of `<` takes every `T`, so the body
 rejects whatever `T` a call would give.
 
-:Rules: GEN-7
-:Status: agreed
+Rules:
+    GEN-7
+
+Status:
+    agreed
 */
 const fn less_without_requires<T>(a: T, b: T) -> bool {
     # expect-error(operator, "operator.no_candidate")

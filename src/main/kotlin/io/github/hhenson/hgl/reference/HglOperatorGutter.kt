@@ -31,7 +31,9 @@ class HglOperatorGutter : RelatedItemLineMarkerProvider() {
             } ?: continue
             val ident = leaf.parent as? HglIdent ?: continue
             val declaration = ident.parent as? HglNamedElement ?: continue
-            if (declaration.parent !is HglFile || declaration.nameIdentifier != ident || !seen.add(leaf)) continue
+            val scope = declaration.parent
+            if (scope !is HglFile && (scope !is HglBlock || scope.parent !is HglTestDecl)) continue
+            if (declaration.nameIdentifier != ident || !seen.add(leaf)) continue
             val targets = when {
                 declaration is HglOperatorDecl -> links.implementationsOf(declaration)
                 declaration.isOperatorImplementation -> links.operatorsOf(declaration)
@@ -58,13 +60,13 @@ class HglOperatorGutter : RelatedItemLineMarkerProvider() {
 
 /** Scope and candidate lookups are shared by overloads during one highlighting pass. */
 private class OperatorLinks {
-    private val operators = mutableMapOf<Pair<HglFile, String>, List<HglOperatorDecl>>()
+    private val operators = mutableMapOf<Pair<PsiElement, String>, List<HglOperatorDecl>>()
     private val candidates = mutableMapOf<HglFile, Map<String?, List<HglNamedElement>>>()
 
     fun operatorsOf(candidate: HglNamedElement): List<HglOperatorDecl> {
-        val file = candidate.parent as HglFile
+        val scope = candidate.parent
         val name = candidate.name ?: return emptyList()
-        return operators.getOrPut(file to name) {
+        return operators.getOrPut(scope to name) {
             // Candidates add no binding of their own (GEN-4). Look outside the candidate's signature.
             HglScope.resolve(candidate, name, includeImplementations = false).filterIsInstance<HglOperatorDecl>()
         }
@@ -72,7 +74,9 @@ private class OperatorLinks {
 
     fun implementationsOf(operator: HglOperatorDecl): List<HglNamedElement> {
         val name = operator.name ?: return emptyList()
-        val file = operator.parent as HglFile
+        val test = (operator.parent as? HglBlock)?.parent as? HglTestDecl
+        if (test != null) return test.helperDeclarations.filter { it.isOperatorImplementation && it.name == name }
+        val file = operator.containingFile as HglFile
         val manager = PsiManager.getInstance(file.project)
         val indexed = FileBasedIndex.getInstance().getContainingFiles(
             HglImplementationIndex.NAME, name, GlobalSearchScope.allScope(file.project),
@@ -81,7 +85,10 @@ private class OperatorLinks {
         return files.flatMap { part ->
             ProgressManager.checkCanceled()
             candidates.getOrPut(part) {
-                part.children.filterIsInstance<HglNamedElement>().filter { it.isOperatorImplementation }.groupBy { it.name }
+                val topLevel = part.children.filterIsInstance<HglNamedElement>()
+                val tests = topLevel.filterIsInstance<HglTestDecl>() +
+                    part.children.filterIsInstance<HglTestContext>().flatMap { it.testDeclList }
+                (topLevel + tests.flatMap { it.helperDeclarations }).filter { it.isOperatorImplementation }.groupBy { it.name }
             }[name].orEmpty().filter { operator in operatorsOf(it) }
         }
     }

@@ -5,8 +5,11 @@ A wake asked for in a `when` with a zero duration the compiler sees is rejected.
 A zero is admitted only in `start`. The same delay given as an input fails
 the call as the program runs instead (`schedule.non_positive_duration`).
 
-:Rules: TIME-8, CAP-4
-:Status: agreed
+Rules:
+    TIME-8, CAP-4
+
+Status:
+    agreed
 */
 fn wake_now(value: i64) -> i64 {
     inject scheduler

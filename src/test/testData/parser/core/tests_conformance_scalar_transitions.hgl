@@ -10,8 +10,11 @@ fn nullable_delta_payload(input: i64?) -> i64? {
 A nullable scalar delta carries the value published in this cycle.
 Both nulls produce output ticks, including the null after the silent cycle.
 
-:Rules: END-2, END-3
-:Status: agreed
+Rules:
+    END-2, END-3
+
+Status:
+    agreed
 */
 test a_published_null_has_a_delta {
     assert eval nullable_delta_payload(input: [7, null, _, null, 0]) ==
@@ -41,8 +44,11 @@ A scalar keeps its publication time through silence, updates it on every
 publication (including equal values and null), and clears it on invalidation.
 The sample input ticks every cycle so the observer also reports invalid times.
 
-:Rules: END-6
-:Status: agreed
+Rules:
+    END-6
+
+Status:
+    agreed
 */
 test last_modified_follows_the_last_publication {
     let t = earliest_start
@@ -71,8 +77,11 @@ At stop, an input and the node's output each retain their own publication time.
 Positive inputs are forwarded. A final zero advances only the input time.
 The stop hook signals that the output is older by dividing by zero.
 
-:Rules: END-6, TIME-5, TIME-7
-:Status: agreed
+Rules:
+    END-6, TIME-5, TIME-7
+
+Status:
+    agreed
 */
 test stop_can_distinguish_input_and_output_publication_times {
     assert eval reject_stale_output(value: [7, _, 9]) == [7, _, 9]
@@ -93,8 +102,11 @@ A single handler guarded by modified(watched) skips an active input's invalidati
 Zero clears the input. The guard checks for a publication even though the
 handler has no validity requirement. Publishing 7 again supplies its next tick.
 
-:Rules: END-2, END-4, TIME-3
-:Status: agreed
+Rules:
+    END-2, END-4, TIME-3
+
+Status:
+    agreed
 */
 test a_single_modified_guard_skips_invalidation {
     assert eval mark_produced_publications(command: [7, 0, 0, 7]) ==
@@ -119,8 +131,11 @@ The second zero stays silent.
 After recovery, another zero coincides with an actual tick on the other input.
 That input's modification guard runs.
 
-:Rules: END-2, END-4, TIME-2, TIME-3
-:Status: agreed
+Rules:
+    END-2, END-4, TIME-2, TIME-3
+
+Status:
+    agreed
 */
 test an_active_invalidation_wakes_the_node_without_a_data_tick {
     assert eval describe_produced_wake(
@@ -151,8 +166,11 @@ The final write in one evaluation decides whether a scalar output is valid.
 Start with a publication. Reverse the order to end invalid, then recover.
 The validity observer also reports the transition that emits no payload.
 
-:Rules: END-4
-:Status: agreed
+Rules:
+    END-4
+
+Status:
+    agreed
 */
 test the_last_write_decides_validity {
     assert eval write_in_order(
@@ -177,8 +195,11 @@ fn count_after_two_writes(value: i64) -> i64 => count_publications(write_twice(v
 Two writes by one producer give its subscriber one evaluation with the final
 value. The counter increments on every evaluation, including a spurious one.
 
-:Rules: END-5, TIME-2
-:Status: agreed
+Rules:
+    END-5, TIME-2
+
+Status:
+    agreed
 */
 test two_writes_deliver_one_publication {
     assert eval write_twice(value: [7, 9]) == [7, 9]

@@ -4,8 +4,109 @@ module core part lists
 # `var` parameter (the language's FN-15): the call assigns the place it is
 # given. Contract: spec/list-operations.md.
 
-# LIST-1: `item` after the last entry of `values`.
+/**
+Put `item` after the last entry of the list in `values`.
+
+`values` is a place, a `var`, a `state` or a `cache`, or a place inside
+one, and the call gives it the list it held with `item` after its last
+entry. A value taken from the place before the call is as it was. A
+list that is no place, a literal or what a call gives, is rejected
+(`argument.place`), and so is one that is read-only, such as a `let`
+(`binding.immutable`). `extend` puts each entry of another list.
+
+It is not lifted: a call stands in a value function, in a hook of a
+node, or in composition where the place holds an ordinary value. No
+argument of it is a connection (`connection.as_constant`), and it is no
+target of an `eval` (`eval.target`).
+
+Type Args:
+    V: The type of the list's entries. It is inferred.
+
+Args:
+    values: The place that holds the list.
+    item: The entry put after its last.
+
+Returns:
+    Nothing: the call assigns `values`.
+
+Raises:
+    - `value.missing_key`: `values` is an entry of a dictionary,
+      `counts[key]`, for a key the dictionary has not.
+
+Examples:
+    ~~~hgl
+    var entries: list<i64> = [1, 2]
+    let before = entries
+    append(entries, 3)
+    assert entries == [1, 2, 3]
+    assert before == [1, 2]
+    ~~~
+
+    A node keeps what it has seen in a `cache`.
+
+    ~~~hgl
+    fn gathered(value: i64) -> list<i64> {
+        cache seen: list<i64> = []
+        when {
+            append(seen, value)
+            return seen
+        }
+    }
+    assert eval gathered(value: [1, _, 2]) == [[1], _, [1, 2]]
+    ~~~
+
+Rules:
+    LIST-1, LIST-3, FN-6, FN-15
+*/
 export native const fn append<V>(var values: list<V>, item: V)
 
-# LIST-2: each entry of `items`, in order, after the last entry of `values`.
+/**
+Put each entry of `items`, in order, after the last entry of the list in `values`.
+
+`values` is a place, a `var`, a `state` or a `cache`, or a place inside
+one, and the call gives it the list it held with each entry of `items`
+after its last entry, in the order `items` has them. An empty `items`
+leaves it as it was. A value taken from the place before the call is as
+it was. A list that is no place is rejected (`argument.place`), and so
+is one that is read-only (`binding.immutable`). `append` puts one entry.
+
+It is not lifted: a call stands in a value function, in a hook of a
+node, or in composition where the place holds an ordinary value. No
+argument of it is a connection (`connection.as_constant`), and it is no
+target of an `eval` (`eval.target`).
+
+Type Args:
+    V: The type of the lists' entries. It is inferred.
+
+Args:
+    values: The place that holds the list.
+    items: The entries put after its last, in their order.
+
+Returns:
+    Nothing: the call assigns `values`.
+
+Raises:
+    - `value.missing_key`: `values` is an entry of a dictionary,
+      `counts[key]`, for a key the dictionary has not.
+
+Examples:
+    ~~~hgl
+    var entries: list<i64> = [1, 2]
+    let before = entries
+    extend(entries, [3, 4])
+    assert entries == [1, 2, 3, 4]
+    assert before == [1, 2]
+    ~~~
+
+    An empty list adds nothing.
+
+    ~~~hgl
+    var entries: list<i64> = [1, 2]
+    extend(entries, [])
+    assert entries == [1, 2]
+    ~~~
+
+Rules:
+    LIST-2, LIST-3, FN-6, FN-15
+*/
 export native const fn extend<V>(var values: list<V>, items: list<V>)

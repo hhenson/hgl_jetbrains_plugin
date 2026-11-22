@@ -267,7 +267,9 @@ test_context ::= TEST_KW LBRACE test_context_item* RBRACE {pin=2}
 private test_context_item ::= !RBRACE (NEWLINE | test_member_item)
 private test_member_item ::= !(NEWLINE | RBRACE) test_member_body {pin=1 recoverWhile=statement_recover}
 private test_member_body ::= (function_decl | struct_decl | enum_decl | test_decl) &(NEWLINE | RBRACE) {pin=1}
-test_decl ::= TEST_KW ident block | integration_test_head ident <<integrationBlock block>> {pin=2}
+test_decl ::= TEST_KW ident test_block | integration_test_head ident <<integrationBlock test_block>> {pin=2}
+test_block ::= LBRACE nls (test_declaration &(NEWLINE | RBRACE) nls)* block_item* RBRACE {pin=1 elementType=block}
+private test_declaration ::= !EXPORT_KW (function_decl | constant_decl | struct_decl | enum_decl | operator_decl)
 private integration_test_head ::= timeout_annotation? <<kw "INTEGRATION_TEST_KW">>
 timeout_annotation ::= AT <<kw "TIMEOUT_KW">> <<adjacent>> LPAREN nls TEMPORAL_LITERAL nls RPAREN NEWLINE+ {pin=2}
 
@@ -308,7 +310,7 @@ private constraint_atom ::= constraint_each
                           | constraint_operand
 constraint_requirement ::= ARROW nls type {pin=1}
 constraint_relation ::= EQEQ constraint_operand
-                      | <<kw "IN_KW">> constraint_operand
+                      | <<kw "IN_KW">> (STRUCT_KW | ENUM_KW | constraint_operand)
                       | IS_KW (STRUCT_KW | ident)
 constraint_each ::= (<<kw "EACH_KW">> | ANY_KW) for_binding <<kw "IN_KW">> constraint_operand LBRACE nls constraint nls RBRACE {pin=1}
 constraint_set ::= LBRACE nls <<list_of constraint_operand>> nls RBRACE {pin=1}

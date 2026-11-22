@@ -4,47 +4,861 @@ module core part endpoints
 # endpoint itself. Activity belongs to the receiving node's input. Contract:
 # spec/temporal-endpoints.md.
 
-# END-1, END-4, END-7, END-9: whether the endpoint holds a payload, and for
-# a window whether it holds a value or exits emptied it. END-10: for a
-# `ref` parameter, whether it has been given a designation, whatever its
-# target holds.
+/**
+Whether an endpoint holds a value.
+
+An input is valid from its first tick, whatever the value: false, zero,
+empty text, a null, a NaN and an infinity each make it valid. It stays
+valid through the cycles in which it does not tick, until it is
+invalidated (`invalidate`). `valid` takes the endpoint itself and reads
+nothing of it, so it is asked of an input that has no value yet, and of
+one an invalidation has just cleared, in a handler under `when valid([])`.
+`start` gives no temporal input to `valid`: it runs before any input has a
+value (the language's TIME-5).
+
+| Endpoint | `valid` is true where |
+| --- | --- |
+| A scalar | it has ticked, and has not been invalidated since |
+| A list, a tuple, a struct or a dictionary | any element, field or entry is valid, or it is an empty list or dictionary that has ticked |
+| A window | a value has arrived; a window that exits have emptied stays valid |
+| A `ref` parameter | a reference is present, whatever the endpoint it designates holds |
+
+`all_valid` asks whether every child of a collection is valid, and
+whether a window holds its minimum. `modified` asks whether the endpoint
+ticked in this cycle.
+
+Type Args:
+    T: The type the endpoint carries.
+
+Args:
+    input: The endpoint asked about: an input of the node by its name, a
+        child of one, or `out`.
+
+Returns:
+    True where the endpoint holds a value, as the table gives it.
+
+Validity:
+    Nothing is required valid: an invalid endpoint is asked about as a
+    valid one is. As a guard, `valid(x)` admits a read of a scalar `x`,
+    and a whole read of a dictionary or a list with no fixed size. It
+    admits no read of a child of `x`, which its own `valid`,
+    `valid(parts[1])`, admits, and none of a struct, a tuple or a fixed
+    list whole: that read needs `all_valid(x)`. A window that is valid
+    and not all valid is read only where its place takes a `result`,
+    which gives an `err` coded `value.unset_read`, or a `list<V>?`, which
+    gives null; a `list<V>` place fails with that code.
+
+Examples:
+    `value` is silent, then 7, then silent, while `probe` ticks in each
+    cycle.
+
+    ~~~hgl
+    fn held(value: i64, probe: bool) -> bool {
+        when valid([]) { return valid(value) }
+    }
+    assert eval held(value: [_, 7, _], probe: [true, true, true]) == [false, true, true]
+    ~~~
+
+    A tuple is valid once one of its positions is. Each tick of
+    `observe_parts` is `[valid, all_valid]`.
+
+    ~~~hgl
+    fn set_part(first: bool, value: i64) -> tuple<i64, i64> {
+        when {
+            let only_first: delta<tuple<i64, i64>> = (value, null)
+            let only_second: delta<tuple<i64, i64>> = (null, value)
+            if first { return only_first }
+            return only_second
+        }
+    }
+    fn parts_validity(probe: bool, parts: tuple<i64, i64>) -> list<bool, 2> {
+        when modified(probe) && valid([]) { return [valid(parts), all_valid(parts)] }
+    }
+    fn observe_parts(probe: bool, first: bool, value: i64) -> list<bool, 2> =>
+        parts_validity(probe, set_part(first, value))
+    assert eval observe_parts(
+        probe: [true, true, true, true],
+        first: [   _, true,    _, false],
+        value: [   _,    3,    _,     8],
+    ) == [[false, false], [true, false], [true, false], [true, true]]
+    ~~~
+
+    A window of 3us stays valid when its one value leaves it, at 4us.
+
+    ~~~hgl
+    fn recent(reading: i64) -> rolling_window<i64, 3us, 1us> {
+        when { return reading }
+    }
+    fn window_held(readings: rolling_window<i64, 3us, 1us>) -> bool {
+        when modified(readings) { return valid(readings) }
+    }
+    fn observe_window(reading: i64) -> bool => window_held(recent(reading))
+    assert eval observe_window(reading: [1]) == [true, _, _, _, true]
+    ~~~
+
+    A `ref` parameter is valid from the first cycle, though its target
+    first ticks in the third.
+
+    ~~~hgl
+    fn reference_present(probe: bool, ref target: i64) -> bool {
+        when modified(probe) && valid(probe) { return valid(target) }
+    }
+    assert eval reference_present(probe: [true, true, true], target: [_, _, 7]) ==
+        [true, true, true]
+    ~~~
+
+Rules:
+    END-1, END-4, END-7, END-8, END-9, END-10, TIME-1, TIME-4, TIME-5, TIME-9, TIME-10
+*/
 export native const fn valid<T>(input: endpoint<T>) -> bool
 
-# END-7: whether a list, tuple, struct or dictionary is valid and every
-# element, field or entry of it is, one level deep. END-9: whether a window
-# holds at least its minimum.
+/**
+Whether a collection and each of its children are valid, or a window holds its minimum.
+
+`all_valid` takes a list, a tuple, a struct, a dictionary or a window;
+another endpoint is rejected (`endpoint.argument`). For a collection it asks `valid` of every element, field or entry, one
+level deep. A child whose type is `T?`, or a field that the language's
+TYPE-4 makes optional, is not asked. A collection that is not valid is
+not all valid; a valid empty one is.
+
+| Endpoint | `all_valid` is true where |
+| --- | --- |
+| A list, a tuple, a struct or a dictionary | it is valid, and each child that is not optional is valid by its own `valid` |
+| A list of lists | each contained list is present and has a valid element, or is an empty list that has ticked |
+| A window of a tick count | it holds at least its minimum count of values |
+| A window of a duration | the values held span at least its minimum, from the oldest to the newest |
+
+A window's minimum of zero is held by its first value, and an empty
+window is not all valid. A window of a duration becomes all valid only
+at an arrival, and may stop being all valid when a value leaves it. A
+window's value is a `list<V>` of the values held, oldest first. Below
+its minimum a read of it fails with `value.unset_read` in a `list<V>`
+place, gives an `err` with that code in a `result<list<V>, error>`
+place, and null in a `list<V>?` place. A lifted value function is given
+the window only where it is all valid: one that is valid and not all
+valid does not invoke it, though its parameter has a default (the
+language's FN-11).
+
+`valid` asks less: a collection is valid where any child is, or where it
+is an empty list or dictionary that has ticked, and a window is valid
+from its first arrival, also once exits have emptied it.
+`start` gives no temporal input to `all_valid`: it runs before any input has a
+value (the language's TIME-5).
+
+Type Args:
+    T: The type the endpoint carries: a collection or a window.
+
+Args:
+    input: The endpoint asked about: an input of the node by its name, a
+        child of one, or `out`.
+
+Returns:
+    True where the collection and its children are valid, or the window
+    holds its minimum, as the table gives it.
+
+Validity:
+    Nothing is required valid: a collection that is not valid gives
+    false. As a guard, `all_valid(x)` admits a read of `x` whole and of
+    each of its children, but for a child read whole as a struct, a
+    tuple or a fixed list, which needs its own `all_valid`.
+
+Examples:
+    A fixed list of two positions, each set by its own delta. Each tick
+    of `observe_pair` is `[valid, all_valid]`.
+
+    ~~~hgl
+    fn set_position(slot: i64, reading: i64) -> list<i64, 2> {
+        when { return delta<list<i64, 2>>(updated: [slot: reading]) }
+    }
+    fn pair_validity(probe: bool, pair: list<i64, 2>) -> list<bool, 2> {
+        when modified(probe) && valid([]) { return [valid(pair), all_valid(pair)] }
+    }
+    fn observe_pair(probe: bool, slot: i64, reading: i64) -> list<bool, 2> =>
+        pair_validity(probe, set_position(slot, reading))
+    assert eval observe_pair(
+        probe:   [true, true, true],
+        slot:    [   _,    0,    1],
+        reading: [   _,    3,    8],
+    ) == [[false, false], [true, false], [true, true]]
+    ~~~
+
+    A window of at most three readings and at least two is valid from
+    the first and all valid from the second.
+
+    ~~~hgl
+    fn readings_of(reading: i64) -> rolling_window<i64, 3, 2> {
+        when { return reading }
+    }
+    fn window_ready(readings: rolling_window<i64, 3, 2>) -> list<bool, 2> {
+        when modified(readings) { return [valid(readings), all_valid(readings)] }
+    }
+    fn observe_ready(reading: i64) -> list<bool, 2> => window_ready(readings_of(reading))
+    assert eval observe_ready(reading: [1, 2, 3]) ==
+        [[true, false], [true, true], [true, true]]
+    ~~~
+
+    A window of a duration stops being all valid when a value leaves it.
+    Its readings arrive at 0us and 1us and leave at 4us and 5us.
+
+    ~~~hgl
+    fn recent(reading: i64) -> rolling_window<i64, 3us, 1us> {
+        when { return reading }
+    }
+    fn recent_ready(readings: rolling_window<i64, 3us, 1us>) -> bool {
+        when modified(readings) { return all_valid(readings) }
+    }
+    fn observe_recent(reading: i64) -> bool => recent_ready(recent(reading))
+    assert eval observe_recent(reading: [1, 2]) == [false, true, _, _, false, false]
+    ~~~
+
+    A struct whose optional field has never ticked is all valid once its
+    other field has, and is read whole with that field null. Each tick is
+    `[all_valid(quote), the note is null, valid(quote.note)]`.
+
+    ~~~hgl
+    struct NotedQuote {
+        bid: i64
+        note: str?
+    }
+    fn write_bid(bid: i64) -> NotedQuote {
+        when { return delta<NotedQuote>(bid: bid) }
+    }
+    const fn note_is_null(quote: NotedQuote) -> bool => quote.note == null
+    fn read_quote(probe: bool, quote: NotedQuote) -> list<bool, 3> {
+        when modified(probe) && all_valid(quote) {
+            return [all_valid(quote), note_is_null(quote), valid(quote.note)]
+        }
+    }
+    fn observe_quote(probe: bool, bid: i64) -> list<bool, 3> =>
+        read_quote(probe, write_bid(bid))
+    assert eval observe_quote(probe: [true, true], bid: [_, 5]) ==
+        [_, [true, true, false]]
+    ~~~
+
+    A list of lists is all valid where each contained list has a valid
+    element or is an empty list that has ticked. The first delta sets
+    position 1 alone; then `[[1], []]` ticks whole. Each tick is
+    `[valid, all_valid]`.
+
+    ~~~hgl
+    fn write_rows(step: i64) -> list<list<i64>> {
+        when {
+            if step == 0 {
+                let inner = delta<list<i64>>(updated: [0: 2])
+                return delta<list<list<i64>>>(updated: [1: inner])
+            }
+            return [[1], []]
+        }
+    }
+    fn rows_validity(probe: bool, rows: list<list<i64>>) -> list<bool, 2> {
+        when modified(probe) && valid([]) { return [valid(rows), all_valid(rows)] }
+    }
+    fn observe_rows(probe: bool, step: i64) -> list<bool, 2> =>
+        rows_validity(probe, write_rows(step))
+    assert eval observe_rows(probe: [true, true, true], step: [_, 0, 1]) ==
+        [[false, false], [true, false], [true, true]]
+    ~~~
+
+Rules:
+    END-7, END-8, END-9, TIME-1, TIME-4, TIME-5, TIME-9, TYPE-11, FN-11
+*/
 export native const fn all_valid<T>(input: endpoint<T>) -> bool
 
-# END-2: whether the endpoint published in the current cycle, or, for an
-# input of a branch as it starts, whether it is bound to one already
-# valid; as a guard it admits a read as `valid` does. END-9: for a window
-# of a duration, also whether a value left it. END-10: for a `ref`
-# parameter, whether the parameter was given a designation, and not
-# whether its target published.
+/**
+Whether an endpoint ticked in this cycle.
+
+A tick marks its endpoint modified for the cycle, also where the value
+repeats; a cycle in which it does not tick leaves it unmodified, and its
+value as it was. An invalidation is no tick: `modified` is false in the
+cycle an input is cleared, though the clearing wakes a node the input is
+active for. A delta that names no change, given to an endpoint that is
+valid, is no tick either, nor is a collection given whole that changes
+nothing: a set given the members it holds, or an empty list or
+dictionary given to a valid empty one.
+
+Two endpoints are modified without a tick of their own:
+
+- An input of a node in a branch that starts while the program runs,
+  bound to an endpoint already valid, is modified in the cycle the
+  branch starts, and wakes its node, so the branch's nodes run once with
+  the values held. Other inputs bound to that endpoint see it as it is.
+- A window of a duration is modified in a cycle in which a value leaves
+  it, though nothing arrives.
+
+A passive input that ticks is modified in that cycle where another input
+wakes the node. A handler that wants only an active input's ticks writes
+`when modified(input) && is_active(input)`.
+
+Given a `ref` parameter, `modified` observes the reference, not the
+endpoint it designates: a tick of that endpoint does not make the
+parameter modified (the language's TIME-10).
+
+`start` gives no temporal input to `modified`: it runs before any input has a
+value (the language's TIME-5).
+
+Type Args:
+    T: The type the endpoint carries.
+
+Args:
+    input: The endpoint asked about: an input of the node by its name, a
+        child of one, or `out`.
+
+Returns:
+    True where the endpoint ticked in this cycle, or is modified as a
+    branch starts or as a value leaves a window of a duration.
+
+Validity:
+    Nothing is required valid. An input is not modified without being
+    valid, so as a guard `modified(x)` admits a read of `x`, as
+    `valid(x)` does.
+
+Examples:
+    `watched` ticks 7, is silent, and ticks 7 again; `probe` wakes the
+    node in each cycle.
+
+    ~~~hgl
+    fn ticked(watched: i64, probe: bool) -> bool {
+        when modified(probe) && valid([]) { return modified(watched) }
+    }
+    assert eval ticked(watched: [_, 7, _, 7], probe: [true, true, true, true]) ==
+        [false, true, false, true]
+    ~~~
+
+    The read of `value` is admitted under `modified(value)`; in the
+    cycles `value` is silent the node ticks -1.
+
+    ~~~hgl
+    fn forward_ticks(value: i64, probe: bool) -> i64 {
+        when valid([]) {
+            if modified(value) { return value }
+            return -1
+        }
+    }
+    assert eval forward_ticks(value: [_, 7, _], probe: [true, true, true]) == [-1, 7, -1]
+    ~~~
+
+    An invalidation wakes the node, and the input is not modified in
+    that cycle: the second handler takes the wake. A zero command clears
+    the input, and a second zero is silent.
+
+    ~~~hgl
+    fn clear_on_zero(command: i64) -> i64 {
+        inject out
+        when {
+            if command != 0 { return command }
+            invalidate(out)
+        }
+    }
+    fn mark_ticks(watched: i64) -> bool {
+        when modified(watched) && valid([]) { return true }
+        when valid([]) { return false }
+    }
+    fn observe_ticks(command: i64) -> bool => mark_ticks(clear_on_zero(command))
+    assert eval observe_ticks(command: [7, 0, 0, 7]) == [true, false, _, true]
+    ~~~
+
+    A branch that starts while the program runs: `value` ticks 10 in the
+    first cycle alone, and each time `enabled` starts the branch, its
+    node sees `value` modified.
+
+    ~~~hgl
+    fn ticked_now(value: i64) -> bool {
+        when valid([]) { return modified(value) }
+    }
+    fn in_branch(enabled: bool, value: i64) -> bool {
+        if enabled { ticked_now(value) }
+    }
+    assert eval in_branch(enabled: [false, true, false, true], value: [10, _, _, _]) ==
+        [_, true, _, true]
+    ~~~
+
+Rules:
+    END-2, END-4, END-5, END-9, TIME-3, TIME-4, TIME-5, TIME-7, TIME-10
+*/
 export native const fn modified<T>(input: endpoint<T>) -> bool
 
-# END-3: what the endpoint published in the current cycle (the language's
-# TYPE-16): the value itself for a scalar. Where the place takes a
-# `result`, an `err` for a tick with no delta. END-9: for a window, the
-# value that arrived; a window of a duration that a value only leaves has
-# no delta. A `ref` parameter is not given to it (the language's FN-16).
+/**
+What an endpoint ticked in this cycle: a `delta<T>`.
+
+| Endpoint | The delta is |
+| --- | --- |
+| A scalar | the value it ticked |
+| A nullable scalar, `i64?` | the optional of the value or the null: a ticked null is `delta<i64?>()`, and is a delta |
+| A collection | the change of this cycle; for a list, also its new size where it moves |
+| A window | the value that arrived; for `rolling_window<f64?, 3>` a `delta<f64?>`, which tells a null that arrived from none |
+
+An endpoint that does not tick in the cycle has no delta, and nor does
+a window of a duration in a cycle in which a value only leaves it. The
+place the read stands in chooses what such a read gives:
+
+| Place | With a delta | With none |
+| --- | --- | --- |
+| `delta<T>` | the delta | fails with `value.unset_read` |
+| `result<delta<T>, error>` | `ok` of the delta | an `err` coded `value.unset_read` |
+| `delta<T>?` | the delta | null |
+
+A window of a duration takes the second and third places only, and a
+`delta<T>` place rejects its read with `payload.unguarded`. A window's
+delta is read before the window is all valid as after. Only a window
+of a duration can tick without a delta, so an endpoint of any other type
+that is modified gives `ok` in the `result` place. The value that left a
+window is `removed_value`.
+
+A `ref` parameter, a child of one, and `out` of a `ref` result are not
+given to `delta_value`: the read rejects with `ref.read` (the language's
+FN-16).
+
+`start` gives no temporal input to `delta_value`: it runs before any input has a
+value (the language's TIME-5).
+
+Type Args:
+    T: The type the endpoint carries.
+
+Args:
+    input: The endpoint read: an input of the node by its name, a child
+        of one, or `out`.
+
+Returns:
+    The delta of this cycle, in the form its place takes.
+
+Raises:
+    - `value.unset_read`: in a `delta<T>` place, where the endpoint has
+      no delta in this cycle.
+
+Validity:
+    The read is admitted as a read of the endpoint's value is: a handler
+    reads it under a guard of the endpoint, such as `modified(x)`, or
+    where the handler requires it valid.
+
+Examples:
+    A relay ticks what its input ticks, a repeated value included.
+
+    ~~~hgl
+    fn relay(value: i64) -> i64 {
+        when { return delta_value(value) }
+    }
+    assert eval relay(value: [7, _, 7, 9]) == [7, _, 7, 9]
+    ~~~
+
+    A ticked null is a delta: its value is the null.
+
+    ~~~hgl
+    fn ticked_value(input: i64?) -> i64? {
+        when valid(input) && modified(input) { return delta_value(input).value }
+    }
+    assert eval ticked_value(input: [7, null, _, null, 0]) == [7, null, _, null, 0]
+    ~~~
+
+    A fixed list's delta names the position that changed.
+
+    ~~~hgl
+    fn set_position(slot: i64, reading: i64) -> list<i64, 2> {
+        when { return delta<list<i64, 2>>(updated: [slot: reading]) }
+    }
+    fn pair_change(pair: list<i64, 2>) -> list<i64, 2> {
+        when { return delta_value(pair) }
+    }
+    fn observe_change(slot: i64, reading: i64) -> list<i64, 2> =>
+        pair_change(set_position(slot, reading))
+    assert eval observe_change(slot: [0, _, 1], reading: [3, _, 8]) == [
+        delta<list<i64, 2>>(updated: [0: 3]),
+        _,
+        delta<list<i64, 2>>(updated: [1: 8]),
+    ]
+    ~~~
+
+    A window of a duration has no delta at 4us, where its first reading
+    leaves it and nothing arrives. Each tick is the delta read as a
+    result, as its value or its error's code.
+
+    ~~~hgl
+    const fn value_or_code(outcome: result<i64, error>) -> str {
+        if is_ok(outcome) { return convert<str>(outcome.value) }
+        let code = outcome.error.code
+        if code == null { return "no code" }
+        return code
+    }
+    fn recent(reading: i64) -> rolling_window<i64, 3us, 1us> {
+        when { return reading }
+    }
+    fn arrival(readings: rolling_window<i64, 3us, 1us>) -> str {
+        when modified(readings) { return value_or_code(delta_value(readings)) }
+    }
+    fn observe_arrival(reading: i64) -> str => arrival(recent(reading))
+    assert eval{length: 6us} observe_arrival(reading: [1, 2, _, _, _, 3]) ==
+        ["1", "2", _, _, "value.unset_read", "3"]
+    ~~~
+
+Rules:
+    END-3, END-9, END-10, TYPE-11, TYPE-16, ERR-14, ERR-15, TIME-1, TIME-4, TIME-5, FN-16
+*/
 export native const fn delta_value<T>(input: endpoint<T>) -> delta<T>
 
-# END-9: the value that left a window in the current cycle, read where
-# the place takes a `result<V, error>`, and an `err` where none left.
-# END-10: a window is not marked `ref`, and a window that is a child of
-# a `ref` parameter is not given to it.
+/**
+The value that left a window in this cycle.
+
+In a window of a tick count, a value leaves when an arrival pushes the
+oldest out. In a window of a duration, a value leaves by age, one
+smallest step after its age is the window's maximum, whether or not a
+value arrives then. Each value leaves in a cycle of its own.
+
+The read stands where a `result<V, error>` is taken: it gives `ok` of
+the value that left, or an `err` coded `value.unset_read` where none
+left. A `V` or a `V?` place rejects the read with `payload.unguarded`.
+For a window of a nullable `V` the value is the `V` itself, a null
+included. A window that is a child of a `ref` parameter, or of `out` of
+a `ref` result, is not given to `removed_value`: the read rejects with
+`ref.read` (the language's FN-16). The value that arrived is
+`delta_value`.
+
+`start` gives no temporal input to `removed_value`: it runs before any input has a
+value (the language's TIME-5).
+
+Type Args:
+    V: The type of the values the window holds.
+    Max: The window's maximum: a count of values or a duration.
+    Min: The window's minimum: a count of values or a duration.
+
+Args:
+    input: The window read: an input of the node by its name, a child of
+        one, or `out`.
+
+Returns:
+    The value that left the window in this cycle, as a
+    `result<V, error>`.
+
+Examples:
+    A window of two readings: the third pushes the first out. Each tick
+    is what arrived and what left, as its value or its error's code.
+
+    ~~~hgl
+    const fn value_or_code(outcome: result<i64, error>) -> str {
+        if is_ok(outcome) { return convert<str>(outcome.value) }
+        let code = outcome.error.code
+        if code == null { return "no code" }
+        return code
+    }
+    fn pair_of(reading: i64) -> rolling_window<i64, 2> {
+        when { return reading }
+    }
+    fn pair_change(readings: rolling_window<i64, 2>) -> tuple<i64, str> {
+        when modified(readings) {
+            return (delta_value(readings), value_or_code(removed_value(readings)))
+        }
+    }
+    fn observe_pair(reading: i64) -> tuple<i64, str> => pair_change(pair_of(reading))
+    assert eval observe_pair(reading: [1, 2, 3]) ==
+        [(1, "value.unset_read"), (2, "value.unset_read"), (3, "1")]
+    ~~~
+
+    A window of 3us: the 1 leaves at 4us with nothing arriving, and the
+    2 leaves at 5us as the 3 arrives.
+
+    ~~~hgl
+    const fn value_or_code(outcome: result<i64, error>) -> str {
+        if is_ok(outcome) { return convert<str>(outcome.value) }
+        let code = outcome.error.code
+        if code == null { return "no code" }
+        return code
+    }
+    fn recent(reading: i64) -> rolling_window<i64, 3us, 1us> {
+        when { return reading }
+    }
+    fn recent_change(readings: rolling_window<i64, 3us, 1us>) -> list<str, 2> {
+        when modified(readings) {
+            return [value_or_code(delta_value(readings)), value_or_code(removed_value(readings))]
+        }
+    }
+    fn observe_recent(reading: i64) -> list<str, 2> => recent_change(recent(reading))
+    assert eval{length: 6us} observe_recent(reading: [1, 2, _, _, _, 3]) == [
+        ["1", "value.unset_read"],
+        ["2", "value.unset_read"],
+        _,
+        _,
+        ["value.unset_read", "1"],
+        ["3", "2"],
+    ]
+    ~~~
+
+Rules:
+    END-9, END-10, TYPE-11, ERR-14, TIME-5, TIME-9, FN-16
+*/
 export native const fn removed_value<V, Max, Min>(input: endpoint<rolling_window<V, Max, Min>>) -> V
 
-# END-6: when the retained publication was made; null while invalid.
-# END-10: for a `ref` parameter, when the parameter was last given a
-# designation.
+/**
+When the value an endpoint holds was published: its UTC evaluation time, or null while the endpoint is not valid.
+
+While the endpoint is valid the time is that of the publication it
+holds. A cycle in which it does not tick keeps the time, and a tick of
+an equal value, or of a null, gives its own. A delta that names no
+change, given to a valid endpoint, moves no `last_modified`. While the
+endpoint is not valid, before its first tick and after an invalidation,
+the time is null.
+
+Given a `ref` parameter, `last_modified` observes the reference, not the
+endpoint it designates: nothing of that endpoint is seen through it (the
+language's TIME-10).
+
+`start` gives no temporal input to `last_modified`: it runs before any input has a
+value (the language's TIME-5).
+
+Type Args:
+    T: The type the endpoint carries.
+
+Args:
+    input: The endpoint asked about: an input of the node by its name, a
+        child of one, or `out`.
+
+Returns:
+    The UTC evaluation time of the publication the endpoint holds, or
+    null where the endpoint is not valid.
+
+Validity:
+    Nothing is required valid: an endpoint that is not valid gives null.
+
+Examples:
+    `sample` ticks in each cycle. The watched input ticks 7 at 1us, again
+    at 3us, is cleared at 4us, and ticks a null at 5us.
+
+    ~~~hgl
+    enum Action { write_seven, write_null, clear }
+    fn apply(action: Action) -> i64? {
+        inject out
+        when {
+            if action == .clear { invalidate(out) }
+            else if action == .write_null { return null }
+            else { return 7 }
+        }
+    }
+    fn tick_time(sample: bool, watched: i64?) -> datetime? {
+        when modified(sample) && valid([]) { return last_modified(watched) }
+    }
+    fn observe_time(action: Action, sample: bool) -> datetime? =>
+        tick_time(sample, apply(action))
+    let t = earliest_start
+    assert eval observe_time(
+        action: [_, .write_seven, _, .write_seven, .clear, .write_null],
+        sample: [true, true, true, true, true, true]) ==
+        [null, t + 1us, t + 1us, t + 3us, null, t + 5us]
+    ~~~
+
+Rules:
+    END-5, END-6, TIME-5, TIME-10
+*/
 export native const fn last_modified<T>(input: endpoint<T>) -> datetime?
 
-# END-4: clear validity, modification, payload, and delta.
+/**
+Clear an endpoint: it is no longer valid or modified, and holds no value and no delta.
+
+A node clears its own output, `out`. The clearing wakes the active
+subscribers of the endpoint, and a node woken by it sees the input not
+valid under `when valid([])`; `modified` of the input is false in that
+cycle. Clearing an endpoint that is already not valid is silent.
+Within one evaluation the last action decides: a value written and then
+cleared leaves the endpoint not valid, and one cleared and then written
+leaves it valid and modified. `start` neither reads nor writes `out`
+(the language's TIME-5, TIME-7).
+
+Type Args:
+    T: The type the endpoint carries.
+
+Args:
+    input: The endpoint to clear, `out`.
+
+Examples:
+    A zero command clears the output, and a second zero is silent.
+    `watch` reports what it sees of the output.
+
+    ~~~hgl
+    fn clear_on_zero(command: i64) -> i64 {
+        inject out
+        when {
+            if command != 0 { return command }
+            invalidate(out)
+        }
+    }
+    fn watch(input: i64) -> bool {
+        when valid([]) { return valid(input) }
+    }
+    fn observe(command: i64) -> bool => watch(clear_on_zero(command))
+    assert eval observe(command: [7, 0, 0, 7]) == [true, false, _, true]
+    ~~~
+
+    Cleared and then written, the output ticks 7; written and then
+    cleared, it is not valid.
+
+    ~~~hgl
+    fn write_in_order(clear_first: bool) -> i64 {
+        inject out
+        when {
+            if clear_first {
+                invalidate(out)
+                out = 7
+            } else {
+                out = 7
+                invalidate(out)
+            }
+        }
+    }
+    fn watch(input: i64) -> bool {
+        when valid([]) { return valid(input) }
+    }
+    fn observe_order(clear_first: bool) -> bool => watch(write_in_order(clear_first))
+    assert eval write_in_order(clear_first: [true, false, true]) == [7, _, 7]
+    assert eval observe_order(clear_first: [true, false, true]) == [true, false, true]
+    ~~~
+
+Rules:
+    END-4, TIME-3, TIME-5, TIME-7
+*/
 export native const fn invalidate<T>(input: endpoint<T>)
 
-# END-5, TIME-9: read or change the receiving node's direct input activity.
+/**
+Whether an input of the node is active: whether its ticks wake the node.
+
+Activity belongs to each input of a node, not to the endpoint it is
+bound to: two inputs bound to one output can differ. `is_active` gives
+the activity the input has now, also while it is not valid. An active
+and a passive input read the same validity, value and delta, and a
+passive input that ticks is modified where another input wakes the node:
+`when modified(input) && is_active(input)` takes only an active input's
+ticks. `activate` and `passivate` change it.
+
+An input's activity starts as its handlers' selectors subscribe it: a
+handler with no `modified` selector subscribes to every temporal input,
+and `modified(a, b)` to the inputs it names (the language's TIME-3).
+`start` gives no temporal input to `is_active`, and in `stop` every
+input is passive (the language's TIME-5).
+
+Type Args:
+    T: The type the input carries.
+
+Args:
+    input: A temporal input of the node, by its name.
+
+Returns:
+    True where the input is active.
+
+Validity:
+    Nothing is required valid.
+
+Examples:
+    Only `driving` wakes the node, and each tick reaches both inputs.
+
+    ~~~hgl
+    fn compare_activity(driving: i64, sampled: i64) -> bool {
+        when modified(driving) { return is_active(driving) && !is_active(sampled) }
+    }
+    fn compare(value: i64) -> bool => compare_activity(value, value)
+    assert eval compare(value: [7, _, 7]) == [true, _, true]
+    ~~~
+
+    `control` makes `data` active or passive. At 20 `data` is passive
+    and nothing wakes the node; at 30 the sample wakes it, and
+    `when modified(data)` takes the tick, not
+    `when modified(data) && is_active(data)`.
+
+    ~~~hgl
+    fn describe(control: bool, data: i64, sample: bool) -> str {
+        when modified(control) {
+            if control { activate(data) }
+            else { passivate(data) }
+        }
+        when modified(data) && is_active(data) { return "active data" }
+        when modified(data) { return "data" }
+        when modified(sample) { return "sample" }
+    }
+    assert eval describe(
+        control: [         true,    false,  _,        _,      _],
+        data:    [           10,        _, 20,        _,     30],
+        sample:  [         true,     true,  _,     true,   true],
+    )  ==        ["active data", "sample",  _, "sample", "data"]
+    ~~~
+
+Rules:
+    END-5, TIME-3, TIME-5, TIME-9
+*/
 export native const fn is_active<T>(input: endpoint<T>) -> bool
+
+/**
+Make an input of the node active, so that its ticks wake the node.
+
+The input keeps its validity, value and delta: a value that ticked while
+it was passive is read as any other. `passivate` makes it passive again,
+and `is_active` tells which it is. `start` gives no temporal input to
+`activate`, and in `stop`, where every input is passive, `activate`
+rejects (`input.lifecycle`, the language's TIME-5).
+
+Type Args:
+    T: The type the input carries.
+
+Args:
+    input: A temporal input of the node, by its name.
+
+Examples:
+    `enabled` switches `value` off and on. The 20 that ticks while
+    `value` is passive wakes nothing, and is read when `enabled` wakes
+    the node.
+
+    ~~~hgl
+    fn switch_activity(enabled: bool, value: i64) -> i64 {
+        when {
+            if modified(enabled) {
+                if enabled { activate(value) }
+                else { passivate(value) }
+            }
+            return value
+        }
+    }
+    assert eval switch_activity(
+        enabled: [true, false,  _, true,  _],
+        value:   [  10,     _, 20,    _, 30],
+    )  ==        [  10,    10,  _,   20, 30]
+    ~~~
+
+Rules:
+    END-5, TIME-3, TIME-5, TIME-9
+*/
 export native const fn activate<T>(input: endpoint<T>)
+
+/**
+Make an input of the node passive, so that its ticks do not wake the node.
+
+A passive input keeps its validity, value and delta, and a tick of it is
+still `modified` in a cycle another input wakes the node. `activate`
+makes it active again, and `is_active` tells which it is. `start` gives
+no temporal input to `passivate`, and in `stop`, where every input is
+passive, `passivate` rejects (`input.lifecycle`, the language's TIME-5).
+
+Type Args:
+    T: The type the input carries.
+
+Args:
+    input: A temporal input of the node, by its name.
+
+Examples:
+    After `control` makes `data` passive, its tick of 20 wakes nothing.
+    The sample with 30 wakes the node, and the data handler counts that
+    tick.
+
+    ~~~hgl
+    fn count_ticks(control: bool, data: i64, sample: bool) -> i64 {
+        state count: i64 = 0
+        when modified(control) && valid(control) {
+            if control { activate(data) }
+            else { passivate(data) }
+        }
+        when modified(data) && valid(data) { count += 1 }
+        when modified(sample) && valid(sample) { return count }
+    }
+    assert eval count_ticks(
+        control: [true, false,  _,    _,    _, true,    _],
+        data:    [  10,     _, 20,    _,   30,    _,   40],
+        sample:  [true,  true,  _, true, true, true, true],
+    )  ==        [   1,     1,  _,    1,    2,    2,    3]
+    ~~~
+
+Rules:
+    END-5, TIME-3, TIME-5, TIME-9
+*/
 export native const fn passivate<T>(input: endpoint<T>)

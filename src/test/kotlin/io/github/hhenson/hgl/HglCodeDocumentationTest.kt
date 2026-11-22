@@ -157,6 +157,26 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         assertTrue(result.contains("Stored item."))
     }
 
+    fun testNamedTestHelpersArePrivateToTheirOwnTest() {
+        val code = """
+            module docs
+            test one {
+                /** First helper. */
+                const fn twice(x: i64) -> i64 => x * 2
+                assert twice(2) == 4
+            }
+            test two {
+                /** Second helper. */
+                const fn twice(x: str) -> str => x + x
+                assert twice("a") == "aa"
+            }
+            fn outside() => twice(1)
+        """.trimIndent()
+        assertTrue(hint(code.replace("twice(2)", "tw<caret>ice(2)")).contains("First helper."))
+        assertTrue(hint(code.replace("twice(\"a\")", "tw<caret>ice(\"a\")")).contains("Second helper."))
+        assertEmpty(targets(code.replace("twice(1)", "tw<caret>ice(1)")))
+    }
+
     fun testOverloadHintsKeepBothDeclarationsDistinct() {
         val calls = targets("""
             module docs

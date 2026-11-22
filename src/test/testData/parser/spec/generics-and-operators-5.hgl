@@ -1,6 +1,2 @@
-const fn climb<const N: i64>(x: i64) -> i64 {
-    if x <= 0 { return N }
-    return climb<N + 1>(x - 1)
-}
-
-const fn climbed() -> i64 => climb<0>(3)
+struct Scaled<const k: f64> { value: f64 }
+const fn reciprocal<const k: f64>() -> f64 => 1.0 / k

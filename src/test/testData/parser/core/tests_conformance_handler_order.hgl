@@ -10,8 +10,11 @@ fn total_after_update(value: i64) -> i64 {
 A handler that completes lets the next handler run in the same evaluation.
 The second handler reads the state the first one has just updated.
 
-:Rules: TIME-3, TIME-6
-:Status: agreed
+Rules:
+    TIME-3, TIME-6
+
+Status:
+    agreed
 */
 test a_handler_can_fall_through {
     assert eval total_after_update(value: [3, 4]) == [3, 7]
@@ -31,8 +34,11 @@ Returning from a handler ends the evaluation before any later handler acts.
 The two suppressed ticks report the old count. The final tick reveals whether
 either suppressed evaluation changed the state.
 
-:Rules: TIME-3, FN-7
-:Status: agreed
+Rules:
+    TIME-3, FN-7
+
+Status:
+    agreed
 */
 test a_return_skips_later_handlers {
     assert eval count_unsuppressed(suppress: [false, true, true, false]) ==
@@ -49,8 +55,11 @@ Each handler requires its own inputs to be valid. A requirement shared by
 both handlers applies to both. Sample each cycle as right, gate, then left
 become valid. When both handlers qualify the first return wins.
 
-:Rules: TIME-3, TIME-4
-:Status: agreed
+Rules:
+    TIME-3, TIME-4
+
+Status:
+    agreed
 */
 test each_handler_checks_its_own_validity_requirements {
     assert eval first_ready(sample: [true], gate: [true], left: [], right: []) == []
@@ -69,8 +78,11 @@ fn report_on_change_or_request(value: i64, requested: bool) -> i64 {
 A modification predicate inside a disjunction leaves the default subscription
 in place. A request alone can wake the handler and publish the retained value.
 
-:Rules: TIME-3, END-1
-:Status: agreed
+Rules:
+    TIME-3, END-1
+
+Status:
+    agreed
 */
 test a_disjunction_preserves_the_default_subscription {
     assert eval report_on_change_or_request(
@@ -92,8 +104,11 @@ joined by && require both inputs to publish.
 The first two cycles publish on one side each, and the third on both.
 Zero clears the left input, first on its own and later alongside a right tick.
 
-:Rules: TIME-3, EXPR-6, END-2, END-4
-:Status: agreed
+Rules:
+    TIME-3, EXPR-6, END-2, END-4
+
+Status:
+    agreed
 */
 test named_inputs_and_conjoined_guards_match_different_ticks {
     assert eval classify_publications(

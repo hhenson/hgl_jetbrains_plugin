@@ -13,8 +13,11 @@ const fn read_nullable_result(value: i64) -> i64? => checked_result(value)
 A fallible result can be kept whole, used as its value, or taken as a
 nullable value. An inferred local preserves the result's failure code.
 
-:Rules: ERR-5, ERR-15
-:Status: agreed
+Rules:
+    ERR-5, ERR-15
+
+Status:
+    agreed
 */
 test a_value_place_selects_the_result_form {
     let held = checked_result(0)
@@ -39,8 +42,11 @@ const fn rethrow_held(value: i64) -> result<i64, error> {
 A value function returning a result keeps the original error when a
 place asks for the value of a held failure.
 
-:Rules: ERR-5, ERR-15
-:Status: agreed
+Rules:
+    ERR-5, ERR-15
+
+Status:
+    agreed
 */
 test a_held_failure_returns_the_same_error {
     let held = rethrow_held(0)
@@ -60,8 +66,11 @@ const fn take_nullable_payload(failing: bool, value: i64?) -> i64? =>
 When the success type is nullable, a place of that type takes the success
 payload. A success that holds null remains distinct from a failure.
 
-:Rules: ERR-5, ERR-15
-:Status: agreed
+Rules:
+    ERR-5, ERR-15
+
+Status:
+    agreed
 */
 test a_nullable_success_is_distinct_from_a_failure {
     assert take_nullable_payload(false, null) == null
@@ -84,8 +93,11 @@ fn composed_held_nullable(value: i64) -> i64? {
 A lifted call whose place takes the result publishes an outcome for
 each input, including failure as data.
 
-:Rules: ERR-15, FN-6
-:Status: agreed
+Rules:
+    ERR-15, FN-6
+
+Status:
+    agreed
 */
 test a_composed_call_can_publish_its_whole_result {
     assert eval whole_result(value: [7, 0]) ==
@@ -96,8 +108,11 @@ test a_composed_call_can_publish_its_whole_result {
 When a connection of the success type is taken, a failed call raises
 at its node instead of publishing that outcome.
 
-:Rules: ERR-5, ERR-15, FN-6
-:Status: agreed
+Rules:
+    ERR-5, ERR-15, FN-6
+
+Status:
+    agreed
 */
 test a_composed_call_can_raise_at_its_node {
     assert eval composed_result_value(value: [7]) == [7]
@@ -108,8 +123,11 @@ test a_composed_call_can_raise_at_its_node {
 A connection taken as nullable publishes null on failure, whether it is
 the call's connection or a result held by a binding.
 
-:Rules: ERR-15, FN-6
-:Status: agreed
+Rules:
+    ERR-15, FN-6
+
+Status:
+    agreed
 */
 test a_composed_result_can_publish_null_on_failure {
     assert eval composed_result_nullable(value: [7, 0, 8]) == [7, null, 8]
@@ -129,8 +147,11 @@ fn read_nullable_connection(value: i64?) -> i64 => read_nullable_value(value)
 A nullable read succeeds for a present value and fails with value.null
 for null, both in value code and when a connection is read.
 
-:Rules: ERR-5, ERR-12, FN-11
-:Status: agreed
+Rules:
+    ERR-5, ERR-12, FN-11
+
+Status:
+    agreed
 */
 test a_null_read_fails_with_value_null {
     assert read_nullable_value(8) == 8
@@ -157,8 +178,11 @@ A value place that asks for an i64 reads a fallible nullable success.
 A positive value is present, zero gives a successful null, and a negative
 input raises the original error.
 
-:Rules: ERR-5, ERR-12, ERR-15
-:Status: agreed
+Rules:
+    ERR-5, ERR-12, ERR-15
+
+Status:
+    agreed
 */
 test a_value_place_reads_a_fallible_nullable_success {
     assert read_checked_optional(8) == 8
@@ -171,8 +195,11 @@ A non-nullable connection publishes the present successes of a fallible
 nullable connection. A successful null raises value.null, and a failed
 result raises its original error.
 
-:Rules: ERR-5, ERR-12, ERR-15, FN-6
-:Status: agreed
+Rules:
+    ERR-5, ERR-12, ERR-15, FN-6
+
+Status:
+    agreed
 */
 test a_connection_reads_a_fallible_nullable_success {
     assert eval read_checked_optional_connection(value: [8, 9]) == [8, 9]

@@ -10,8 +10,11 @@ The clock reports the logical time of the input publication in simulation.
 The proposed clock property follows the configured start and the gap between
 the two replayed inputs.
 
-:Rules: CAP-3, CRUN-3
-:Status: proposed
+Rules:
+    CAP-3, CRUN-3
+
+Status:
+    proposed
 */
 test the_clock_reports_the_time_of_each_input {
     let start_time = @2026-01-05T09:30:00Z
@@ -29,8 +32,11 @@ fn scheduler_due_on_input(value: i64) -> bool {
 An input tick alone reports no scheduler wake through either the selector or
 the scheduler property. This node requests no wakes.
 
-:Rules: CAP-4, TIME-9
-:Status: agreed
+Rules:
+    CAP-4, TIME-9
+
+Status:
+    agreed
 */
 test an_input_tick_alone_is_not_a_scheduler_wake {
     assert eval scheduler_due_on_input(value: [7, _, 9]) == [false, _, false]
@@ -54,8 +60,11 @@ A due scheduler wake is observable even when an input ticks in the same cycle.
 The proposed duration deadlines place one wake on the second input and
 the other after the final input.
 
-:Rules: CAP-4, TIME-3, TIME-9
-:Status: proposed
+Rules:
+    CAP-4, TIME-3, TIME-9
+
+Status:
+    proposed
 */
 test a_scheduler_wake_can_coincide_with_an_input {
     assert eval cause_of_wake(value: [7, _, 9]) ==
@@ -74,8 +83,11 @@ No input wakes the handler, so the first input leaves it silent. The
 proposed duration deadline places the wake on the second input: each
 tick is `[modified([]), modified(value)]`.
 
-:Rules: TIME-3, CAP-4
-:Status: proposed
+Rules:
+    TIME-3, CAP-4
+
+Status:
+    proposed
 */
 test an_empty_selection_is_true_in_its_handler_when_an_input_ticks {
     assert eval empty_selection_at_wake(value: [7, _, 9]) == [_, _, [true, true]]
@@ -98,8 +110,11 @@ fn wake_without_inputs(const pending: PendingWakes) -> bool {
 A scheduler can wake a node with no inputs, and resetting it clears every
 pending wake. Run the same node with and without a reset.
 
-:Rules: CAP-4, TIME-3
-:Status: agreed
+Rules:
+    CAP-4, TIME-3
+
+Status:
+    agreed
 */
 test a_reset_removes_all_wakes_from_an_inputless_node {
     assert eval wake_without_inputs(pending: .keep_both) != []
@@ -111,8 +126,11 @@ Cancelling a named wake leaves an earlier wake with another tag in place.
 The proposed scheduler profile cancels the matching tag and measures both
 deadlines from the start hook.
 
-:Rules: CAP-4, TIME-3
-:Status: proposed
+Rules:
+    CAP-4, TIME-3
+
+Status:
+    proposed
 */
 test cancelling_the_later_tag_preserves_the_earlier_wake {
     assert eval wake_without_inputs(pending: .keep_both) == [_, true, _, true]
@@ -134,8 +152,11 @@ A wake asked for with `on_wall_clock: true` is timed on evaluation time
 there, as one asked for without it: the duration 1us after the start, and
 the datetime at 3us from it.
 
-:Rules: CAP-4
-:Status: agreed
+Rules:
+    CAP-4
+
+Status:
+    agreed
 */
 test the_wall_clock_option_changes_nothing_in_simulation {
     assert eval wall_clock_wakes() == [_, true, _, true]
@@ -153,8 +174,11 @@ An alarm subscriber observes an input tick as an input wake even if its alarm
 is due. An input arrives at every instant in this four-step run, so the rule
 holds regardless of whether the best-effort alarm is delivered.
 
-:Rules: CAP-5, TIME-3, TIME-9
-:Status: agreed
+Rules:
+    CAP-5, TIME-3, TIME-9
+
+Status:
+    agreed
 */
 test an_alarm_cannot_hide_an_input_tick {
     assert eval{length: 4us} alarm_or_input(value: [1, 2, 3, 4]) ==
@@ -180,8 +204,11 @@ The delay is an input, asked for in a `when`, so the compiler does not see
 it. A delay of 1us is asked for without failure; one of 0s fails the node,
 and its capture's error stream ticks.
 
-:Rules: TIME-8, CAP-4, ERR-7
-:Status: agreed
+Rules:
+    TIME-8, CAP-4, ERR-7
+
+Status:
+    agreed
 */
 test a_zero_duration_asked_of_the_scheduler_fails {
     assert eval wake_failures(delay: [1us, 0s]) == [_, true]
@@ -199,8 +226,11 @@ A zero duration asked of the scheduler in `start` wakes the node's first evaluat
 The input is silent at the start, so the first evaluation is the scheduled
 wake alone; the input's later tick is handled as an input.
 
-:Rules: TIME-8, CAP-4, TIME-7
-:Status: agreed
+Rules:
+    TIME-8, CAP-4, TIME-7
+
+Status:
+    agreed
 */
 test a_zero_duration_in_start_wakes_the_first_evaluation {
     assert eval wake_at_start(value: [_, 7]) == ["scheduled", "input"]
@@ -218,8 +248,11 @@ A zero duration asked of the alarm in `start` wakes the node's first evaluation.
 The input is silent at the start, so the first evaluation is the alarm's
 wake alone; the input's later tick is handled as an input.
 
-:Rules: TIME-8, CAP-5, TIME-7
-:Status: agreed
+Rules:
+    TIME-8, CAP-5, TIME-7
+
+Status:
+    agreed
 */
 test a_zero_duration_in_start_wakes_the_alarm_at_the_first_evaluation {
     assert eval alarm_at_start(value: [_, 7]) == ["alarm", "input"]
@@ -248,8 +281,11 @@ A wake asked for at a datetime before now is dropped, with no failure.
 `never` is before every evaluation time. Each input tick asks the scheduler,
 or the alarm, for a wake then; none comes, and the run does not fail.
 
-:Rules: TIME-8, CAP-4, CAP-5, CRUN-3
-:Status: agreed
+Rules:
+    TIME-8, CAP-4, CAP-5, CRUN-3
+
+Status:
+    agreed
 */
 test a_wake_before_now_is_dropped {
     assert eval wake_in_the_past(value: [7, _, 9]) == ["asked", _, "asked"]
@@ -281,8 +317,11 @@ Two wakes are asked for in `start`. The first resets the scheduler, which
 cancels the second, and then reads the property. The run publishes once,
 true, wherever the wake lands.
 
-:Rules: CAP-4, TIME-9, TST-16
-:Status: agreed
+Rules:
+    CAP-4, TIME-9, TST-16
+
+Status:
+    agreed
 */
 test a_wake_stays_due_after_a_reset_inside_it {
     assert published(eval due_after_reset()) == [true]

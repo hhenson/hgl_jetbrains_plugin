@@ -89,7 +89,7 @@ private fun record(item: JsonObject, includeChildren: Boolean = true): ExportedD
     val descriptions = mutableMapOf<String, String>()
     for (section in doc?.objects("sections").orEmpty()) {
         val heading = section.string("heading")
-        val recognized = section.string("recognized") == "true"
+        val recognized = heading in docHeadings || section.string("recognized") == "true"
         sections += HglDocSection(heading, section.required("text").lines(), recognized)
         if (recognized && heading == "Args:") for (entry in section.objects("entries")) {
             descriptions[entry.required("key")] = entry.required("text")

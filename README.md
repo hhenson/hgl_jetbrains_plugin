@@ -30,7 +30,7 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.7.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.8.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
@@ -45,7 +45,7 @@ and tables. Fenced formulas and diagrams display their source.
 
 For modules outside the project, use a version 1 `documentation.json` export.
 Put it at the project root or set **Documentation model** under **Languages &
-Frameworks → HGL Test Runner**. A compiler with the `doc` command can produce it:
+Frameworks → HGL Test Runner**. Generate it with the compiler’s JSON format:
 
 ```sh
 hgl doc path/to/library --format json --out .

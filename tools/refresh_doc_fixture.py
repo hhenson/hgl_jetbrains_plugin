@@ -1,0 +1,21 @@
+"""Refresh the editor fixture from the pinned compiler's documentation example."""
+import argparse
+import json
+from pathlib import Path
+import subprocess
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("compiler", type=Path, help="compiler checkout with a debug build of hgl")
+compiler = parser.parse_args().compiler.resolve()
+export = subprocess.check_output([
+    compiler / "target/debug/hgl", "doc", compiler / "crates/hgl_cli/tests/fixtures/doc",
+    "--format", "json", "--private",
+])
+model = json.loads(export)
+names = {"core::smallest_step", "examples.apidoc::Box", "examples.apidoc::Side",
+         "examples.apidoc::identity", "examples.apidoc::shifted", "examples.apidoc::internal"}
+for module in model["modules"]:
+    module["declarations"] = [d for d in module["declarations"] if d["canonicalName"] in names]
+model["modules"] = [m for m in model["modules"] if m["declarations"]]
+output = Path(__file__).resolve().parents[1] / "src/test/testData/documentation/model-v1.json"
+output.write_text(json.dumps(model, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

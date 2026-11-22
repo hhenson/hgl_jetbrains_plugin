@@ -9,8 +9,11 @@ A temporal if keeps its child on an equal selector and starts it fresh on re-ent
 The counter advances through the second true, and the false branch stays silent
 even as the input continues to tick.
 
-:Rules: CTRL-2, CTRL-3, CTRL-13
-:Status: agreed
+Rules:
+    CTRL-2, CTRL-3, CTRL-13
+
+Status:
+    agreed
 */
 test a_conditional_child_restarts_only_after_leaving_its_branch {
     assert eval count_inside_branch(
@@ -29,8 +32,11 @@ A producer composed before a temporal if keeps running while its output is hidde
 On re-entry its fifth publication is visible, including the two ticks spent
 in the false branch.
 
-:Rules: CTRL-2, CTRL-3, CTRL-13
-:Status: agreed
+Rules:
+    CTRL-2, CTRL-3, CTRL-13
+
+Status:
+    agreed
 */
 test an_outer_producer_keeps_its_lifetime_across_branches {
     assert eval count_outside_branch(
@@ -49,8 +55,11 @@ An early return in a temporal branch runs its continuation only on the other pat
 Each zero would fail in checked_ratio. Both arrive while the bypass returns
 the input directly.
 
-:Rules: CTRL-2, CTRL-5, CTRL-14
-:Status: agreed
+Rules:
+    CTRL-2, CTRL-5, CTRL-14
+
+Status:
+    agreed
 */
 test an_early_return_skips_the_continuation {
     assert eval bypass_ratio(
@@ -74,8 +83,11 @@ A temporal switch forwards the connection selected by the current label.
 An unmatched label selects the default, and later ticks on the selected
 connection still pass when the selector is silent.
 
-:Rules: CTRL-4, CTRL-6, CTRL-15
-:Status: agreed
+Rules:
+    CTRL-4, CTRL-6, CTRL-15
+
+Status:
+    agreed
 */
 test a_switch_forwards_the_selected_connection {
     assert eval switch_input(
@@ -93,8 +105,11 @@ selected. Each true starts the branch fresh: the value, valid since the
 first cycle, counts as modified there, and the counter runs once and
 publishes 1.
 
-:Rules: CTRL-2, CTRL-3, CTRL-13, TIME-3, END-2
-:Status: agreed
+Rules:
+    CTRL-2, CTRL-3, CTRL-13, TIME-3, END-2
+
+Status:
+    agreed
 */
 test a_branch_runs_once_with_the_values_held_when_it_starts {
     assert eval count_inside_branch(

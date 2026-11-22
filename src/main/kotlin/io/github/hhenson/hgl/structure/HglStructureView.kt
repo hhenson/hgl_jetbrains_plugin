@@ -25,6 +25,7 @@ import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
 import io.github.hhenson.hgl.psi.HglStructMember
 import io.github.hhenson.hgl.psi.HglTestContext
+import io.github.hhenson.hgl.reference.helperDeclarations
 import io.github.hhenson.hgl.psi.HglTestDecl
 import javax.swing.Icon
 
@@ -84,6 +85,7 @@ class HglStructureViewElement(private val element: NavigatablePsiElement) :
             is HglNativeTypeDecl -> element.nativeTypeBody?.nativePropertyList.orEmpty()
             is HglEnumDecl -> element.enumMemberList
             is HglStructDecl -> element.structBody?.structMemberList ?: emptyList()
+            is HglTestDecl -> element.helperDeclarations
             is HglTestContext -> element.children.filter { it is HglFunctionDecl || it is HglStructDecl || it is HglEnumDecl || it is HglTestDecl }
             else -> emptyList()
         }

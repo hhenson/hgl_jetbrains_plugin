@@ -8,8 +8,11 @@ Passivating one consumer's input leaves other consumers of the same output activ
 The difference compares the live value to the last one forwarded by the
 switchable consumer. It returns to zero when that consumer starts listening again.
 
-:Rules: END-5, TIME-2, TIME-9
-:Status: agreed
+Rules:
+    END-5, TIME-2, TIME-9
+
+Status:
+    agreed
 */
 test a_shared_output_keeps_its_other_subscribers {
     assert eval active_minus_selected(
@@ -32,8 +35,11 @@ The first data tick switches which input wakes the node. A wake alone leaves the
 guard false. A data tick alone cannot wake the node. When both tick, the handler
 sees the passive data input's current publication.
 
-:Rules: TIME-2, TIME-3, TIME-9, END-2, END-5
-:Status: agreed
+Rules:
+    TIME-2, TIME-3, TIME-9, END-2, END-5
+
+Status:
+    agreed
 */
 test a_manual_wake_still_checks_the_only_handlers_guard {
     assert eval data_on_manual_wake(
@@ -50,8 +56,11 @@ Invalidating a required input blocks evaluation even when another input publishe
 The first pair adds 11 to the total. Zero invalidates the left input. The
 right input keeps receiving values, so recovery adds 3 + 3 to the original 11.
 
-:Rules: END-1, END-4, TIME-2, TIME-3
-:Status: agreed
+Rules:
+    END-1, END-4, TIME-2, TIME-3
+
+Status:
+    agreed
 */
 test a_sibling_tick_cannot_admit_a_node_with_an_invalid_input {
     assert eval joined_after_invalidation(
@@ -68,8 +77,11 @@ Invalidating a lifted argument restores its default on that cycle.
 Zero invalidates the factor, so 3 is scaled by the default of 2. A second
 zero stays silent. The default still applies when value changes to 5.
 
-:Rules: FN-6, FN-11, END-4
-:Status: agreed
+Rules:
+    FN-6, FN-11, END-4
+
+Status:
+    agreed
 */
 test a_lifted_default_returns_after_invalidation {
     assert eval scaled_with_invalidation(

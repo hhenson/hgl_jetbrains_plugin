@@ -13,7 +13,7 @@ import java.io.File
 import java.nio.file.Files
 
 class HglDocModelTest : HglEditorFixture() {
-    // Subset of compiler #462's real export of crates/hgl_cli/tests/fixtures/doc with --private.
+    // Subset of the pinned compiler's export of crates/hgl_cli/tests/fixtures/doc with --private.
     private val model get() = File("src/test/testData/documentation/model-v1.json").readText()
     private val provider = HglDocumentationTargetProvider()
     private fun targets(code: String) = run {
@@ -36,6 +36,16 @@ class HglDocModelTest : HglEditorFixture() {
         val core = targets("module consumer\nfn g() => smallest_st<caret>ep").single()
         assertTrue(core.computeDocumentationHint()!!.contains("smallest_step"))
         assertNotNull(core.createPointer().dereference())
+    }
+
+    fun testExportedStructConstructorLabelsShowFieldDocumentation() {
+        myFixture.addFileToProject("documentation.json", model)
+        val code = "module consumer\nuse examples.apidoc as api\nfn g() => api::Box<i64>(val<caret>ue: 7)"
+        val field = targets(code).single()
+        val hint = field.computeDocumentationHint()!!
+        assertTrue(hint, hint.contains("value: T") && hint.contains("The payload."))
+        assertEquals(hint, field.createPointer().dereference()?.computeDocumentationHint())
+        assertEmpty(targets(code.replace("val<caret>ue", "miss<caret>ing")))
     }
 
     fun testSelectiveImportAndSourcePriority() {
@@ -114,6 +124,11 @@ class HglDocModelTest : HglEditorFixture() {
         val handler = DocumentationLinkHandler.EP_NAME.extensionList.filterIsInstance<HglDocLinkHandler>().single()
         assertNotNull(handler.resolveLink(target, "hgl-doc:sample.triple"))
         assertNull(handler.resolveLink(target, "hgl-doc:missing"))
+    }
+
+    fun testOptionsRulesAndStatusAreRecognized() {
+        val docs = docSections("Options:\n    - One.\nRules:\n    GEN-3.\nStatus:\n    Agreed.")
+        assertEquals(listOf("Options:", "Rules:", "Status:"), docs.filter { it.recognized }.map { it.heading })
     }
 
     fun testLiteralSectionHeadingInsideFenceStaysInProse() {

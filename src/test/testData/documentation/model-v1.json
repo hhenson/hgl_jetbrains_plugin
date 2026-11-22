@@ -15,6 +15,72 @@
             "column": 8
           },
           "documentation": null
+        },
+        {
+          "name": "calendar",
+          "source": {
+            "module": "core",
+            "part": "calendar",
+            "file": "<core>/core/calendar.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "capabilities",
+          "source": {
+            "module": "core",
+            "part": "capabilities",
+            "file": "<core>/native/capabilities.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "endpoints",
+          "source": {
+            "module": "core",
+            "part": "endpoints",
+            "file": "<core>/native/endpoints.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "lists",
+          "source": {
+            "module": "core",
+            "part": "lists",
+            "file": "<core>/native/lists.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "scalar_operators",
+          "source": {
+            "module": "core",
+            "part": "scalar_operators",
+            "file": "<core>/native/scalar_operators.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "tenors",
+          "source": {
+            "module": "core",
+            "part": "tenors",
+            "file": "<core>/native/tenors.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
         }
       ],
       "declarations": [
@@ -84,6 +150,124 @@
         }
       ],
       "declarations": [
+        {
+          "kind": "struct",
+          "name": "Box",
+          "canonicalName": "examples.apidoc::Box",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 8,
+            "column": 15
+          },
+          "documentation": {
+            "text": "A typed box.\nType Args:\n    T: Payload type.",
+            "summary": "A typed box.",
+            "sections": [
+              {
+                "heading": "Type Args:",
+                "recognized": true,
+                "text": "T: Payload type.",
+                "entries": [
+                  {
+                    "key": "T",
+                    "text": "Payload type."
+                  }
+                ]
+              }
+            ]
+          },
+          "genericParameters": [
+            {
+              "name": "T",
+              "kind": "type",
+              "type": null,
+              "bounds": null,
+              "written": "T",
+              "default": null
+            }
+          ],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "canonicalName": "examples.apidoc::Box.value",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.apidoc",
+                "part": null,
+                "file": "api.hgl",
+                "line": 10,
+                "column": 5
+              },
+              "documentation": {
+                "text": "The payload.",
+                "summary": "The payload.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "T",
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "canonicalName": "examples.apidoc::Box.label",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.apidoc",
+                "part": null,
+                "file": "api.hgl",
+                "line": 12,
+                "column": 5
+              },
+              "documentation": {
+                "text": "An optional label.",
+                "summary": "An optional label.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "str",
+              "default": "\"café\"",
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ],
+          "candidates": []
+        },
         {
           "kind": "enum",
           "name": "Side",
@@ -669,28 +853,6 @@
           "candidates": []
         }
       ]
-    },
-    {
-      "name": "examples.other",
-      "application": false,
-      "parts": [
-        {
-          "name": null,
-          "source": {
-            "module": "examples.other",
-            "part": null,
-            "file": "foreign.hgl",
-            "line": 2,
-            "column": 8
-          },
-          "documentation": {
-            "text": "A different module that implements a candidate.",
-            "summary": "A different module that implements a candidate.",
-            "sections": []
-          }
-        }
-      ],
-      "declarations": []
     }
   ]
 }
