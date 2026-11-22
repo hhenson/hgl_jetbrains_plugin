@@ -2,6 +2,7 @@ package io.github.hhenson.hgl
 
 import com.intellij.execution.ExecutionException
 import com.google.gson.JsonParser
+import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
@@ -21,9 +22,13 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
+import io.github.hhenson.hgl.run.HglProjectTargets
+import com.intellij.execution.RunManager
 import io.github.hhenson.hgl.run.HglRunGutter
 import io.github.hhenson.hgl.run.HglRunConfiguration
 import io.github.hhenson.hgl.run.HglTestType
+import io.github.hhenson.hgl.run.HglRunTestsAction
+import io.github.hhenson.hgl.run.HglRunIntegrationTestsAction
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
 
@@ -138,7 +143,7 @@ class HglCompilerRunTest : HglEditorFixture() {
         }
     }
 
-    fun testGenerateDocsPreservesAnUnmarkedSiteAndRegeneratesInAFreshDirectory() {
+    fun testGenerateDocsHandlesUnmarkedLegacyAndNewSites() {
         val root = FileUtil.createTempDirectory("hgl docs", null, true)
         val source = root.resolve("guide.hgl")
         source.writeText("module guide\nexport const fn greeting() -> str => \"Hello\"\n")
@@ -157,6 +162,12 @@ class HglCompilerRunTest : HglEditorFixture() {
         }
         assertEquals("old site", existing.resolve("index.html").readText())
         assertEquals("old model", existing.resolve("documentation.json").readText())
+
+        // A version 1 site records its marker and the HTML files it owns.
+        existing.resolve(".hgl-doc").writeText("hgl doc HTML site version 1\n")
+        existing.resolve(".hgl-doc-files").writeText("index.html\n")
+        assertEquals(existing.resolve("index.html"), HglGenerateDocs.generate(project, null, EmptyProgressIndicator()).toFile())
+        assertTrue(existing.resolve("documentation.json").readText().contains("greeting"))
 
         val output = root.resolve("reference")
         settings.save(build.copy(docsDir = output.path), build)
@@ -219,6 +230,12 @@ class HglCompilerRunTest : HglEditorFixture() {
         assertEquals(root.toNioPath().resolve("native output/compile_commands.json"), database.toNioPath())
         val units = JsonParser.parseString(database.toNioPath().toFile().readText()).asJsonArray
             .map { File(it.asJsonObject["file"].asString).name }.toSet()
+        val releaseCommands = database.toNioPath().toFile().readText()
+        val debugDatabase = HglBuildAction.build(project, null, EmptyProgressIndicator(), debug = true)
+        assertEquals(root.toNioPath().resolve("native output/debug/compile_commands.json"), debugDatabase.toNioPath())
+        val debugCommands = debugDatabase.toNioPath().toFile().readText()
+        assertTrue(debugCommands, "-O0" in debugCommands && "-g" in debugCommands)
+        assertEquals(releaseCommands, database.toNioPath().toFile().readText())
         val expected = setOf("mod-hello.cpp", "app-hello-main.cpp")
         assertTrue(units.toString(), units.containsAll(expected))
         project.getService(HglCompilationDatabaseImporter::class.java)?.let { importer ->
@@ -231,10 +248,123 @@ class HglCompilerRunTest : HglEditorFixture() {
         }
     }
 
-    private fun runInConsole(configuration: HglRunConfiguration, inspect: ((SMTRunnerConsoleView) -> Unit)? = null): ProcessOutput {
+    fun testProjectFolderRunsOrdinaryTestsRecursivelyInTheResultsTree() {
+        val base = File(project.basePath!!)
+        val src = base.resolve("src").apply { mkdirs() }
+        src.resolve("outer.hgl").writeText("module outer\ntest first { assert true }")
+        src.resolve("nested").apply { mkdir() }.resolve("inner.hgl").writeText(
+            "module inner\ntest second { assert true }\nintegration_test live { assert false }")
+        val shared = project.service<HglBuildFile>()
+        shared.save(HglBuild(compiler = System.getenv("HGL_TEST_CLI")), null)
+        val folder = VfsUtil.findFileByIoFile(src, true)!!
+        val configuration = HglRunTestsAction().settingsFor(project, folder).configuration
+        val output = runInConsole(configuration) { view ->
+            val root = view.resultsViewer.testsRootNode
+            PlatformTestUtil.waitWithEventsDispatching("missing ordinary test results", { root.isFinal && root.children.size == 2 }, 10)
+            assertEquals(setOf("outer::first", "inner::second"), root.children.map { it.name }.toSet())
+            assertTrue(root.children.all { it.isPassed })
+        }
+        assertEquals(output.stdout + output.stderr, 0, output.exitCode)
+    }
+
+    fun testScopedActionsUseDependenciesAndSeparateOrdinaryAndIntegrationCases() {
+        val base = File(project.basePath!!)
+        fun source(path: String, text: String) = base.resolve(path).apply {
+            parentFile.mkdirs()
+            writeText(text.trimIndent())
+        }
+        source("support/value.hgl", "module support\nexport const fn one() -> i64 => 1")
+        // These deliberately failing neighbours must never appear in the selected results.
+        source("src/unrelated.hgl", """
+            module elsewhere
+            test bad { assert false }
+            integration_test also_bad { assert false }
+            # expect-error(type, "type.mismatch")
+            const fn wrong() -> i64 => true
+        """)
+        val file = source("src/chosen/cases.hgl", """
+            module features
+            use support::{one}
+            test ordinary { assert one() == 1 }
+            integration_test live { assert one() == 1 }
+            integration_test rejects {
+                # expect-error(type, "type.mismatch")
+                assert 1
+            }
+        """)
+        source("src/chosen/nested/cases.hgl", "module nested\ntest ordinary { assert true }\nintegration_test live { assert true }")
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
+        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("src", "support")), null)
+        val selected = VfsUtil.findFileByIoFile(file, true)!!
+        for (target in listOf(selected, selected.parent)) {
+            for ((action, test) in listOf(HglRunTestsAction() to "ordinary", HglRunIntegrationTestsAction() to "live")) {
+                val settings = action.settingsFor(project, target)
+                val output = runInConsole(settings.configuration) { view ->
+                    val root = view.resultsViewer.testsRootNode
+                    PlatformTestUtil.waitWithEventsDispatching("missing scope results", { root.isFinal && root.children.isNotEmpty() }, 10)
+                    val modules = if (target.isDirectory) listOf("features", "nested") else listOf("features")
+                    val expected = modules.map { "${it}::$test" }.toMutableSet()
+                    if (action is HglRunIntegrationTestsAction) expected.add("features::rejects")
+                    assertEquals(expected, root.children.map { it.name }.toSet())
+                    assertTrue(root.children.all { it.isPassed })
+                }
+                assertEquals(output.stdout + output.stderr, 0, output.exitCode)
+            }
+        }
+    }
+
+    fun testToolbarApplicationsModulePartsAndAllTests() {
+        val root = File(project.basePath!!).resolve("src").apply { mkdirs() }
+        fun source(path: String, text: String) {
+            val file = root.resolve(path)
+            file.parentFile.mkdirs()
+            file.writeText(text)
+        }
+        source("primary.hgl", "module prices\nexport fn emit() -> i64 { yield 1s: 7 }\ntest ordinary { assert true }")
+        source("nested/parts.hgl", "module prices part extra\ntest extra_check { assert true }\nintegration_test live { assert true }")
+        source("other.hgl", "module other\ntest ordinary { assert true }\nintegration_test live { assert true }")
+        for (app in listOf("demo.east", "demo.west")) {
+            source("$app.hgl", "application $app\nuse prices::{emit}\neval emit()")
+        }
+        val shared = project.service<HglBuildFile>()
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
+        shared.save(HglBuild(compiler = compiler), null)
+        val targets = project.service<HglProjectTargets>()
+        targets.start()
+        val manager = RunManager.getInstance(project)
+        PlatformTestUtil.waitWithEventsDispatching("Toolbar did not discover both applications", {
+            manager.allSettings.any { it.name == "demo.west" }
+        }, 15)
+        fun target(name: String) = manager.allSettings.singleOrNull { it.name == name }?.configuration
+            ?: error("Missing $name among ${manager.allSettings.map { it.name }}")
+        for (app in listOf("demo.east", "demo.west")) {
+            val config = target(app)
+            val result = runInConsole(config)
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
+            assertTrue(result.stdout, result.stdout.contains("ran $app on cpp: 1 publication"))
+        }
+        val groups = mapOf(
+            "prices — Tests" to setOf("prices::ordinary", "prices::extra_check"),
+            "prices — Integration Tests" to setOf("prices::live"),
+            "All HGL Tests" to setOf("prices::ordinary", "prices::extra_check", "other::ordinary"),
+            "All HGL Integration Tests" to setOf("prices::live", "other::live"),
+        )
+        for ((name, expected) in groups) {
+            val configuration = target(name)
+            val result = runInConsole(configuration) { view ->
+                val tree = view.resultsViewer.testsRootNode
+                PlatformTestUtil.waitWithEventsDispatching("missing toolbar results", { tree.isFinal && tree.children.isNotEmpty() }, 10)
+                assertEquals(expected, tree.children.map { it.name }.toSet())
+                assertTrue(tree.children.all { it.isPassed })
+            }
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
+        }
+    }
+
+    private fun runInConsole(configuration: RunConfiguration, inspect: ((SMTRunnerConsoleView) -> Unit)? = null): ProcessOutput {
         val executor = DefaultRunExecutor.getRunExecutorInstance()
         val environment = ExecutionEnvironmentBuilder.create(executor, configuration).build()
-        val result = configuration.getState(executor, environment).execute(executor, environment.runner)
+        val result = configuration.getState(executor, environment)!!.execute(executor, environment.runner)!!
         val handler = result.processHandler!!
         try {
             val output = ProcessOutput()

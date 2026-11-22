@@ -94,13 +94,15 @@ Run and Test pass `buildDir` to the compiler's `--keep` option. The current
 compiler places executables in that workspace. `binDir` records the intended
 standalone binary destination. Generate HGL Documentation invokes `hgl doc`
 for HTML first, then JSON under `docsDir`. The compiler claims an empty
-directory for the site and manages subsequent HTML updates. If HTML generation
+directory for the site and manages subsequent HTML updates, including sites
+created with its original marker. If HTML generation
 fails, the action stops before writing the IDE’s JSON model.
 
 ## Building and indexing generated C++
 
 Build runs `hgl build --target cpp --compile-commands --out <buildDir> -- <roots>` in
-the project directory. On success it refreshes the generated files under `buildDir`.
+the project directory for Release. Debug adds `--debug` and writes to
+`<buildDir>/debug`. On success the plugin refreshes the generated files under `buildDir`.
 The optional CLion Compilation Database integration links that file to the current
 project and refreshes the model when the database changes. Moving the build directory
 repoints the database link created by HGL. RustRover reports the generated file path.
@@ -119,6 +121,14 @@ in an IDE Run configuration.
 The HGL Test configuration accepts the CLI’s documentation example identities,
 including module and part headers, members and numbered overloads. Each
 selector is passed to `--test` as one argument.
+
+The Project and editor-tab menus offer separate ordinary and integration test
+actions. Each saves the selected file or recursive folder and its test kind
+in a rerunnable configuration. The compiler reads all configured roots for
+imports. `--test-path` selects cases by source location when the selection
+covers part of the program. A folder above multiple roots selects the roots
+it contains. `--integration-only` selects integration tests and their rejection
+cases. The IDE displays the compiler's outcomes in the same test tree as a gutter run.
 
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
@@ -158,7 +168,19 @@ At a callback call, completion and Go to Declaration use the function type of
 the parameter the callee resolves to (FN-17). Only names written in that type
 are visible. Completion omits slots filled by positional or named arguments.
 
-## Application debugging
+## Toolbar targets
+
+The IDE discovers application and module headers in the configured source
+roots. With no configured roots it uses indexed HGL sources under the project
+directory. Saving a source file updates its header. A path or source-root
+change rebuilds the catalog. Generated Run/Debug configurations live in the
+IDE workspace. Removing a declaration retires its generated entry.
+
+A module selection passes one `--test-path` per module part. A project
+selection passes all source roots without a path filter. Both use the same
+runner as file and folder selections, preserving dependency roots and test kind.
+
+## Application and test debugging
 
 The application gutter uses the same configuration and source roots for Run
 and Debug. The Debug runner asks `hgl run --debug-build DIR` for its version 1
@@ -169,7 +191,20 @@ both IDE versions. macOS launches the active Apple toolchain adapter with
 The supported build range is limited to the verified
 platform branch. Before widening it, run Plugin Verifier and the native
 breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and stack
-frames to the HGL file. Each session owns its temporary build until it stops.
+frames to the HGL file.
+
+A test configuration passes its Run selectors to `hgl test --debug-build DIR`.
+Exit 0 returns the module launches in execution order and lists skipped cases.
+A failed compiler-checked rejection returns exit 1 with a plan. The IDE reports
+each failed rejection and its diagnostic, then runs the executable cases.
+Source or native build errors return empty stdout and diagnostics on stderr.
+The build error ends the debug request.
+
+For a usable plan, LLDB starts each executable with the supplied arguments
+and environment. Debug launches omit integration test deadlines. The IDE
+reads the module’s results file at exit. Terminal outcomes allow the next
+launch, including after an assertion failure. A partial record ends the
+group. The temporary build lives until the group finishes.
 
 ## Validation
 
@@ -182,6 +217,14 @@ CI pins the compiler independently and exercises both IDEs with the native hgrap
 Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
 tests locally. Both IDEs build the starter and verify that its compilation database
 includes the module and application. CLion also imports both generated C++ units.
+In both IDEs the pinned compiler runs ordinary and integration tests separately
+for a single file and a recursive folder with dependencies in another root.
+A rejection owned by an integration test appears only in the integration run.
+The same pinned compiler supplies the version 1 test launch plan.
+Both IDEs check LLDB stops on the HGL assertion line for named, module
+and project selections of each test kind. They check Step Over between HGL
+assertions, the reported source line after a failed rejection or assertion,
+and Continue and Stop across module boundaries.
 
 ## Performance baseline
 

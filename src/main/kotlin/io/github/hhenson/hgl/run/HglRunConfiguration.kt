@@ -3,6 +3,7 @@ package io.github.hhenson.hgl.run
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.configurations.RunConfigurationOptions
 import com.intellij.execution.configurations.RuntimeConfigurationError
@@ -45,6 +46,7 @@ class HglApplicationType : HglRunType(
 )
 
 class HglRunOptions : RunConfigurationOptions() {
+    var discoveredId by string("")
     var selector by string("")
     var sourcePath by string("")
 }
@@ -52,6 +54,9 @@ class HglRunOptions : RunConfigurationOptions() {
 class HglRunConfiguration(project: Project, private val runType: HglRunType) :
     RunConfigurationBase<HglRunOptions>(project, runType, runType.displayName) {
     private val runOptions get() = options as HglRunOptions
+    internal var discoveredId: String
+        get() = runOptions.discoveredId.orEmpty()
+        set(value) { runOptions.discoveredId = value }
     var selector: String
         get() = runOptions.selector.orEmpty()
         set(value) { runOptions.selector = value }
@@ -92,13 +97,19 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
         return command
     }
 
-    override fun getState(executor: Executor, environment: ExecutionEnvironment) = object : CommandLineState(environment) {
-        override fun createConsole(executor: Executor) =
-            if (runType is HglTestType) SMTestRunnerConnectionUtil.createConsole(HglTestConsole(this@HglRunConfiguration, executor))
-            else super.createConsole(executor)
+    override fun getState(executor: Executor, environment: ExecutionEnvironment) =
+        hglRunState(this, environment, isTest = runType is HglTestType) { commandLine() }
+}
 
-        override fun startProcess() = KillableColoredProcessHandler(commandLine()).also {
-            ProcessTerminatedListener.attach(it, project)
-        }
+internal fun hglRunState(
+    configuration: RunConfiguration, environment: ExecutionEnvironment, isTest: Boolean,
+    commandLine: () -> GeneralCommandLine,
+) = object : CommandLineState(environment) {
+    override fun createConsole(executor: Executor) =
+        if (isTest) SMTestRunnerConnectionUtil.createConsole(HglTestConsole(configuration, executor))
+        else super.createConsole(executor)
+
+    override fun startProcess() = KillableColoredProcessHandler(commandLine()).also {
+        ProcessTerminatedListener.attach(it, configuration.project)
     }
 }

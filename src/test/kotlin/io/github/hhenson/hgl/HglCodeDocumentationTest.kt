@@ -6,6 +6,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.documentation.HglDocumentation
 import io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import java.io.File
 
 class HglCodeDocumentationTest : HglEditorFixture() {
     private fun targets(text: String) = run {
@@ -33,6 +34,21 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         assertFalse(hint.contains("=&gt; value"))
         assertNotNull(target.computeDocumentation())
         assertEquals(hint, target.createPointer().dereference()?.computeDocumentationHint())
+    }
+
+    fun testCoreScheduleHoverShowsBothDomains() {
+        val core = File("src/test/testData/parser/core/hgl_core_core.hgl")
+        myFixture.addFileToProject("core/core.hgl", core.readText())
+        val html = hint("""
+            module timer
+            fn wake() -> bool {
+                inject scheduler
+                start { sche<caret>dule(scheduler, 2us) }
+                when scheduled() { return true }
+            }
+        """)
+        assertTrue(html, "operator schedule&lt;C, W&gt;" in html)
+        assertTrue(html, "requires C in {Scheduler, Alarm} &amp;&amp; W in {duration, datetime}</pre>" in html)
     }
 
     fun testQuickDocFormatsSectionsAndPreservesUnsupportedMarkup() {

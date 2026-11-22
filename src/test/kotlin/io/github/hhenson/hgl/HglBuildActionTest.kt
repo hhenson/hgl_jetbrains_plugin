@@ -31,10 +31,11 @@ class HglBuildActionTest : HglEditorFixture() {
 
     fun testBuildIsAvailableInMenuAndToolbar() {
         val actions = ActionManager.getInstance()
-        val build = actions.getAction("HGL.Build")!!
+        val modes = actions.getAction("HGL.BuildModes") as DefaultActionGroup
         for (id in listOf("BuildMenu", "MainToolbarRight")) {
-            assertTrue(build in (actions.getAction(id) as DefaultActionGroup).getChildren(null))
+            assertTrue(modes in (actions.getAction(id) as DefaultActionGroup).getChildren(null))
         }
+        assertEquals(listOf("Release", "Debug"), modes.getChildren(null).map { it.templatePresentation.text })
     }
 
     fun testBuildArgumentsAndUnsuccessfulBuild() {

@@ -52,6 +52,18 @@ class HglTestConsoleTest : HglEditorFixture() {
         }
     }
 
+    fun testOlderCompilerExplainsWhichTestSelectionOptionIsRequired() {
+        for (option in listOf("--test-path", "--integration-only")) {
+            val diagnostic = "error: unexpected argument '$option' found"
+            results(emptyList(), 2, diagnostic) { cases ->
+                val error = cases.single()
+                assertTrue(error.isDefect)
+                assertTrue(error.errorMessage.orEmpty().contains("requires an HGL compiler with hgl test $option"))
+                assertTrue(error.errorMessage.orEmpty().contains(diagnostic))
+            }
+        }
+    }
+
     fun testNotRunExitDoesNotAddAFailedCase() {
         results(listOf("not run  executable  demo::later\n    no target\n"), 2) {
             assertTrue(it.single().isIgnored)

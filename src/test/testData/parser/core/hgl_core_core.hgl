@@ -829,9 +829,10 @@ Examples:
     ~~~
 
 Rules:
-    CAP-4, CAP-5, CAP-8, TIME-8, TIME-9, FN-9
+    CAP-4, CAP-5, CAP-8, TIME-8, TIME-9, FN-9, GEN-3
 */
 export operator schedule<C, W>(capability: C, at: W)
+    requires C in {Scheduler, Alarm} && W in {duration, datetime}
 
 /**
 Read the value under a key, of the run's store or of a dictionary, as a read that fails where the key holds none.

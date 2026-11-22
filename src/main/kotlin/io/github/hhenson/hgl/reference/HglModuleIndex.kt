@@ -49,7 +49,11 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
         internal val fileVisits = ThreadLocal<(Int) -> Unit>()
 
         /** Index importable module headers, including parts. */
-        fun moduleNameOf(text: CharSequence): String? {
+        fun moduleNameOf(text: CharSequence): String? = headerOf(text)?.takeUnless { it.application }?.name
+
+        internal data class Header(val name: String, val application: Boolean)
+
+        internal fun headerOf(text: CharSequence): Header? {
             val lexer = HglLexerAdapter()
             lexer.start(text)
             fun skipTrivia() {
@@ -57,7 +61,11 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
                     HglTokenSets.COMMENTS.contains(lexer.tokenType)) lexer.advance()
             }
             skipTrivia()
-            if (lexer.tokenType != HglTypes.MODULE_KW) return null
+            val application = when (lexer.tokenType) {
+                HglTypes.IDENTIFIER -> if (lexer.tokenText == "application") true else return null
+                HglTypes.MODULE_KW -> false
+                else -> return null
+            }
             lexer.advance()
             val path = mutableListOf<String>()
             while (true) {
@@ -66,7 +74,7 @@ class HglModuleIndex : ScalarIndexExtension<String>() {
                 path.add(lexer.tokenText)
                 lexer.advance()
                 skipTrivia()
-                if (lexer.tokenType != HglTypes.DOT) return path.joinToString(".")
+                if (lexer.tokenType != HglTypes.DOT) return Header(path.joinToString("."), application)
                 lexer.advance()
             }
         }

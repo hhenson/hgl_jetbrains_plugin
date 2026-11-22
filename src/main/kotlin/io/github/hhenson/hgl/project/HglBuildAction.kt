@@ -29,7 +29,9 @@ internal interface HglCompilationDatabaseImporter {
     fun load(database: VirtualFile)
 }
 
-class HglBuildAction : DumbAwareAction() {
+class HglDebugBuildAction : HglBuildAction(true)
+
+open class HglBuildAction(private val debug: Boolean = false) : DumbAwareAction() {
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
@@ -48,7 +50,7 @@ class HglBuildAction : DumbAwareAction() {
         object : Task.Backgroundable(project, "Build HGL project", true) {
             private lateinit var database: VirtualFile
             override fun run(indicator: ProgressIndicator) {
-                database = build(project, selected, indicator)
+                database = build(project, selected, indicator, debug)
             }
             override fun onSuccess() {
                 project.getService(HglCompilationDatabaseImporter::class.java)?.load(database)
@@ -65,14 +67,17 @@ class HglBuildAction : DumbAwareAction() {
         private val running = Key.create<Boolean>("hgl.build.running")
         private fun group() = NotificationGroupManager.getInstance().getNotificationGroup("HGL compiler")
 
-        internal fun build(project: Project, selected: String?, indicator: ProgressIndicator): VirtualFile {
+        internal fun build(project: Project, selected: String?, indicator: ProgressIndicator, debug: Boolean = false): VirtualFile {
             val root = Path.of(requireNotNull(project.basePath))
             val settings = project.buildSettings()
             val sources = settings.sourceRoots.ifEmpty { listOfNotNull(selected) }
             if (sources.isEmpty()) throw ExecutionException("Set HGL source roots or select an HGL file to build.")
-            val out = root.resolve(settings.buildDir.ifBlank { HglBuild().buildDir }).normalize()
+            val buildDir = root.resolve(settings.buildDir.ifBlank { HglBuild().buildDir }).normalize()
+            val out = if (debug) buildDir.resolve("debug") else buildDir
             val command = hglCommandLine(settings.compiler).withWorkDirectory(root.toFile())
-                .withParameters("build", "--target", "cpp", "--compile-commands", "--out", out.toString(), "--")
+                .withParameters("build", "--target", "cpp")
+                .apply { if (debug) addParameter("--debug") }
+                .withParameters("--compile-commands", "--out", out.toString(), "--")
                 .withParameters(sources)
             indicator.checkCanceled()
             val result = CapturingProcessHandler(command).runProcessWithProgressIndicator(indicator)

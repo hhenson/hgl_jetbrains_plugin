@@ -31,7 +31,9 @@ class HglRunGutterTest : HglEditorFixture() {
             assertNull(marker.getInfo(leaf.parent))
             val configuration = runConfigurationAt(leaf)
             assertEquals("HglSingleTest", configuration.type.id)
-            assertNull(ProgramRunner.getRunner(DefaultDebugExecutor.EXECUTOR_ID, configuration))
+            assertTrue(ProgramRunner.getRunner(DefaultDebugExecutor.EXECUTOR_ID, configuration) is HglDebugRunner)
+            assertEquals(listOf("test", "--test", configuration.selector, "--target", "cpp", "--debug-build", "session", "--",
+                configuration.sourcePath), configuration.commandLine(java.nio.file.Path.of("session")).parametersList.list)
             assertEquals("market.quotes::selected", configuration.selector)
             assertEquals(listOf("test", "--test", "market.quotes::selected", "--target", "cpp", "--", configuration.sourcePath),
                 configuration.commandLine().parametersList.list)
