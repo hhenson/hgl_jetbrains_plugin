@@ -6,6 +6,7 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.dap.*
 import com.intellij.platform.dap.connection.CommandLineDebugAdapterHandle
@@ -35,15 +36,18 @@ class HglAdapterProvider : DebugAdapterSupportProvider<HglAdapterId> {
             functionBreakpointType = null,
         )
         override suspend fun launchDebugAdapter(environment: ExecutionEnvironment, executionResult: ExecutionResult?, sessionId: String) =
-            CommandLineDebugAdapterHandle(GeneralCommandLine(bundledLldb().toString()))
+            CommandLineDebugAdapterHandle(lldbCommandLine())
     }
 }
 
-private fun bundledLldb(): Path {
+internal fun lldbCommandLine(isMac: Boolean = SystemInfo.isMac): GeneralCommandLine {
+    // Apple Silicon IDE bundles contain LLDB.framework. Apple's developer tools supply the DAP executable.
+    if (isMac) return GeneralCommandLine("/usr/bin/xcrun", "lldb-dap")
+
     val root = Path.of(PathManager.getBinPath(), "lldb")
     if (Files.isDirectory(root)) {
         Files.find(root, 9, { path, _ -> path.fileName.toString() == "lldb-dap" && Files.isExecutable(path) }).use { paths ->
-            paths.findFirst().orElse(null)?.let { return it }
+            paths.findFirst().orElse(null)?.let { return GeneralCommandLine(it.toString()) }
         }
     }
     throw ExecutionException("This IDE installation has no bundled LLDB debug adapter.")

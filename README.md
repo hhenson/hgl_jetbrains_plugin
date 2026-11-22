@@ -30,7 +30,7 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.9.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.10.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 supports the 2026.3 platform from build 263.7307.257 through 263.*.
 
@@ -103,8 +103,10 @@ retains the full output. Rerun repeats the same selection.
 To debug, set a line breakpoint on an executable HGL statement and choose
 **Debug** from the application gutter. The Debug window opens the HGL source
 at the breakpoint. Resume to see timestamped publications in its console.
-This requires a compiler with `hgl run --debug-build` and the bundled LLDB
-debug adapter in CLion or RustRover.
+This requires a compiler with `hgl run --debug-build`. On macOS the plugin
+uses Apple's LLDB adapter from the active developer tools. Run
+`xcrun --find lldb-dap` to check its location. On Linux it uses the IDE's
+bundled LLDB adapter.
 
 On Apple Silicon, install the compiler with `brew install hhenson/hgraph/hgl`.
 Both IDEs look for `hgl` on their console `PATH`, then in `/opt/homebrew/bin`
