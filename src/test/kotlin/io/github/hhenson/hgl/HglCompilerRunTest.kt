@@ -1,7 +1,6 @@
 package io.github.hhenson.hgl
 
 import com.google.gson.JsonParser
-import com.intellij.execution.ExecutionException
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
@@ -145,15 +144,9 @@ class HglCompilerRunTest : HglEditorFixture() {
         starter.generateProject(project, root, starter.createPeer().settings, module)
         val shared = project.service<HglBuildFile>()
         val initial = shared.read()!!
-        val preview = System.getenv("HGL_TEST_BUILD_CLI")
-        shared.save(initial.copy(compiler = preview ?: System.getenv("HGL_TEST_CLI"), buildDir = "native output"), initial)
-        val database = try {
-            HglBuildAction.build(project, null, EmptyProgressIndicator())
-        } catch (e: ExecutionException) {
-            // Older CI pins must surface a clear failure. A selected preview must complete the build.
-            if (preview == null && e.message.orEmpty().startsWith("The configured compiler must support")) return
-            throw e
-        }
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
+        shared.save(initial.copy(compiler = compiler, buildDir = "native output"), initial)
+        val database = HglBuildAction.build(project, null, EmptyProgressIndicator())
         assertEquals(root.toNioPath().resolve("native output/compile_commands.json"), database.toNioPath())
         val units = JsonParser.parseString(database.toNioPath().toFile().readText()).asJsonArray
             .map { File(it.asJsonObject["file"].asString).name }.toSet()

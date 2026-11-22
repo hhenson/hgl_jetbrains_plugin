@@ -169,8 +169,8 @@ the compiler and runtime.
 
 CI pins the compiler independently and exercises both IDEs with the native hgraph SDK.
 Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
-tests locally. Set `HGL_TEST_BUILD_CLI` to exercise Build against a newer compiler
-that exports the compilation database.
+tests locally. Both IDEs build the starter and verify that its compilation database
+includes the module and application. CLion also imports both generated C++ units.
 
 ## Performance baseline
 

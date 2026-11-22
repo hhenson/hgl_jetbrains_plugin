@@ -66,9 +66,12 @@ class HglBuildActionTest : HglEditorFixture() {
         generated.writeText("int updated_module;")
         HglBuildAction.build(project, null, EmptyProgressIndicator())
         assertEquals("int updated_module;", unit.contentsToByteArray().decodeToString())
-        driver.appendText(if (SystemInfo.isWindows) "echo unknown build option 1>&2\r\nexit /b 2\r\n"
-            else "echo 'unknown build option' >&2\nexit 2\n")
-        assertTrue(failure().contains("unknown build option"))
+        val diagnostic = "error: unexpected argument '--compile-commands' found"
+        driver.appendText(if (SystemInfo.isWindows) "echo $diagnostic 1>&2\r\nexit /b 2\r\n"
+            else "echo \"$diagnostic\" >&2\nexit 2\n")
+        val message = failure()
+        assertTrue(message, message.contains("The configured compiler must support hgl build --compile-commands"))
+        assertTrue(message, message.contains(diagnostic))
     }
 
     fun testNativeDatabaseIsImportedIntoCurrentProject() {
