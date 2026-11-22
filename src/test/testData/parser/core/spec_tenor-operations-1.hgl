@@ -1,0 +1,26 @@
+module examples.calendars
+
+struct Holidays {
+    first: date
+    second: date
+}
+
+impl const fn business_day(calendar: Holidays, day: date) -> bool =>
+    day != calendar.first && day != calendar.second && business_day(Weekdays(), day)
+
+struct Unrolled {}
+
+impl const fn roll<C>(rolling_rule: Unrolled, calendar: C, day: date) -> date => day
+
+const fn settles(trade: date, calendar: Holidays) -> date =>
+    trade +{calendar: calendar} 2B
+
+const fn matures(spot: date, calendar: Holidays) -> date =>
+    spot +{rolling_rule: Rolling.modified_following, calendar: calendar} 3M
+
+test calendars {
+    let closed = Holidays(first: @2026-01-05, second: @2026-04-30)
+    assert settles(@2026-01-02, closed) == @2026-01-07
+    assert matures(@2026-01-30, closed) == @2026-04-29
+    assert @2026-01-31 +{rolling_rule: Unrolled()} 0D == @2026-01-31
+}

@@ -89,55 +89,55 @@ fn record<T>(input: T, const key: str) {
 
 # Ask for a wake on a scheduler or an alarm (CAP-4, CAP-5). `at` is a
 # `duration` from the current evaluation time, or a `datetime`.
-operator schedule<C, W>(capability: C, at: W)
+export operator schedule<C, W>(capability: C, at: W)
 
 # The global store (CAP-6): the value under a key, whether a key holds
 # one, and a value put under a key. A call of `get` writes `V` and leaves
 # the store and the key to be inferred, as `convert<T>(value)` does. `get`
 # can fail, a dictionary's (the language's ERR-6) and the store's: it gives
 # a `result<V, error>`, which takes its form from its place (ERR-15).
-operator get<V, S, K>(store: S, key: K) -> result<V, error>
-operator has<S, K>(store: S, key: K) -> bool
-operator put<S, K, V>(store: S, key: K, value: V)
+export operator get<V, S, K>(store: S, key: K) -> result<V, error>
+export operator has<S, K>(store: S, key: K) -> bool
+export operator put<S, K, V>(store: S, key: K, value: V)
 
 # The symbol operators. Syntax binds each identity (the language's generics
 # chapter): `a + b` is `add_(a, b)`. An operator is neither value nor
 # temporal; the candidate a call selects is.
 
 # `+`, binary `-`, `*`, `/`, `//`, `%`.
-operator add_<L, R, O>(lhs: L, rhs: R) -> O
-operator sub_<L, R, O>(lhs: L, rhs: R) -> O
-operator mul_<L, R, O>(lhs: L, rhs: R) -> O
-operator div_<L, R, O>(lhs: L, rhs: R) -> O
-operator floordiv_<L, R, O>(lhs: L, rhs: R) -> O
-operator mod_<L, R, O>(lhs: L, rhs: R) -> O
+export operator add_<L, R, O>(lhs: L, rhs: R) -> O
+export operator sub_<L, R, O>(lhs: L, rhs: R) -> O
+export operator mul_<L, R, O>(lhs: L, rhs: R) -> O
+export operator div_<L, R, O>(lhs: L, rhs: R) -> O
+export operator floordiv_<L, R, O>(lhs: L, rhs: R) -> O
+export operator mod_<L, R, O>(lhs: L, rhs: R) -> O
 
 # Unary `-`.
-operator neg_<T, O>(value: T) -> O
+export operator neg_<T, O>(value: T) -> O
 
 # `==`, `!=`, `<`, `<=`, `>`, `>=`.
-operator eq_<L, R>(lhs: L, rhs: R) -> bool
-operator ne_<L, R>(lhs: L, rhs: R) -> bool
-operator lt_<L, R>(lhs: L, rhs: R) -> bool
-operator le_<L, R>(lhs: L, rhs: R) -> bool
-operator gt_<L, R>(lhs: L, rhs: R) -> bool
-operator ge_<L, R>(lhs: L, rhs: R) -> bool
+export operator eq_<L, R>(lhs: L, rhs: R) -> bool
+export operator ne_<L, R>(lhs: L, rhs: R) -> bool
+export operator lt_<L, R>(lhs: L, rhs: R) -> bool
+export operator le_<L, R>(lhs: L, rhs: R) -> bool
+export operator gt_<L, R>(lhs: L, rhs: R) -> bool
+export operator ge_<L, R>(lhs: L, rhs: R) -> bool
 
 # `<=>`.
-operator compare_<L, R>(lhs: L, rhs: R) -> CmpResult
+export operator compare_<L, R>(lhs: L, rhs: R) -> CmpResult
 
 # `convert<T>(value)`: the value as a T (OPS-4). A call gives T and leaves V
 # to be inferred from the value. The result O is T, or `result<T, error>`
 # for a conversion that can fail and returns its failure (OPS-8).
-operator convert<T, V, O>(value: V) -> O
+export operator convert<T, V, O>(value: V) -> O
     requires O in {T, result<T, error>}
 
 # `&&`, `||`, `!`, and a chain of three or more `&&` or `||` (OPS-5).
-operator and_(lhs: bool, rhs: bool) -> bool
-operator or_(lhs: bool, rhs: bool) -> bool
-operator not_(value: bool) -> bool
-operator all_(values: ...bool) -> bool
-operator any_(values: ...bool) -> bool
+export operator and_(lhs: bool, rhs: bool) -> bool
+export operator or_(lhs: bool, rhs: bool) -> bool
+export operator not_(value: bool) -> bool
+export operator all_(values: ...bool) -> bool
+export operator any_(values: ...bool) -> bool
 
 # Reverse-order candidates reuse one native body for each commutative pair.
 # Arguments have already been evaluated; only their bound values are swapped.

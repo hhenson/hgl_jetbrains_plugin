@@ -1,0 +1,9 @@
+module examples.scalar_delta
+
+fn forward_a(a: i64, b: i64) -> i64 {
+    when {
+        if valid(a) && modified(a) {
+            return delta_value(a)
+        }
+    }
+}

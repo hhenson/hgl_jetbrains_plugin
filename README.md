@@ -6,6 +6,8 @@ navigation for `.hgl` files. Run a named test or application from its gutter ico
 Click **Implemented by** beside an operator to browse overloads by signature,
 including those added by other modules that import it. Click **Implements**
 beside an HGL or native implementation to jump back to its operator.
+When calling a callback, complete a named argument or use Go to Declaration
+on its label to jump to the parameter in the callback type.
 
 ## Language sources
 
@@ -14,7 +16,8 @@ beside an HGL or native implementation to jump back to its operator.
 conformance fixtures. Their merged revisions are pinned under `spec/`. CI pins the compiler separately for diagnostics and execution tests.
 
 Run `tools/refresh_test_data.sh` after changing the pins. The parser corpus
-includes specification modules, applications, declaration examples, core mapping declarations and every core HGL file.
+includes complete modules and applications from both specifications, language
+declaration examples, core mapping declarations and every core HGL file.
 [Fixture sources](src/test/testData/parser/SOURCES.md) records their revisions.
 
 ## Build and install

@@ -1,0 +1,18 @@
+module examples.scalar_modified
+
+fn publish_value(value: i64) -> i64 {
+    when { return value }
+}
+
+fn read_modified(watched: i64, probe: bool) -> bool {
+    when modified(probe) && valid([]) { return modified(watched) }
+}
+
+fn observe_modified(value: i64, probe: bool) -> bool =>
+    read_modified(publish_value(value), probe)
+
+test equal_publications_are_modified {
+    assert eval observe_modified(
+                value: [_, 7, _, 7],
+                probe: [true, true, true, true]) == [false, true, false, true]
+}

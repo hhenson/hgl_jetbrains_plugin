@@ -1,0 +1,11 @@
+module examples.output
+
+fn counted(value: i64) -> i64 {
+    state seen: i64 = 0
+    when {
+        seen += 1
+        write(format("tick {}\n", seen), flush: true)
+        write("counted\n", .err)
+        return seen
+    }
+}

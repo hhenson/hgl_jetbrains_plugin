@@ -1,0 +1,12 @@
+module examples.eval_configured
+
+fn scaled_sum(left: i64, right: i64, const factor: i64) -> i64 {
+    when { return (left + right) * factor }
+}
+
+test shared_input_ticks {
+    assert eval scaled_sum(
+                left: [2, _, 5, 7],
+                right: [_, 3, _, 4],
+                factor: 2) == [_, 10, 16, 22]
+}

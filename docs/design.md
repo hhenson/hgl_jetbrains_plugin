@@ -10,7 +10,7 @@ The submodules under `spec/` pin the reviewed hgl_spec and hgl_core revisions. T
 implements editor behavior and tolerates incomplete source during editing.
 
 `tools/refresh_test_data.sh` extracts complete fenced HGL modules and applications from the
-specification, includes language declaration fragments and core’s mapping contract, and copies core HGL sources. Parser tests use
+language and core specifications, includes language declaration fragments and core’s mapping contract, and copies core HGL sources. Parser tests use
 that corpus. Golden tests cover tree structure and recovery. Platform tests
 exercise navigation, documentation, completion and the structure view.
 
@@ -111,6 +111,10 @@ Keyword completion in a named or anonymous function's `=>` body
 offers expression starters at operands. A nested block resumes statement
 completion. Test bodies also admit `eval`, and integration tests admit `run`.
 Names in scope are supplied independently by reference completion.
+
+At a callback call, completion and Go to Declaration use the function type of
+the parameter the callee resolves to (FN-17). Only names written in that type
+are visible. Completion omits slots filled by positional or named arguments.
 
 ## Validation
 

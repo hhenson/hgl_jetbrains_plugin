@@ -1,0 +1,21 @@
+module examples.scalar_validity
+
+fn publish_nullable(command: i64) -> i64? {
+    when {
+        if command == 0 { return null }
+        return command
+    }
+}
+
+fn read_validity(probe: bool, watched: i64?) -> bool {
+    when modified(probe) && valid([]) { return valid(watched) }
+}
+
+fn observe_validity(command: i64, probe: bool) -> bool =>
+    read_validity(probe, publish_nullable(command))
+
+test publication_establishes_validity {
+    assert eval observe_validity(
+                command: [_, 0, _, 7],
+                probe: [true, true, true, true]) == [false, true, true, true]
+}

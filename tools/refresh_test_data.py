@@ -15,15 +15,16 @@ for name in ("spec", "core"):
     shutil.rmtree(DEST / name, ignore_errors=True)
     (DEST / name).mkdir()
 # Include declaration examples that precede executable core implementations.
-mapping = ROOT / "spec/hgl_core/spec/mapping.md"
+core_docs = ROOT / "spec/hgl_core/spec"
+mapping = core_docs / "mapping.md"
 declaration = re.compile(r"^(?:(?:export|abstract|impl|native|const) )*(?:fn|operator|struct|enum|type) ")
-for document in [*documents, mapping]:
+for document in [*documents, *sorted(core_docs.glob("*.md"))]:
     for number, block in enumerate(re.findall(r"```hgl\n(.*?)```", document.read_text(), re.S)):
         first_line = next((line for line in block.splitlines() if line.strip() and not line.startswith("#")), "")
         complete = re.search(r"^(?:module|application) ", block, re.M)
         fragment = document.parent.name == "language" and declaration.match(first_line)
         if complete or fragment or document == mapping:
-            if document == mapping:
+            if document.parent == core_docs:
                 destination = DEST / "core" / f"spec_{document.stem}-{number}.hgl"
             else:
                 destination = DEST / "spec" / f"{document.stem}-{number}.hgl"

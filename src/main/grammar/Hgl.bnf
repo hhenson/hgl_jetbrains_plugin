@@ -18,8 +18,9 @@
 
   extends(".*_expr")=expr
 
-  implements("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|native_property|constant_decl|test_decl|configuration_parameter|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|import_item|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.HglNamedElement"
-  mixin("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|native_property|constant_decl|test_decl|configuration_parameter|parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.impl.HglNamedElementImpl"
+  implements("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|native_property|constant_decl|test_decl|configuration_parameter|parameter|function_type_parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|import_item|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.HglNamedElement"
+  mixin("function_decl|native_function_decl|operator_decl|struct_decl|enum_decl|enum_member|native_type_decl|native_property|constant_decl|test_decl|configuration_parameter|parameter|function_type_parameter|generic_parameter|local_decl|state_decl|cache_decl|for_binding|struct_member|use_alias|anonymous_parameter|inject_item")="io.github.hhenson.hgl.psi.impl.HglNamedElementImpl"
+  mixin("named_argument")="io.github.hhenson.hgl.psi.impl.HglNamedArgumentMixin"
   mixin("import_item")="io.github.hhenson.hgl.psi.impl.HglImportItemMixin"
   mixin("qualified_name")="io.github.hhenson.hgl.psi.impl.HglQualifiedNameMixin"
   mixin("module_path")="io.github.hhenson.hgl.psi.impl.HglModulePathMixin"

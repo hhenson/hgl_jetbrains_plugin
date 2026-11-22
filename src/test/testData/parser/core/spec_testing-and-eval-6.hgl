@@ -1,0 +1,15 @@
+module examples.eval_isolation
+
+fn count_publications(value: i64) -> i64 {
+    state count: i64 = 0
+    when {
+        count += 1
+        return count
+    }
+}
+
+test runs_are_independent {
+    assert eval count_publications(value: [7, _, 7]) == [1, _, 2]
+    assert eval count_publications(value: []) == []
+    assert eval count_publications(value: [7, _, 7]) == [1, _, 2]
+}

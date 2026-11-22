@@ -1,10 +1,12 @@
 package io.github.hhenson.hgl.completion
 
 import com.intellij.codeInsight.completion.CompletionContributor
+import com.intellij.codeInsight.completion.CompletionInitializationContext
 import com.intellij.codeInsight.completion.CompletionParameters
 import com.intellij.codeInsight.completion.CompletionProvider
 import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.completion.CompletionType
+import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.psi.PsiComment
@@ -14,18 +16,23 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import io.github.hhenson.hgl.HglLanguage
+import io.github.hhenson.hgl.psi.HglArgument
+import io.github.hhenson.hgl.psi.HglArguments
 import io.github.hhenson.hgl.psi.HglBlock
 import io.github.hhenson.hgl.psi.HglExpr
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglTypes
+import io.github.hhenson.hgl.reference.callbackType
+import io.github.hhenson.hgl.structure.HglPresentation
 
 /**
- * Keyword completion. Names in scope come from the qualified-name
+ * Keyword and callback label completion. Names in scope come from the qualified-name
  * reference's variants, which the platform contributes on its own.
  */
 class HglCompletionContributor : CompletionContributor() {
@@ -33,19 +40,76 @@ class HglCompletionContributor : CompletionContributor() {
         extend(
             CompletionType.BASIC,
             psiElement().withLanguage(HglLanguage).andNot(psiElement().inside(PsiComment::class.java)),
-            KeywordProvider,
+            Provider,
         )
     }
 
-    private object KeywordProvider : CompletionProvider<CompletionParameters>() {
+    private object Provider : CompletionProvider<CompletionParameters>() {
         override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext, result: CompletionResultSet) {
             val position = parameters.position
             val previous = PsiTreeUtil.prevVisibleLeaf(position)?.node?.elementType
             if (previous == HglTypes.DOT || previous == HglTypes.COLONCOLON) return
 
+            if (addCallbackLabels(position, result)) return
             for (word in contextKeywords(position, previous)) {
                 result.addElement(LookupElementBuilder.create(word).bold())
             }
+        }
+
+        /** Returns true when the existing colon makes this a label-only position. */
+        private fun addCallbackLabels(position: PsiElement, result: CompletionResultSet): Boolean {
+            val argument = position.parentOfType<HglArgument>() ?: return false
+            val named = argument.namedArgument
+            val label = named?.memberName
+                ?: (argument.expr as? HglReferenceExpr)?.qualifiedName?.identList?.singleOrNull()
+                ?: return false
+            if (argument.ellipsis != null || !PsiTreeUtil.isAncestor(label, position, false)) return false
+
+            val arguments = argument.parent as? HglArguments ?: return false
+            val signature = arguments.callbackType() ?: return false
+            var positional = 0
+            val usedNames = mutableSetOf<String>()
+            for (sibling in arguments.argumentList) {
+                if (sibling == argument || sibling.ellipsis != null) continue
+                val used = sibling.namedArgument?.memberName
+                when {
+                    used != null -> usedNames.add(used.text)
+                    sibling.textOffset < argument.textOffset -> positional++
+                    else -> return named != null // EXPR-2: positional arguments must precede labels.
+                }
+            }
+            for (parameter in signature.functionTypeParameterList.drop(positional)) {
+                val name = parameter.name ?: continue
+                if (name in usedNames) continue
+                result.addElement(
+                    LookupElementBuilder.create(parameter, name)
+                        .withIcon(HglPresentation.iconOf(parameter))
+                        .withTailText(": ", true)
+                        .withTypeText(parameter.type?.text, true)
+                        .withInsertHandler { context, _ -> insertLabel(context) },
+                )
+            }
+            return named != null
+        }
+
+        private fun insertLabel(context: InsertionContext) {
+            // Enter can leave the untyped suffix of an existing identifier in the document.
+            val tail = context.tailOffset
+            val identifierEnd = context.offsetMap.getOffset(CompletionInitializationContext.IDENTIFIER_END_OFFSET)
+            if (identifierEnd > tail) context.document.deleteString(tail, identifierEnd)
+            context.commitDocument()
+            val named = context.file.findElementAt(context.startOffset)?.parentOfType<HglNamedArgument>()
+            val caret = if (named?.memberName?.textOffset == context.startOffset) {
+                var offset = named.colon.textRange.endOffset
+                val text = context.document.charsSequence
+                while (offset < text.length && (text[offset] == ' ' || text[offset] == '\t')) offset++
+                offset
+            } else {
+                context.document.insertString(tail, ": ")
+                tail + 2
+            }
+            context.editor.caretModel.moveToOffset(caret)
+            if (context.completionChar == ':') context.setAddCompletionChar(false)
         }
 
         private fun inArrowExpression(position: PsiElement): Boolean {

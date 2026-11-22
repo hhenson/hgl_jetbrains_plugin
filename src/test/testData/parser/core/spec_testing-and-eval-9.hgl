@@ -1,0 +1,10 @@
+module examples.eval_source
+
+fn emit_two(const first: i64) -> i64 {
+    yield 1s: first
+    yield 1s: first + 1
+}
+
+test source_trace {
+    assert eval emit_two(first: 7) == [1s: 7, 2s: 8]
+}
