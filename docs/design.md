@@ -109,6 +109,14 @@ in an IDE Run configuration.
 | `application demo.backtest` | `hgl run --application demo.backtest --target cpp` |
 | `test prices` or `integration_test prices` in module `demo.feed` | `hgl test --test demo.feed::prices --target cpp` |
 
+The Project and editor-tab menus offer separate ordinary and integration test
+actions. Each saves the selected file or recursive folder and its test kind
+in a rerunnable configuration. The compiler reads all configured roots for
+imports. `--test-path` selects cases by source location when the selection
+covers part of the program. A folder above multiple roots selects the roots
+it contains. `--integration-only` selects integration tests and their rejection
+cases. The IDE displays the compiler's outcomes in the same test tree as a gutter run.
+
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
 rejection cases in the supplied roots.
@@ -171,6 +179,8 @@ CI pins the compiler independently and exercises both IDEs with the native hgrap
 Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
 tests locally. Both IDEs build the starter and verify that its compilation database
 includes the module and application. CLion also imports both generated C++ units.
+Set `HGL_TEST_SCOPE_CLI` to run the file and folder selection cases against a compiler
+with `--test-path` and `--integration-only`.
 
 ## Performance baseline
 

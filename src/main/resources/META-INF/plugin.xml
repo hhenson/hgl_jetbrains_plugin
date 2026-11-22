@@ -50,6 +50,7 @@
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
         <directoryProjectGenerator implementation="io.github.hhenson.hgl.project.HglProjectGenerator"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglTestType"/>
+        <configurationType implementation="io.github.hhenson.hgl.run.HglScopedTestType"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglApplicationType"/>
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglTestProducer"/>
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglApplicationProducer"/>
@@ -61,6 +62,16 @@
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglImplementationIndex"/>
     </extensions>
     <actions>
+        <action id="HGL.RunTests" class="io.github.hhenson.hgl.run.HglRunTestsAction"
+                text="Run HGL Tests" description="Run ordinary tests in this HGL file or folder" icon="AllIcons.RunConfigurations.TestState.Run">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
+        </action>
+        <action id="HGL.RunIntegrationTests" class="io.github.hhenson.hgl.run.HglRunIntegrationTestsAction"
+                text="Run HGL Integration Tests" description="Run integration tests in this HGL file or folder" icon="AllIcons.RunConfigurations.TestState.Run">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
+        </action>
         <action id="HGL.Build" class="io.github.hhenson.hgl.project.HglBuildAction"
                 text="Build HGL Project" description="Build HGL and index the generated C++ in CLion"
                 icon="AllIcons.Actions.Compile">

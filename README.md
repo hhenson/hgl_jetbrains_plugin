@@ -99,6 +99,14 @@ projects.
 
 ## Run an HGL application or test
 
+Right-click an HGL file or folder in the **Project** window, or right-click an
+HGL editor tab. Choose **Run HGL Tests** for ordinary tests or **Run HGL
+Integration Tests** for integration tests. A folder includes its subfolders.
+Both actions open **Test Results**. Rerun keeps the selected path and test kind.
+
+A selection within a source root requires `hgl test --test-path`.
+Integration-only runs require `hgl test --integration-only`.
+
 Click the gutter triangle beside an `application` header, a named `test`,
 or an `integration_test`. For `application demo.backtest`, the IDE runs
 `hgl run --application demo.backtest` with the configured roots. The Run
