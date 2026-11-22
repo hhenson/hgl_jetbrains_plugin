@@ -75,6 +75,14 @@ invocation failure via stderr, which the IDE shows in a project notification.
 Only exits 0 and 1 carry JSON reports. An unsupported report version also
 raises a project notification.
 
+## New projects
+
+CLion and RustRover use the same directory project generator. It copies the
+bundled module and application into `src/`, creates empty `build/` and
+`bin/` directories, and opens the application. Tests live alongside the
+code they exercise. The runner and diagnostics use `src/` as their sole
+source root. Creating the files requires no compiler.
+
 ## Application and test execution
 
 The gutter marks the `application` keyword or the name of a test.

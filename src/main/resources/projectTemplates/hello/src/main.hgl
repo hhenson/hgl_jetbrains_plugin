@@ -1,0 +1,4 @@
+application hello.main
+use hello::{greeting}
+
+eval greeting()

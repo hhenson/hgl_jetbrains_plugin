@@ -34,6 +34,15 @@ Install `build/distributions/hgl-jetbrains-plugin-0.9.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
+## Create an HGL project
+
+Choose **New Project → HGL**, select a directory, and click **Create**.
+In `src/main.hgl`, click **Run** beside `application hello.main` to publish
+`"Hello, world!"` once. In `src/hello.hgl`, the inline test `says_hello`
+sits beside `greeting` and runs from its own gutter. The project also
+includes empty `build/` and `bin/` directories for build output and executables.
+Both actions use the compiler configured under **HGL Test Runner**.
+
 ## Code documentation
 
 Hover over a declaration or a resolved name to see its written signature and

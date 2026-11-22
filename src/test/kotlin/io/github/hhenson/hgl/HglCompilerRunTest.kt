@@ -5,10 +5,12 @@ import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.openapi.components.service
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
+import io.github.hhenson.hgl.run.HglRunGutter
 import io.github.hhenson.hgl.run.HglRunConfiguration
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
@@ -77,6 +79,34 @@ class HglCompilerRunTest : HglEditorFixture() {
                 assertEquals(listOf("1970-01-01T00:00:01.000001Z  $value",
                     "ran demo.$name.backtest on cpp: 1 publication"), output.stdout.trim().lines())
             }
+        } finally {
+            settings.loadState(before)
+        }
+    }
+
+    fun testNewProjectRunsHelloWorldAndItsTestFromTheGutter() {
+        val root = VfsUtil.findFileByIoFile(File(project.basePath!!), true)!!
+        val settings = project.service<HglTestSettings>()
+        val before = settings.state
+        try {
+            settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI")))
+            val starter = hglStarter()
+            starter.generateProject(project, root, starter.createPeer().settings, module)
+
+            fun runAt(path: String, token: String): ProcessOutput {
+                myFixture.configureFromExistingVirtualFile(root.findFileByRelativePath(path)!!)
+                val leaf = myFixture.file.findElementAt(myFixture.file.text.indexOf(token))!!
+                assertNotNull(HglRunGutter().getInfo(leaf))
+                return runInConsole(runConfigurationAt(leaf))
+            }
+
+            val app = runAt("src/main.hgl", "application")
+            assertEquals(app.stderr, 0, app.exitCode)
+            assertEquals(listOf("1970-01-01T00:00:00.000001Z  \"Hello, world!\"",
+                "ran hello.main on cpp: 1 publication"), app.stdout.trim().lines())
+            val test = runAt("src/hello.hgl", "says_hello")
+            assertEquals(test.stdout + test.stderr, 0, test.exitCode)
+            assertTrue(test.stdout, Regex("passed\\s+executable\\s+hello::says_hello").containsMatchIn(test.stdout))
         } finally {
             settings.loadState(before)
         }
