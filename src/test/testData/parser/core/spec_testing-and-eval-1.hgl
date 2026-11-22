@@ -1,0 +1,14 @@
+module examples.replay_ticks
+
+fn count_publications(value: i64) -> i64 {
+    state count: i64 = 0
+    when {
+        count += 1
+        return count
+    }
+}
+
+test replay_preserves_equal_ticks {
+    assert eval count_publications(value: [7, _, 7, 7]) ==
+        [1, _, 2, 3]
+}

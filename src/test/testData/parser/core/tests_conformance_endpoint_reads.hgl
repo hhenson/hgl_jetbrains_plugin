@@ -1,0 +1,234 @@
+module conformance part endpoint_reads
+
+fn see_bound_slot(pair: list<i64, 2>, slot: i64, read_value: bool) -> i64 {
+    when {
+        let entry = pair[slot]
+        if read_value { return entry }
+        if valid(entry) { return 1 }
+        return 0
+    }
+}
+
+fn bound_slot(position: i64, reading: i64, slot: i64, read_value: bool) -> i64 =>
+    see_bound_slot(set_one_position(position, reading), slot, read_value)
+
+/**
+A binding without a type holds an endpoint until a use requires its value.
+Position 0 publishes 3 and position 1 stays unset. The metadata branch
+observes both positions. The value branch reads 3 or raises
+`value.unset_read` at the read of position 1.
+
+:Rules: TIME-1, ERR-14, END-8, CEVAL-6
+:Status: agreed
+*/
+test a_binding_holds_a_dynamic_child_endpoint {
+    assert eval bound_slot(
+        position:   [    0,     _,    _],
+        reading:    [    3,     _,    _],
+        slot:       [    0,     1,    0],
+        read_value: [false, false, true],
+    ) ==            [    1,     0,    3]
+    assert raises("value.unset_read") {
+        eval bound_slot(position: [0, _], reading: [3, _], slot: [0, 1], read_value: [false, true])
+    }
+}
+
+fn read_bound_slot_as_forms(pair: list<i64, 2>, slot: i64) -> tuple<i64?, str> {
+    when {
+        let entry = pair[slot]
+        let nullable: i64? = entry
+        let checked: result<i64, error> = entry
+        return (nullable, outcome_code(checked))
+    }
+}
+
+fn bound_slot_forms(position: i64, reading: i64, slot: i64) -> tuple<i64?, str> =>
+    read_bound_slot_as_forms(set_one_position(position, reading), slot)
+
+/**
+Each use of a bound endpoint chooses its own read form.
+The valid child gives a value and `ok`. The unset child gives null in the
+nullable form and `err` coded `value.unset_read` in the result form.
+
+:Rules: TIME-1, ERR-14, ERR-15, END-8
+:Status: agreed
+*/
+test a_bound_child_is_read_in_the_form_of_each_use {
+    assert eval bound_slot_forms(
+        position: [0, _, _],
+        reading:  [3, _, _],
+        slot:     [0, 1, 0],
+    ) == [(3, "ok"), (null, "value.unset_read"), (3, "ok")]
+}
+
+fn read_slot_delta_as_nullable(pair: list<i64, 2>, slot: i64) -> i64? {
+    when {
+        let change: i64? = delta_value(pair[slot])
+        return change
+    }
+}
+
+fn slot_delta_as_nullable(position: i64, reading: i64, slot: i64) -> i64? =>
+    read_slot_delta_as_nullable(set_one_position(position, reading), slot)
+
+/**
+A nullable delta read gives null when the selected child has no delta this cycle.
+Position 0 publishes 3. The next read of it sees its retained value but no
+delta. Position 1 stays unset until the last cycle, when it publishes 9.
+
+:Rules: TIME-1, ERR-14, TYPE-16, END-3, END-8
+:Status: agreed
+*/
+test a_nullable_child_delta_read_observes_only_the_current_cycle {
+    assert eval slot_delta_as_nullable(
+        position: [0,    _,    _, 1],
+        reading:  [3,    _,    _, 9],
+        slot:     [0,    0,    1, 1],
+    ) ==          [3, null, null, 9]
+}
+
+fn nullable_gap_read(values: list<i64>) -> bool {
+    when {
+        let read: list<i64>? = values
+        return read == null
+    }
+}
+
+fn gap_read_is_null(reading: i64) -> bool => nullable_gap_read(extend_with_gap(reading))
+
+/**
+A whole read of a growing list into a nullable place gives null when an
+`i64` position holds no value. An update beyond the end leaves a gap.
+
+:Rules: TIME-1, ERR-14, TYPE-16, END-8
+:Status: agreed
+*/
+test a_whole_list_with_a_gap_reads_as_null {
+    assert eval gap_read_is_null(reading: [0, _, 5]) == [false, _, true]
+}
+
+fn nullable_window_read(readings: rolling_window<i64, 3, 2>) -> bool {
+    when {
+        let read: list<i64>? = readings
+        return read == null
+    }
+}
+
+fn window_read_is_null(reading: i64) -> bool => nullable_window_read(collect_readings(reading))
+
+/**
+A nullable read of a window gives null below its minimum.
+The second publication meets the minimum and makes the whole value readable.
+
+:Rules: TYPE-11, ERR-14, END-9
+:Status: agreed
+*/
+test a_window_below_its_minimum_reads_as_null {
+    assert eval window_read_is_null(reading: [1, 2]) == [true, false]
+}
+
+fn publish_tuple_book(step: i64) -> dict<str, tuple<i64, i64>> {
+    when {
+        if step == 0 { return ["ready": (7, 8)] }
+        let unset: delta<tuple<i64, i64>> = (null, null)
+        if step == 1 { return delta<dict<str, tuple<i64, i64>>>(updated: ["unset": unset]) }
+        let partial: delta<tuple<i64, i64>> = (3, null)
+        if step == 2 { return delta<dict<str, tuple<i64, i64>>>(updated: ["partial": partial]) }
+        let finish: delta<tuple<i64, i64>> = (null, 4)
+        return delta<dict<str, tuple<i64, i64>>>(updated: ["partial": finish])
+    }
+}
+
+# The probe triggers a read even if the wholly unset entry publishes no value.
+fn read_tuple_book(probe: i64, book: dict<str, tuple<i64, i64>>) -> dict<str, tuple<i64, i64>> {
+    when modified(probe) && valid(book) { return book }
+}
+
+fn tuple_book_value(step: i64) -> dict<str, tuple<i64, i64>> =>
+    read_tuple_book(step, publish_tuple_book(step))
+
+/**
+A whole dictionary read omits a wholly unset entry and fails for a partly valid one.
+The ready entry keeps the dictionary valid. The empty tuple delta leaves
+its entry wholly unset. Setting one position of another entry makes
+that entry valid and incomplete, so the whole read raises.
+
+:Rules: TIME-1, ERR-14, END-8, CEVAL-6
+:Status: agreed
+*/
+test a_whole_dictionary_distinguishes_unset_and_partial_entries {
+    assert eval tuple_book_value(step: [0, 1]) == [["ready": (7, 8)], ["ready": (7, 8)]]
+    assert raises("value.unset_read") {
+        eval tuple_book_value(step: [0, 1, 2])
+    }
+}
+
+fn read_tuple_book_as_nullable(probe: i64, book: dict<str, tuple<i64, i64>>) -> bool {
+    when modified(probe) && valid(book) {
+        let read: dict<str, tuple<i64, i64>>? = book
+        return read == null
+    }
+}
+
+fn tuple_book_is_null(step: i64) -> bool => read_tuple_book_as_nullable(step, publish_tuple_book(step))
+
+/**
+A partly valid entry makes a whole dictionary read give null in the nullable form.
+The wholly unset entry allows a value, as does the completed entry.
+
+:Rules: TIME-1, ERR-14, ERR-15, END-8
+:Status: agreed
+*/
+test a_partial_dictionary_whole_reads_as_null {
+    assert eval tuple_book_is_null(step: [0, 1, 2, 3]) == [false, false, true, false]
+}
+
+fn read_tuple_book_as_result(probe: i64, book: dict<str, tuple<i64, i64>>) -> str {
+    when modified(probe) && valid(book) {
+        let read: result<dict<str, tuple<i64, i64>>, error> = book
+        if is_ok(read) { return "ok" }
+        let code = read.error.code
+        if code == null { return "no code" }
+        return code
+    }
+}
+
+fn tuple_book_result(step: i64) -> str => read_tuple_book_as_result(step, publish_tuple_book(step))
+
+/**
+A partly valid entry makes a whole dictionary read give `err` in the result form.
+The wholly unset entry and the completed entry allow `ok`. The partial
+entry gives `err` coded `value.unset_read`.
+
+:Rules: TIME-1, ERR-14, ERR-15, END-8
+:Status: agreed
+*/
+test a_partial_dictionary_whole_reads_as_err {
+    assert eval tuple_book_result(step: [0, 1, 2, 3]) == ["ok", "ok", "value.unset_read", "ok"]
+}
+
+fn read_tuple_entry_as_nullable(book: dict<str, tuple<i64, i64>>, key: str) -> tuple<bool, bool> {
+    when {
+        let read: tuple<i64, i64>? = book[key]
+        return (valid(book[key]), read == null)
+    }
+}
+
+fn nullable_tuple_entry_state(step: i64, key: str) -> tuple<bool, bool> =>
+    read_tuple_entry_as_nullable(publish_tuple_book(step), key)
+
+/**
+A tuple child read whole into a nullable place requires all its positions.
+Each observation reports the entry's validity and whether the read is null.
+The wholly unset entry is invalid and the partial entry is valid. Both read
+as null until the partial entry's second position arrives.
+
+:Rules: TIME-1, ERR-14, END-8
+:Status: agreed
+*/
+test a_partial_tuple_entry_reads_as_null {
+    assert eval nullable_tuple_entry_state(
+        step: [0, 1, 2, 3],
+        key: ["ready", "unset", "partial", "partial"],
+    ) == [(true, false), (false, true), (true, true), (true, false)]
+}

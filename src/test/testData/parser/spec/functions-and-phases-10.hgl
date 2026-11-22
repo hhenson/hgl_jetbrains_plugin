@@ -20,6 +20,10 @@ const fn six() -> i64 => apply(scale, 3)
 
 const fn seven() -> f64 => apply_to(scale, 3.5)
 
+const fn widened(f: const fn(i64) -> f64, x: i64) -> f64 => f(x)
+
+const fn eight() -> f64 => widened(convert<f64>, 8)
+
 fn smoothed(price: f64) -> f64 {
     state last: f64 = 0.0
     when {

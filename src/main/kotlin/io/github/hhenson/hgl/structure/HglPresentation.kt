@@ -10,6 +10,7 @@ import io.github.hhenson.hgl.psi.HglConstantDecl
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglForBinding
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglFunctionTypeParameter
 import io.github.hhenson.hgl.psi.HglFunctionSignature
 import io.github.hhenson.hgl.psi.HglGenericParameter
 import io.github.hhenson.hgl.psi.HglImportItem
@@ -40,7 +41,7 @@ object HglPresentation {
         is HglOperatorDecl -> AllIcons.Nodes.AbstractMethod
         is HglTestDecl -> AllIcons.Nodes.Test
         is HglTestContext -> AllIcons.Nodes.TestGroup
-        is HglParameter, is HglConfigurationParameter, is HglAnonymousParameter -> AllIcons.Nodes.Parameter
+        is HglParameter, is HglFunctionTypeParameter, is HglConfigurationParameter, is HglAnonymousParameter -> AllIcons.Nodes.Parameter
         is HglGenericParameter -> AllIcons.Nodes.Type
         is HglLocalDecl, is HglForBinding -> AllIcons.Nodes.Variable
         is HglStateDecl, is HglCacheDecl, is HglNativeProperty, is HglStructMember -> AllIcons.Nodes.Field
@@ -71,7 +72,7 @@ object HglPresentation {
             else -> "parameter"
         }
         is HglConfigurationParameter -> "configuration parameter"
-        is HglAnonymousParameter -> "parameter"
+        is HglAnonymousParameter, is HglFunctionTypeParameter -> "parameter"
         is HglGenericParameter -> if (element.node.findChildByType(io.github.hhenson.hgl.psi.HglTypes.CONST_KW) != null) "const generic" else "type parameter"
         is HglLocalDecl -> if (element.varKw != null) "var" else "let"
         is HglForBinding -> "loop binding"

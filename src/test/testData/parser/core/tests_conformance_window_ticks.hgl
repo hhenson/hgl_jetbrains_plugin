@@ -272,6 +272,27 @@ test a_window_of_a_duration_has_no_delta_where_a_value_only_leaves {
     ]
 }
 
+fn nullable_recent_arrival(readings: rolling_window<i64, 3us, 1us>) -> i64? {
+    when modified(readings) { return delta_value(readings) }
+}
+
+fn observe_nullable_recent_arrival(reading: i64) -> i64? =>
+    nullable_recent_arrival(collect_recent(reading))
+
+/**
+A nullable duration-window delta is null at an exit without an arrival.
+The readings of 1 and 2 arrive at 0us and 1us. At 4us the 1 leaves and
+the reader publishes null. At 5us the 2 leaves as the 3 arrives, and the
+reader publishes the arrival. The quiet cycles at 2us and 3us are silent.
+
+:Rules: TYPE-11, TYPE-16, ERR-14, END-3, END-9
+:Status: agreed
+*/
+test a_nullable_duration_window_delta_shows_arrivals_and_exits {
+    assert eval{length: 6us} observe_nullable_recent_arrival(reading: [1, 2, _, _, _, 3]) ==
+        [1, 2, _, _, null, 3]
+}
+
 fn held_at_tick(readings: rolling_window<i64, 3us, 0s>) -> list<i64> {
     when modified(readings) {
         if all_valid(readings) { return readings }

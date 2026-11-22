@@ -16,6 +16,7 @@ import io.github.hhenson.hgl.psi.HglEnumMember
 import io.github.hhenson.hgl.psi.HglFieldExpr
 import io.github.hhenson.hgl.psi.HglForBinding
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglFunctionTypeParameter
 import io.github.hhenson.hgl.psi.HglGenericParameter
 import io.github.hhenson.hgl.psi.HglIdent
 import io.github.hhenson.hgl.psi.HglImportItem
@@ -82,7 +83,7 @@ class HglAnnotator : Annotator {
             is HglEnumDecl, is HglNativeTypeDecl -> HglColors.STRUCT_NAME
             is HglStructDecl -> if (owner.nameIdentifier === name) HglColors.STRUCT_NAME else null
             is HglTestDecl -> HglColors.TEST_NAME
-            is HglParameter, is HglConfigurationParameter, is HglAnonymousParameter -> HglColors.PARAMETER
+            is HglParameter, is HglFunctionTypeParameter, is HglConfigurationParameter, is HglAnonymousParameter -> HglColors.PARAMETER
             is HglGenericParameter -> HglColors.TYPE_PARAMETER
             is HglLocalDecl, is HglForBinding -> HglColors.LOCAL_VARIABLE
             is HglStateDecl, is HglCacheDecl -> HglColors.STATE_VARIABLE
@@ -126,7 +127,7 @@ class HglAnnotator : Annotator {
             is HglEnumMember, is HglNativeProperty, is HglConstantDecl -> HglColors.FIELD
             is HglFunctionDecl, is HglNativeFunctionDecl -> HglColors.FUNCTION_CALL
             is HglOperatorDecl -> HglColors.FUNCTION_CALL
-            is HglParameter, is HglConfigurationParameter, is HglAnonymousParameter -> HglColors.PARAMETER
+            is HglParameter, is HglFunctionTypeParameter, is HglConfigurationParameter, is HglAnonymousParameter -> HglColors.PARAMETER
             is HglGenericParameter -> HglColors.TYPE_PARAMETER
             is HglLocalDecl, is HglForBinding -> HglColors.LOCAL_VARIABLE
             is HglStateDecl, is HglCacheDecl -> HglColors.STATE_VARIABLE

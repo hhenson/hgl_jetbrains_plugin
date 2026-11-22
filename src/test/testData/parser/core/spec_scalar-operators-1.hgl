@@ -1,0 +1,22 @@
+module examples.equality
+
+struct Point {
+    x: f64
+    y: f64
+}
+
+abstract struct Shape {}
+
+struct Tagged<T> : Shape {
+    tag: T
+}
+
+const fn same(lhs: Shape, rhs: Shape) -> bool => lhs == rhs
+
+test equality {
+    assert Point(x: 1.0, y: 2.0) == Point(x: 1.0, y: 2.0)
+    let odd = Point(x: 0.0 / 0.0, y: 0.0)
+    assert odd != odd
+    assert [odd.x] != [odd.x]
+    assert !same(Tagged(tag: 1), Tagged(tag: 1.0))
+}

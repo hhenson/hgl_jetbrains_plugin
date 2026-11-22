@@ -1,0 +1,22 @@
+module examples.diagnostics
+
+fn mid(bid: f64, ask: f64) -> f64 {
+    debug_print("quote {:.2f} / {:.2f}", bid, ask)
+    let value = (bid + ask) / 2.0
+    debug_print("{engine_time} mid {*value:.3f}", value: value)
+    return value
+}
+
+fn watched(book: dict<str, f64>, beat: signal) -> dict<str, f64> {
+    debug_print{trigger: beat, print_delta: false}("book {}", book)
+    return book
+}
+
+fn counted(value: i64) -> i64 {
+    state seen: i64 = 0
+    when {
+        seen += 1
+        debug_print("tick {} is {}", seen, value)
+        return seen
+    }
+}

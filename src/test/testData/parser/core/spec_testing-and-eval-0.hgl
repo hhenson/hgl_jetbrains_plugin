@@ -1,0 +1,9 @@
+module examples.eval_scalar
+
+fn copy_tick(value: i64) -> i64 {
+    when { return value }
+}
+
+test scalar_trace {
+    assert eval copy_tick(value: [7, _, 7]) == [7, _, 7]
+}
