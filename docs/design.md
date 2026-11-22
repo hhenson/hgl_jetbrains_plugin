@@ -182,11 +182,17 @@ breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and 
 frames to the HGL file.
 
 A test configuration passes its Run selectors to `hgl test --debug-build DIR`.
-The compiler returns an ordered list of module launches and any skipped cases.
-The IDE starts each executable under LLDB with the supplied arguments and
-environment. It reads the module’s results file at exit. Terminal outcomes
-allow the next launch, including after an assertion failure. A partial record
-ends the group. The temporary build lives until the group finishes.
+Exit 0 returns the module launches in execution order and lists skipped cases.
+A failed compiler-checked rejection returns exit 1 with a plan. The IDE reports
+each failed rejection and its diagnostic, then runs the executable cases.
+Source or native build errors return empty stdout and diagnostics on stderr.
+The build error ends the debug request.
+
+For a usable plan, LLDB starts each executable with the supplied arguments
+and environment. Debug launches omit integration test deadlines. The IDE
+reads the module’s results file at exit. Terminal outcomes allow the next
+launch, including after an assertion failure. A partial record ends the
+group. The temporary build lives until the group finishes.
 
 ## Validation
 
@@ -204,8 +210,9 @@ for a single file and a recursive folder with dependencies in another root.
 A rejection owned by an integration test appears only in the integration run.
 Set `HGL_TEST_DEBUG_CLI` to a compiler supporting the version 1 test launch
 plan. Both IDEs check LLDB stops on the HGL assertion line for named, module
-and project selections of each test kind. They also exercise Continue and
-Stop across module boundaries.
+and project selections of each test kind. They check Step Over between HGL
+assertions, the reported source line after a failed rejection or assertion,
+and Continue and Stop across module boundaries.
 
 ## Performance baseline
 

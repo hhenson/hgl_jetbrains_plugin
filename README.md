@@ -134,7 +134,9 @@ Application debugging requires `hgl run --debug-build`. Test debugging requires
 `hgl test --debug-build`. Use **Debug** on a named test or on a suite
 configuration. A selection spanning modules opens one LLDB session per module,
 in order. Continue after a breakpoint to proceed. Stop cancels the remaining
-modules. The IDE reports failures and skipped cases.
+modules. Integration test timeouts are suspended while debugging. A failed
+compiler-checked rejection appears with its diagnostic. Other executable tests
+still run.
 
 On macOS the plugin
 uses Apple's LLDB adapter from the active developer tools. Run

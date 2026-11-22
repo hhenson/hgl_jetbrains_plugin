@@ -24,6 +24,38 @@ class HglDebugPlanTest : TestCase() {
         } catch (_: ExecutionException) { }
     }
 
+    fun testFailedCompilerChecksPreserveDiagnosticsAndOtherLaunches() {
+        val skipped = """{"name":"demo::skipped","reason":"unavailable"}"""
+        val failed = """{"name":"demo::missing","reason":"line 8\nexpected type.mismatch","status":"failed"}"""
+        val launch = """{"module":"demo","executable":"host","arguments":[],"workingDirectory":".","environment":{},"tests":["demo::ok"],"resultsFile":"results"}"""
+        for (launches in listOf("", launch)) {
+            val report = """{"version":1,"launches":[$launches],"skipped":[$skipped,$failed]}"""
+            val plan = HglDebugPlan.fromBuild(1, report, "", true)
+            assertEquals(listOf("demo::missing: line 8\nexpected type.mismatch"), plan.failed)
+            assertEquals(listOf("demo::skipped: unavailable"), plan.skipped)
+            assertEquals(if (launches.isEmpty()) emptyList() else listOf("demo::ok"), plan.launches.flatMap { it.tests })
+        }
+    }
+
+    fun testUnusableBuildsDoNotLaunch() {
+        val empty = """{"version":1,"launches":[],"skipped":[]}"""
+        fun error(code: Int, stdout: String, stderr: String, testRun: Boolean = true): String {
+            try {
+                HglDebugPlan.fromBuild(code, stdout, stderr, testRun)
+            } catch (e: ExecutionException) {
+                return e.message.orEmpty()
+            }
+            throw AssertionError("Accepted an unusable build")
+        }
+        assertEquals("file.hgl:4: source error", error(1, "", "file.hgl:4: source error"))
+        assertEquals("native build failed", error(2, empty, "native build failed"))
+        assertEquals("application failed", error(1, empty, "application failed", testRun = false))
+        assertEquals("old application diagnostic", error(1, "old application diagnostic", "", testRun = false))
+        assertTrue(error(1, empty, "").contains("without a failed case"))
+        assertTrue(error(1, "invalid", "").contains("Invalid debug launch"))
+        assertTrue(error(2, "", "unexpected argument '--debug-build'").contains("requires a compiler"))
+    }
+
     fun testOnlyTerminalResultsAdvanceTheGroup() {
         val tests = listOf("prices::a", "prices::b")
         val partial = listOf("start 0", "passed 0", "start 1", "passed 8", "garbage")

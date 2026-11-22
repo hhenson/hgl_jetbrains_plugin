@@ -6,6 +6,7 @@ import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.execution.ui.RunContentManager
 import com.intellij.notification.Notification
+import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
@@ -82,7 +83,7 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
             env.runner.execute(env)
             val hits = mutableSetOf<String>()
             val sessions = mutableSetOf<com.intellij.xdebugger.XDebugSession>()
-            val expectedReports = modules.map { "Passed all HGL tests in $it" }
+            val expectedReports = modules.map { "Passed executable HGL tests in $it" }
             PlatformTestUtil.waitWithEventsDispatching("Missing assertion stop or result for ${config.name}", {
                 for (session in manager.debugSessions.filter { it.isSuspended }) {
                     val pos = session.suspendContext?.activeExecutionStack?.topFrame?.sourcePosition ?: continue
@@ -119,6 +120,81 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
         } finally {
             manager.debugSessions.forEach { it.stop() }
             WriteCommandAction.runWriteCommandAction(project) { breaks.values.forEach(manager.breakpointManager::removeBreakpoint) }
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        }
+    }
+
+    fun testStepAcrossAssertionsAfterCompilerCheckedFailure() {
+        VfsRootAccess.allowRootAccess(testRootDisposable, "/usr/include")
+        val dir = Files.createDirectory(Path.of(project.basePath!!, "src"))
+        val path = dir.resolve("verdicts.hgl")
+        Files.writeString(path, """
+            module verdicts
+            integration_test missing_error {
+                # expect-error(type, "type.mismatch")
+                assert true
+            }
+            @timeout(100ms)
+            integration_test paused {
+                assert true
+                assert false
+            }
+            integration_test subsequent { assert true }
+        """.trimIndent())
+        val source = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
+        PsiTestUtil.addContentRoot(module, source.parent)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_DEBUG_CLI")), null)
+        val errors = CopyOnWriteArrayList<Notification>()
+        project.messageBus.connect(testRootDisposable).subscribe(Notifications.TOPIC, object : Notifications {
+            override fun notify(notification: Notification) {
+                if (notification.groupId == "HGL compiler" && notification.type == NotificationType.ERROR) errors.add(notification)
+            }
+        })
+        val manager = XDebuggerManager.getInstance(project)
+        val type = XDebuggerUtil.getInstance().findBreakpointType(HglLineBreakpoint::class.java)
+        val breakpoint = WriteCommandAction.writeCommandAction(project).compute<XLineBreakpoint<*>, RuntimeException> {
+            manager.breakpointManager.addLineBreakpoint(type, source.url, 7, null)
+        }
+        val executor = DefaultDebugExecutor.getDebugExecutorInstance()
+        try {
+            val config = HglScopedTestConfiguration(project, HglScopedTestType()).apply {
+                allModules = true
+                integrationOnly = true
+                testPath = "."
+            }
+            val env = ExecutionEnvironmentBuilder.create(executor, config).build()
+            env.runner.execute(env)
+            PlatformTestUtil.waitWithEventsDispatching("Missing assertion breakpoint", {
+                manager.debugSessions.any { it.isSuspended && it.currentPosition?.file == source && it.currentPosition?.line == 7 }
+            }, 90)
+            val session = manager.debugSessions.single { it.isSuspended }
+            val rejection = errors.single { it.title == "Failed HGL rejection cases" }.content
+            assertTrue(rejection, "verdicts::missing_error" in rejection && "type.mismatch on line 4" in rejection)
+            // Hold the first assertion beyond the integration test's wall-clock limit.
+            val heldUntil = System.nanoTime() + 250_000_000L
+            PlatformTestUtil.waitWithEventsDispatching("Hold integration breakpoint", { System.nanoTime() >= heldUntil }, 3)
+            WriteCommandAction.runWriteCommandAction(project) { breakpoint.isEnabled = false }
+            session.stepOver(false)
+            PlatformTestUtil.waitWithEventsDispatching("Step Over missed the next HGL assertion", {
+                val position = session.suspendContext?.activeExecutionStack?.topFrame?.sourcePosition
+                if (!session.isSuspended || position == null) false
+                else {
+                    assertEquals("Step Over left the HGL source", source, position.file)
+                    position.line == 8
+                }
+            }, 15)
+            session.resume()
+            PlatformTestUtil.waitWithEventsDispatching("Missing completed module result", {
+                errors.any { it.title == "HGL test failures in verdicts" }
+            }, 15)
+            val failure = errors.single { it.title == "HGL test failures in verdicts" }.content
+            assertTrue(failure, "verdicts::paused: failed 9 " in failure)
+            assertFalse(failure, "timed out" in failure)
+            assertFalse(failure, "subsequent" in failure)
+            RunContentManager.getInstance(project).removeRunContent(executor, session.runContentDescriptor)
+        } finally {
+            manager.debugSessions.forEach { it.stop() }
+            WriteCommandAction.runWriteCommandAction(project) { manager.breakpointManager.removeBreakpoint(breakpoint) }
             PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         }
     }
@@ -178,12 +254,12 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
                 WriteCommandAction.runWriteCommandAction(project) { breaks[i].isEnabled = false }
                 session.resume()
                 PlatformTestUtil.waitWithEventsDispatching("Module did not finish", { session.isStopped }, 30)
-                val message = if (i == 0) "HGL test failures in alpha" else "Passed all HGL tests in beta"
+                val message = if (i == 0) "HGL test failures in alpha" else "Passed executable HGL tests in beta"
                 PlatformTestUtil.waitWithEventsDispatching("Missing outcome: $message", { message in messages }, 15)
                 RunContentManager.getInstance(project).removeRunContent(executor, session.runContentDescriptor)
             }
             PlatformTestUtil.waitWithEventsDispatching("Missing module outcomes $messages", {
-                "HGL test failures in alpha" in messages && "Passed all HGL tests in beta" in messages
+                "HGL test failures in alpha" in messages && "Passed executable HGL tests in beta" in messages
             }, 15)
 
             messages.clear()

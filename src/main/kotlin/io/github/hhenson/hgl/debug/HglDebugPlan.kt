@@ -12,23 +12,45 @@ internal data class HglDebugLaunch(
     val resultsFile: Path? = null,
 )
 
-internal data class HglDebugPlan(val launches: List<HglDebugLaunch>, val skipped: List<String>) {
+internal data class HglDebugPlan(
+    val launches: List<HglDebugLaunch>,
+    val skipped: List<String>,
+    val failed: List<String>,
+) {
     companion object {
+        fun fromBuild(exitCode: Int, stdout: String, stderr: String, testRun: Boolean): HglDebugPlan {
+            if (exitCode == 0) return parse(stdout, testRun)
+            if (testRun && exitCode == 1 && stdout.isNotBlank()) {
+                val plan = parse(stdout, true)
+                if (plan.failed.isNotEmpty()) return plan
+                throw ExecutionException(stderr.trim().ifEmpty { "HGL test debug build exited 1 without a failed case." })
+            }
+            val message = if (testRun) stderr else stderr.ifBlank { stdout }
+            val diagnostic = message.trim().ifEmpty { "HGL debug build exited with code $exitCode." }
+            if (testRun && "unexpected argument '--debug-build'" in diagnostic) {
+                throw ExecutionException("Debug Tests requires a compiler with hgl test --debug-build.\n$diagnostic")
+            }
+            throw ExecutionException(diagnostic)
+        }
+
         fun parse(report: String, testRun: Boolean): HglDebugPlan {
             try {
                 val data = JsonParser.parseString(report).asJsonObject
                 if (data["version"]?.asInt != 1) throw ExecutionException("Unsupported HGL debug launch version.")
-                if (!testRun) return HglDebugPlan(listOf(HglDebugLaunch(arguments(data))), emptyList())
+                if (!testRun) return HglDebugPlan(listOf(HglDebugLaunch(arguments(data))), emptyList(), emptyList())
                 val launches = data["launches"].asJsonArray.map {
                     val launch = it.asJsonObject
                     HglDebugLaunch(arguments(launch), launch["module"].asString,
                         launch["tests"].asJsonArray.map { name -> name.asString }, Path.of(launch["resultsFile"].asString))
                 }
-                val skipped = data["skipped"].asJsonArray.map {
-                    val item = it.asJsonObject
-                    "${item["name"].asString}: ${item["reason"].asString}"
+                val skipped = mutableListOf<String>()
+                val failed = mutableListOf<String>()
+                for (entry in data["skipped"].asJsonArray) {
+                    val item = entry.asJsonObject
+                    val outcomes = if (item["status"]?.asString == "failed") failed else skipped
+                    outcomes.add("${item["name"].asString}: ${item["reason"].asString}")
                 }
-                return HglDebugPlan(launches, skipped)
+                return HglDebugPlan(launches, skipped, failed)
             } catch (error: RuntimeException) {
                 throw ExecutionException("Invalid debug launch description from the HGL compiler.", error)
             }

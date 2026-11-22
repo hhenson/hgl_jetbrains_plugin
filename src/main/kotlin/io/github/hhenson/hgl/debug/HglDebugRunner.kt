@@ -1,6 +1,5 @@
 package io.github.hhenson.hgl.debug
 
-import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.configurations.RunnerSettings
@@ -62,21 +61,17 @@ class HglDebugRunner : AsyncProgramRunner<RunnerSettings>() {
                 }
                 val build = CapturingProcessHandler(command).runProcessWithProgressIndicator(indicator)
                 indicator.checkCanceled()
-                if (build.exitCode != 0) {
-                    val diagnostic = build.stderr.ifBlank { build.stdout }.trim()
-                    if (testRun && "unexpected argument '--debug-build'" in diagnostic) {
-                        throw ExecutionException("Debug Tests requires a compiler with hgl test --debug-build.\n$diagnostic")
-                    }
-                    throw ExecutionException(diagnostic)
-                }
-                plan = HglDebugPlan.parse(build.stdout, testRun)
+                plan = HglDebugPlan.fromBuild(build.exitCode, build.stdout, build.stderr, testRun)
             }
 
             override fun onSuccess() {
+                if (plan.failed.isNotEmpty()) notice(environment, "Failed HGL rejection cases", plan.failed, NotificationType.ERROR)
                 if (plan.skipped.isNotEmpty()) notice(environment, "Skipped HGL debug cases", plan.skipped, NotificationType.WARNING)
                 val workspace = requireNotNull(directory)
                 if (plan.launches.isEmpty() || environment.project.isDisposed) {
-                    if (plan.launches.isEmpty() && plan.skipped.isEmpty()) notice(environment, "No HGL tests selected", emptyList())
+                    if (plan.launches.isEmpty() && plan.skipped.isEmpty() && plan.failed.isEmpty()) {
+                        notice(environment, "No HGL tests selected", emptyList())
+                    }
                     clean(workspace)
                     result.setResult(null)
                 } else launch(environment, Sequence(workspace, plan.launches), result)
@@ -139,7 +134,7 @@ class HglDebugRunner : AsyncProgramRunner<RunnerSettings>() {
                 outcomes.failures, NotificationType.WARNING)
             outcomes.failures.isNotEmpty() -> notice(environment, "HGL test failures in ${current.module}",
                 outcomes.failures, NotificationType.ERROR)
-            else -> notice(environment, "Passed all HGL tests in ${current.module}", emptyList())
+            else -> notice(environment, "Passed executable HGL tests in ${current.module}", emptyList())
         }
         val next = sequence.index + 1
         if (!outcomes.complete || next == sequence.launches.size) {
@@ -163,7 +158,7 @@ class HglDebugRunner : AsyncProgramRunner<RunnerSettings>() {
         fun clean(path: Path) { AppExecutorUtil.getAppExecutorService().execute { NioFiles.deleteRecursively(path) } }
         fun notice(env: ExecutionEnvironment, title: String, details: List<String>, type: NotificationType = NotificationType.INFORMATION) {
             NotificationGroupManager.getInstance().getNotificationGroup("HGL compiler").createNotification(
-                StringUtil.escapeXmlEntities(title), details.joinToString("<br>") { StringUtil.escapeXmlEntities(it) }, type,
+                StringUtil.escapeXmlEntities(title), details.joinToString("<br>") { StringUtil.escapeXmlEntities(it).replace("\n", "<br>") }, type,
             ).notify(env.project)
         }
     }
