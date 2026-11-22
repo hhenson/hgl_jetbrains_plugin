@@ -1,5 +1,6 @@
 package io.github.hhenson.hgl
 
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
@@ -9,6 +10,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import io.github.hhenson.hgl.documentation.HglGenerateDocs
+import io.github.hhenson.hgl.project.HglBuild
 import io.github.hhenson.hgl.project.HglBuildFile
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
@@ -93,6 +95,37 @@ class HglCompilerRunTest : HglEditorFixture() {
         } finally {
             settings.loadState(before)
         }
+    }
+
+    fun testGenerateDocsPreservesAnUnmarkedSiteAndRegeneratesInAFreshDirectory() {
+        val root = FileUtil.createTempDirectory("hgl docs", null, true)
+        val source = root.resolve("guide.hgl")
+        source.writeText("module guide\nexport const fn greeting() -> str => \"Hello\"\n")
+        val existing = root.resolve("legacy").apply { mkdir() }
+        existing.resolve("index.html").writeText("old site")
+        existing.resolve("documentation.json").writeText("old model")
+        val settings = project.service<HglBuildFile>()
+        val build = HglBuild(compiler = requireNotNull(System.getenv("HGL_TEST_CLI")),
+            sourceRoots = listOf(source.path), docsDir = existing.path)
+        settings.save(build, null)
+        try {
+            HglGenerateDocs.generate(project, null, EmptyProgressIndicator())
+            fail("An unmarked site's files must be preserved")
+        } catch (error: ExecutionException) {
+            assertTrue(error.message.orEmpty(), error.message.orEmpty().contains("documentation output"))
+        }
+        assertEquals("old site", existing.resolve("index.html").readText())
+        assertEquals("old model", existing.resolve("documentation.json").readText())
+
+        val output = root.resolve("reference")
+        settings.save(build.copy(docsDir = output.path), build)
+        val index = HglGenerateDocs.generate(project, null, EmptyProgressIndicator()).toFile()
+        assertEquals(output.resolve("index.html"), index)
+        output.resolve("notes.txt").writeText("keep")
+        assertEquals(index, HglGenerateDocs.generate(project, null, EmptyProgressIndicator()).toFile())
+        assertTrue(index.isFile)
+        assertTrue(output.resolve("documentation.json").readText().contains("greeting"))
+        assertEquals("keep", output.resolve("notes.txt").readText())
     }
 
     fun testNewProjectRunsHelloWorldAndItsTestFromTheGutter() {

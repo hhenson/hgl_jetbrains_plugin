@@ -56,6 +56,8 @@ runner settings until they save shared build settings.
 
 Click **Generate HGL Documentation** on the main toolbar or in **Build**.
 Choose **Open documentation** in the completion notification to read the site.
+For an older, unmarked site, set **Documentation directory** to a fresh
+directory before generating. Subsequent runs update that site in place.
 The equivalent compiler commands for the starter are:
 
 ```sh

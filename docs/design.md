@@ -90,7 +90,9 @@ keeps compiler and documentation overrides and the check-on-save switch.
 Run and Test pass `buildDir` to the compiler's `--keep` option. The current
 compiler places executables in that workspace. `binDir` records the intended
 standalone binary destination. Generate HGL Documentation invokes `hgl doc`
-for HTML and JSON under `docsDir`. The editor reads the generated JSON model.
+for HTML first, then JSON under `docsDir`. The compiler claims an empty
+directory for the site and manages subsequent HTML updates. If HTML generation
+fails, the action stops before writing the IDE’s JSON model.
 
 ## Application and test execution
 
