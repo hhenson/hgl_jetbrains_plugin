@@ -64,6 +64,14 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         assertEquals(listOf("!= U", "!= 0", "!= 1"), relations.map { it.text })
     }
 
+    fun testLoopMadeListInAConstantArgument() {
+        accepted("""
+            module demo.offsets
+            fn first(const values: list<i64>) -> i64 { yield 0s: values[0] }
+            fn wired() -> i64 => first([for i in 2..<4: i])
+        """)
+    }
+
     fun testToleranceConfigurationInBothOperatorSpellings() {
         val file = accepted("""
             module demo.tolerance

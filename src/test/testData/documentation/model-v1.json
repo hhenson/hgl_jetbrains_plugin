@@ -119,6 +119,13 @@
                 "text": "CRUN-3",
                 "entries": []
               }
+            ],
+            "examples": [
+              {
+                "code": "assert smallest_step == 1us\nassert earliest_start - never == smallest_step\n",
+                "position": 1,
+                "runnable": true
+              }
             ]
           },
           "genericParameters": [],
@@ -131,6 +138,142 @@
           "type": "duration",
           "default": null,
           "value": "1us",
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        }
+      ]
+    },
+    {
+      "name": "demo.documentation_examples",
+      "application": false,
+      "parts": [
+        {
+          "name": null,
+          "source": {
+            "module": "demo.documentation_examples",
+            "part": null,
+            "file": "doc_examples.hgl",
+            "line": 11,
+            "column": 8
+          },
+          "documentation": {
+            "text": "Documentation examples for this module.\n\nExamples:\n    > ~~~hgl\n    > let label = \"\"\"\n    >café\n    > \"\"\"\n    > assert label == \"café\"\n    > ~~~",
+            "summary": "Documentation examples for this module.",
+            "sections": [
+              {
+                "heading": "Examples:",
+                "recognized": true,
+                "text": "> ~~~hgl\n> let label = \"\"\"\n>café\n> \"\"\"\n> assert label == \"café\"\n> ~~~",
+                "entries": []
+              }
+            ],
+            "examples": [
+              {
+                "code": "let label = \"\"\"\ncafé\n\"\"\"\nassert label == \"café\"\n",
+                "position": 1,
+                "runnable": true
+              }
+            ]
+          }
+        }
+      ],
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "twice",
+          "canonicalName": "demo.documentation_examples::twice",
+          "role": "value",
+          "exported": true,
+          "source": {
+            "module": "demo.documentation_examples",
+            "part": null,
+            "file": "doc_examples.hgl",
+            "line": 56,
+            "column": 17
+          },
+          "documentation": {
+            "text": "Doubles a value.\n\n```hgl\nThis displayed fragment is deliberately not HGL.\n```\n\nExamples:\n    ```hgl\n    fn local_node(value: i64) -> i64 {\n        when { return value + 1 }\n    }\n\n    assert private_twice(3) == 6\n    assert eval local_node(value: [1, _, 3]) == [2, _, 4]\n    ```\n\n    ~~~hgl no-run\n    This displayed fragment is also deliberately not HGL.\n    ~~~\n\n    ~~~hgl\n    fn local_node(value: i64) -> i64 {\n        when { return value + 2 }\n    }\n\n    assert eval local_node(value: [1, _, 3]) == [3, _, 5]\n    assert eval doubling_graph(value: [2, _, 4]) == [4, _, 8]\n    ~~~\n\nArgs:\n    value: ```hgl\n        assert shown_entry_only",
+            "summary": "Doubles a value.",
+            "sections": [
+              {
+                "heading": null,
+                "recognized": false,
+                "text": "```hgl\nThis displayed fragment is deliberately not HGL.\n```",
+                "entries": []
+              },
+              {
+                "heading": "Examples:",
+                "recognized": true,
+                "text": "```hgl\nfn local_node(value: i64) -> i64 {\n    when { return value + 1 }\n}\n\nassert private_twice(3) == 6\nassert eval local_node(value: [1, _, 3]) == [2, _, 4]\n```\n\n~~~hgl no-run\nThis displayed fragment is also deliberately not HGL.\n~~~\n\n~~~hgl\nfn local_node(value: i64) -> i64 {\n    when { return value + 2 }\n}\n\nassert eval local_node(value: [1, _, 3]) == [3, _, 5]\nassert eval doubling_graph(value: [2, _, 4]) == [4, _, 8]\n~~~",
+                "entries": []
+              },
+              {
+                "heading": "Args:",
+                "recognized": true,
+                "text": "value: ```hgl\n    assert shown_entry_only",
+                "entries": [
+                  {
+                    "key": "value",
+                    "text": "```hgl\n    assert shown_entry_only"
+                  }
+                ]
+              }
+            ],
+            "examples": [
+              {
+                "code": "This displayed fragment is deliberately not HGL.\n",
+                "position": null,
+                "runnable": false
+              },
+              {
+                "code": "fn local_node(value: i64) -> i64 {\n    when { return value + 1 }\n}\n\nassert private_twice(3) == 6\nassert eval local_node(value: [1, _, 3]) == [2, _, 4]\n",
+                "position": 1,
+                "runnable": true
+              },
+              {
+                "code": "This displayed fragment is also deliberately not HGL.\n",
+                "position": 2,
+                "runnable": false
+              },
+              {
+                "code": "fn local_node(value: i64) -> i64 {\n    when { return value + 2 }\n}\n\nassert eval local_node(value: [1, _, 3]) == [3, _, 5]\nassert eval doubling_graph(value: [2, _, 4]) == [4, _, 8]\n",
+                "position": 3,
+                "runnable": true
+              },
+              {
+                "code": "    assert shown_entry_only",
+                "position": null,
+                "runnable": false
+              }
+            ]
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "value",
+              "type": "i64",
+              "written": "value: i64",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "i64",
+            "written": "-> i64",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
           "abstractStruct": false,
           "members": [],
           "candidates": []
@@ -748,6 +891,13 @@
                 "recognized": true,
                 "text": "~~~hgl\nassert false\n~~~",
                 "entries": []
+              }
+            ],
+            "examples": [
+              {
+                "code": "assert false\n",
+                "position": 1,
+                "runnable": true
               }
             ]
           },

@@ -1,6 +1,9 @@
-operator scaled<L, R, O>(lhs: L, rhs: R) -> O
+export enum Zero { ieee, nan, error }
 
-impl const fn scaled(lhs: f64, rhs: f64, exact: bool = false) -> f64 =>
-    lhs * rhs
+operator ratio<L, R, O>(lhs: L, rhs: R) -> O
 
-impl const fn scaled(lhs: str, rhs: i64) -> str => lhs * rhs
+native impl fn ratio<const zero: Zero = .ieee>(lhs: f64, rhs: f64) -> f64
+    requires zero in {.ieee, .nan}
+
+native impl fn ratio<const zero: Zero>(lhs: f64, rhs: f64) -> result<f64, error>
+    requires zero == .error

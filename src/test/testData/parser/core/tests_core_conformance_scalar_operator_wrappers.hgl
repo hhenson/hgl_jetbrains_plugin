@@ -74,18 +74,18 @@ test mixed_equality_forwards_tolerances {
     let real: f64 = 3.125
     assert eq_(integer, real) == false
     assert eq_(real, integer) == false
-    assert eq_(integer, real, abs: 0.2) == true
-    assert eq_(real, integer, abs: 0.2) == true
-    assert ne_(integer, real, abs: 0.2) == false
-    assert ne_(real, integer, abs: 0.2) == false
-    assert eq_(integer, real, rel: 0.05) == true
-    assert eq_(real, integer, rel: 0.05) == true
-    assert ne_(integer, real, rel: 0.05) == false
-    assert ne_(real, integer, rel: 0.05) == false
-    assert eq_(integer, real, abs: 0.01, rel: 0.01) == false
-    assert eq_(real, integer, abs: 0.01, rel: 0.01) == false
-    assert ne_(integer, real, abs: 0.01, rel: 0.01) == true
-    assert ne_(real, integer, abs: 0.01, rel: 0.01) == true
+    assert eq_{abs: 0.2}(integer, real) == true
+    assert eq_{abs: 0.2}(real, integer) == true
+    assert ne_{abs: 0.2}(integer, real) == false
+    assert ne_{abs: 0.2}(real, integer) == false
+    assert eq_{rel: 0.05}(integer, real) == true
+    assert eq_{rel: 0.05}(real, integer) == true
+    assert ne_{rel: 0.05}(integer, real) == false
+    assert ne_{rel: 0.05}(real, integer) == false
+    assert eq_{abs: 0.01, rel: 0.01}(integer, real) == false
+    assert eq_{abs: 0.01, rel: 0.01}(real, integer) == false
+    assert ne_{abs: 0.01, rel: 0.01}(integer, real) == true
+    assert ne_{abs: 0.01, rel: 0.01}(real, integer) == true
 }
 
 # NUM-5: NaN remains unequal and the signs of zero do not affect equality.

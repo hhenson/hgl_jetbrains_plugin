@@ -23,6 +23,7 @@ import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
 import io.github.hhenson.hgl.run.HglRunGutter
 import io.github.hhenson.hgl.run.HglRunConfiguration
+import io.github.hhenson.hgl.run.HglTestType
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
 
@@ -64,6 +65,41 @@ class HglCompilerRunTest : HglEditorFixture() {
                 assertTrue(output.stdout, cases.single().trimStart().startsWith(expected, ignoreCase = true))
                 assertEquals(output.stdout + output.stderr, case != "broken", output.exitCode == 0)
             }
+        } finally {
+            settings.loadState(before)
+        }
+    }
+
+    fun testRunDocumentationExampleFromItsPrintedSelector() {
+        val root = FileUtil.createTempDirectory("hgl doc examples", null, true)
+        root.resolve("case.hgl").writeText("""
+            /** Checks for this part.
+            Examples:
+                ~~~hgl no-run
+                shown
+                ~~~
+                ~~~hgl
+                assert true
+                ~~~
+            */
+            module checkout.suite part checks
+            test unrelated { assert false }
+        """.trimIndent())
+        val settings = project.service<HglTestSettings>()
+        val before = settings.state
+        try {
+            settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), root.path))
+            val config = HglTestType().createTemplateConfiguration(project)
+            config.selector = "checkout.suite::[part checks]#example-2"
+            val output = runInConsole(config) { view ->
+                val tree = view.resultsViewer.testsRootNode
+                PlatformTestUtil.waitWithEventsDispatching("missing documentation test result", {
+                    tree.isFinal && tree.children.isNotEmpty()
+                }, 10)
+                assertEquals(config.selector, tree.children.single().name)
+                assertTrue(tree.children.single().isPassed)
+            }
+            assertEquals(output.stdout + output.stderr, 0, output.exitCode)
         } finally {
             settings.loadState(before)
         }

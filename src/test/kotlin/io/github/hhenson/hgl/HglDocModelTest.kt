@@ -150,6 +150,36 @@ class HglDocModelTest : HglEditorFixture() {
         assertNull(handler.resolveLink(target, "hgl-doc:missing"))
     }
 
+    fun testSourceAndExportLabelExecutableDocumentationExamples() {
+        val exported = HglDocModel.read(model).declarations("demo.documentation_examples::twice").single()
+        val html = docHtml("twice", exported.sections, false) { false }
+        assertEquals(2, "Runnable example".toRegex().findAll(html).count())
+        assertTrue(html, html.contains("Shown example</p>\n<pre><code class=\"language-hgl\">This displayed fragment"))
+
+        val sections = docSections("""
+            ~~~hgl
+            shown
+            ~~~
+
+            Examples:
+                > ~~~hgl
+                > assert true
+                > ~~~
+
+                ~~~hgl no-run
+                shown only
+                ~~~
+
+                ~~~rust
+                other language
+                ~~~
+        """.trimIndent())
+        val source = docHtml("sample", sections, false) { false }
+        assertEquals(1, "Runnable example".toRegex().findAll(source).count())
+        assertEquals(2, "Shown example".toRegex().findAll(source).count())
+        assertTrue(source, source.contains("<blockquote>"))
+    }
+
     fun testOptionsRulesAndStatusAreRecognized() {
         val docs = docSections("Options:\n    - One.\nRules:\n    GEN-3.\nStatus:\n    Agreed.")
         assertEquals(listOf("Options:", "Rules:", "Status:"), docs.filter { it.recognized }.map { it.heading })

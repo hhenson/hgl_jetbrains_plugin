@@ -124,17 +124,17 @@ native impl const fn floordiv_<const zero: ZeroPolicy = .fail>(lhs: duration, rh
 native impl const fn floordiv_<const zero: ZeroPolicy>(lhs: duration, rhs: duration) -> result<i64, error>
     requires zero == .error
 
-# OPS-2: `==` and `!=` compare two values of one type. NUM-4: numbers
+# OPS-2: `==` and `!=` compare two values of one type. NUM-4 and NUM-11: numbers
 # compare exactly, an `i64` with an `f64` included, or within the tolerances
-# `abs` and `rel`, each zero unless given.
+# configured by `abs` and `rel`, each zero unless given.
 native impl const fn eq_<T>(lhs: T, rhs: T) -> bool
-native impl const fn eq_(lhs: i64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
-native impl const fn eq_(lhs: f64, rhs: f64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
-native impl const fn eq_(lhs: i64, rhs: f64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
+native impl const fn eq_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: i64, rhs: i64) -> bool
+native impl const fn eq_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: f64, rhs: f64) -> bool
+native impl const fn eq_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: i64, rhs: f64) -> bool
 native impl const fn ne_<T>(lhs: T, rhs: T) -> bool
-native impl const fn ne_(lhs: i64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
-native impl const fn ne_(lhs: f64, rhs: f64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
-native impl const fn ne_(lhs: i64, rhs: f64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool
+native impl const fn ne_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: i64, rhs: i64) -> bool
+native impl const fn ne_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: f64, rhs: f64) -> bool
+native impl const fn ne_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: i64, rhs: f64) -> bool
 
 # OPS-2: two zoned datetimes are equal by instant and zone name, or with
 # `utc` by instant alone.

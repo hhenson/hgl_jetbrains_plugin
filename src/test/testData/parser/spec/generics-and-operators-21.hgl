@@ -1,9 +1,13 @@
-export enum Zero { ieee, nan, error }
+operator tick<V>(value: V) -> V
 
-operator ratio<L, R, O>(lhs: L, rhs: R) -> O
+impl fn tick(value: i64) -> i64 {
+    when { return value }
+}
 
-native impl fn ratio<const zero: Zero = .ieee>(lhs: f64, rhs: f64) -> f64
-    requires zero in {.ieee, .nan}
+impl const fn tick(value: f64) -> f64 => value
 
-native impl fn ratio<const zero: Zero>(lhs: f64, rhs: f64) -> result<f64, error>
-    requires zero == .error
+operator pass<T>(a: T) -> T
+
+impl fn pass<T>(a: T) -> T requires tick(T) -> T => tick(a)
+
+fn reals(x: f64) -> f64 => pass(x)

@@ -2063,16 +2063,19 @@ Args:
 Options:
     - `abs`: an `f64`, the absolute tolerance of a comparison of two
       numbers. 0.0 when none is given. Written `a =={abs: 0.01} b`, or
-      `eq_(a, b, abs: 0.01)`.
+      `eq_{abs: 0.01}(a, b)`.
     - `rel`: an `f64`, the tolerance relative to the larger size of the
-      two numbers. 0.0 when none is given. Written `a =={rel: 1e-9} b`.
+      two numbers. 0.0 when none is given. Written `a =={rel: 1e-9} b`,
+      or `eq_{rel: 1e-9}(a, b)`.
     - `utc`: a `bool` for two `zoned_datetime` values: true compares
       their instants alone. False when none is given. Written
-      `a =={utc: true} b`.
+      `a =={utc: true} b`, or `eq_(a, b, utc: true)`.
 
     A tolerance is finite and not below zero; any other is an HGL error.
-    An option is a value: in a graph it binds when the graph is built and
-    is no input, and a connection given to one is rejected.
+    Both tolerances are configuration parameters. A graph binds them
+    when it is built and rejects a connection given to either one. In
+    value code and runtime hooks, they are values for the current call.
+    `utc` is an ordinary parameter and can receive a lifted input.
 
 Returns:
     True where the two are equal.
@@ -2110,7 +2113,7 @@ Examples:
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert nan != nan
     assert 1.0 != 1.005 && 1.0 =={abs: 0.01} 1.005
-    assert eq_(1.0, 1.005, rel: 0.01)
+    assert eq_{rel: 0.01}(1.0, 1.005)
 
     assert "bid" == "bid" && true == true && 60s == 1m
     assert @2026-09-03T09:30Z == @2026-09-03T09:30Z
@@ -2165,9 +2168,14 @@ Args:
 
 Options:
     - `abs`, `rel`: the tolerances of two numbers, as for `eq_`. Written
-      `a !={abs: 0.01} b`.
+      `a !={abs: 0.01} b`, or `ne_{abs: 0.01}(a, b)`.
     - `utc`: for two `zoned_datetime` values, as for `eq_`. Written
-      `a !={utc: true} b`.
+      `a !={utc: true} b`, or `ne_(a, b, utc: true)`.
+
+    Both tolerances are configuration parameters. A graph binds them
+    when it is built and rejects a connection given to either one. In
+    value code and runtime hooks, they are values for the current call.
+    `utc` is an ordinary parameter and can receive a lifted input.
 
 Returns:
     True where the two are not equal.
@@ -2196,7 +2204,7 @@ Examples:
     ~~~
 
 Rules:
-    OPS-2, NUM-4, NUM-5, NUM-6, TYPE-2, FN-6, FN-11
+    OPS-2, NUM-4, NUM-5, NUM-6, NUM-11, EXPR-14, TYPE-2, FN-6, FN-11
 */
 export operator ne_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2889,11 +2897,11 @@ impl const fn mul_(lhs: i64, rhs: duration) -> duration => mul_(rhs, lhs)
 impl const fn mul_(lhs: f64, rhs: duration) -> duration => mul_(rhs, lhs)
 impl const fn mul_(lhs: i64, rhs: str) -> str => mul_(rhs, lhs)
 
-# NUM-2, NUM-4, NUM-5: preserve the integer's type and both tolerances.
-impl const fn eq_(lhs: f64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool =>
-    eq_(rhs, lhs, abs: abs, rel: rel)
-impl const fn ne_(lhs: f64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool =>
-    ne_(rhs, lhs, abs: abs, rel: rel)
+# NUM-2, NUM-4, NUM-5, NUM-11: preserve the integer's type and tolerances.
+impl const fn eq_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: f64, rhs: i64) -> bool =>
+    eq_{abs: abs, rel: rel}(rhs, lhs)
+impl const fn ne_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: f64, rhs: i64) -> bool =>
+    ne_{abs: abs, rel: rel}(rhs, lhs)
 
 # OPS-9: the required option keeps these candidates out of unconfigured calls.
 # The requirements name value operations; a runtime body calls those candidates.

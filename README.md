@@ -78,7 +78,13 @@ the summary from its `/** ... */` comment. **View → Quick Documentation**
 shows the full comment, including HGL sections such as `Args:`, `Returns:`
 and `Examples:`. Hover over a parameter, a named call argument, or a generic
 to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
-and tables. Fenced formulas and diagrams display their source.
+and tables. Quick Documentation labels HGL fences under `Examples:` as
+**Runnable example**. It labels `hgl no-run` fences and HGL fences elsewhere
+as **Shown example**. Fenced formulas and diagrams display their source.
+
+To run one documentation example, paste its printed name, such as
+`demo::Box.value#example-1`, into an **HGL Test** run configuration with
+the project’s source roots.
 
 For modules outside the project, use a version 1 `documentation.json` export.
 New projects read it from the configured documentation directory. Use **Documentation model override** in the HGL build settings for another file. Generate it with the compiler’s JSON format:

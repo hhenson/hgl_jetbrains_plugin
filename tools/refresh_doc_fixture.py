@@ -10,10 +10,10 @@ compiler = parser.parse_args().compiler.resolve()
 fixtures = compiler / "crates/hgl_cli/tests/fixtures"
 export = subprocess.check_output([
     compiler / "target/debug/hgl", "doc", fixtures / "doc", fixtures / "test_local_declarations.hgl",
-    "--format", "json", "--private",
+    fixtures / "doc_examples.hgl", "--format", "json", "--private",
 ])
 model = json.loads(export)
-names = {"core::smallest_step", "examples.apidoc::Box", "examples.apidoc::Side",
+names = {"demo.documentation_examples::twice", "core::smallest_step", "examples.apidoc::Box", "examples.apidoc::Side",
          "examples.apidoc::identity", "examples.apidoc::shifted", "examples.apidoc::internal",
          "demo.test_local_declarations::classify", "demo.test_local_declarations::local_candidate::classify",
          "demo.test_local_declarations::with_a_type::Closed",

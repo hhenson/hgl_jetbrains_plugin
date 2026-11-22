@@ -1,9 +1,5 @@
-const fn less<T>(a: T, b: T) -> bool requires T in {i64, f64} => a < b
+operator applied<V>(f: fn(V) -> V, x: V) -> V
 
-operator kind_of<V>(value: V) -> i64
+impl const fn applied(f: const fn(i64) -> i64, x: i64) -> i64 => f(x)
 
-impl const fn kind_of(value: i64) -> i64 => 1
-
-impl const fn kind_of<T>(value: T) -> i64 requires !(T == i64) => 2
-
-const fn wrap<U>(value: U) -> i64 requires kind_of(U) -> i64 => kind_of(value)
+impl fn applied(f: fn(i64) -> i64, x: i64) -> i64 => f(x)

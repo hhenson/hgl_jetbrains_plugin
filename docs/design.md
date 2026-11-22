@@ -38,6 +38,9 @@ module or the core prelude. The chooser shows typed signatures and file paths.
 Editor offsets and PSI elements share one documentation target. Hover reads
 the written signature and summary. Quick Documentation groups SDOC-3 sections
 and renders CommonMark with tables (SDOC-7). Raw HTML is displayed as text.
+An `hgl` fence under `Examples:` is labeled as runnable (SDOC-9). An
+`hgl no-run` fence or an HGL fence outside that section is labeled as shown.
+The same Markdown renderer handles source and exported documentation.
 Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
@@ -55,7 +58,7 @@ A bundled `<core>/` location is a display name. Exported comments use their
 own module for links. The model does not record imports or call-site bindings.
 
 CI regenerates the JSON fixture from the pinned compiler’s documentation and
-test-local declaration examples. A private export qualifies a test-local name
+test-local declarations and runnable examples. A private export qualifies a test-local name
 with its owning test. An operator’s candidate list includes implementations
 declared at module scope, including those in importing modules. Named
 constructor arguments select the struct's field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
@@ -112,6 +115,10 @@ in an IDE Run configuration.
 | --- | --- |
 | `application demo.backtest` | `hgl run --application demo.backtest --target cpp` |
 | `test prices` or `integration_test prices` in module `demo.feed` | `hgl test --test demo.feed::prices --target cpp` |
+
+The HGL Test configuration accepts the CLI’s documentation example identities,
+including module and part headers, members and numbered overloads. Each
+selector is passed to `--test` as one argument.
 
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import

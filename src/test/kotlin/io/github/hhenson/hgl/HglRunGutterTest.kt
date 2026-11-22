@@ -38,6 +38,19 @@ class HglRunGutterTest : HglEditorFixture() {
         }
     }
 
+    fun testPrintedDocumentationExampleSelectorsAreSingleArguments() {
+        val config = runConfigurationAt(atCaret("module demo\ntest <caret>named { assert true }"))
+        for (owner in listOf("[module]", "[part prices]", "Box.value", "choose~2")) {
+            config.selector = "demo::$owner#example-3"
+            assertEquals(listOf("test", "--test", config.selector, "--target", "cpp", "--", config.sourcePath),
+                config.commandLine().parametersList.list)
+        }
+        for (invalid in listOf("demo::#example-1", "demo::choose#example-0", "demo::[part prices]")) {
+            config.selector = invalid
+            assertThrows(RuntimeConfigurationError::class.java) { config.checkConfiguration() }
+        }
+    }
+
     fun testApplicationHeaderHasOneActionAndUsesTheDeclaredPath() {
         val leaf = atCaret("<caret>application demo.east\n.backtest\neval ticks()")
         val marked = PsiTreeUtil.collectElements(myFixture.file) { marker.getInfo(it) != null }
