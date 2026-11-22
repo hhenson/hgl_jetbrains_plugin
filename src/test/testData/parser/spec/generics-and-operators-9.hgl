@@ -1,5 +1,5 @@
-operator maybe<X>(x: X) -> i64?
+operator first_of<T>(values: ...T{1:*}) -> T
 
-impl const fn maybe(x: i64) -> i64? => x
+operator pair_of<...Ts{2}>(values: ...Ts) -> str
 
-const fn required(value: i64) -> i64 => maybe(value)
+operator labelled<...Fields>(values: ...{Fields}{1:4}) -> str

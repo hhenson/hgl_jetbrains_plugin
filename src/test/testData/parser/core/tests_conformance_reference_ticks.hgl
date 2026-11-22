@@ -8,8 +8,11 @@ Switching a live key selection samples the new child and follows its publication
 Both prices exist before the switch. The proposed selection behavior makes
 the later A-only change silent after the reader switches to B.
 
-:Rules: TYPE-9, TYPE-16, EXPR-7, TIME-10
-:Status: proposed
+Rules:
+    TYPE-9, TYPE-16, EXPR-7, TIME-10
+
+Status:
+    proposed
 */
 test switching_keys_follows_the_new_child {
     assert eval selected_price(
@@ -43,8 +46,11 @@ publish in that cycle: the reader ticks with the 1 that input holds, and
 follows it. A later tick of the high input, left behind, does not reach
 the reader.
 
-:Rules: TIME-10, FN-16, END-10
-:Status: agreed
+Rules:
+    TIME-10, FN-16, END-10
+
+Status:
+    agreed
 */
 test a_reader_is_undisturbed_by_a_designation_given_again {
     assert eval follow_picked(
@@ -67,8 +73,11 @@ The flag picks the high input before it holds a value: the reader is
 silent until that input publishes 7. Picking the low input again ticks
 the reader with the 1 it holds.
 
-:Rules: TIME-10, FN-16, END-10
-:Status: agreed
+Rules:
+    TIME-10, FN-16, END-10
+
+Status:
+    agreed
 */
 test a_reader_waits_for_a_target_that_has_not_published {
     assert eval follow_picked(
@@ -84,8 +93,11 @@ An ordinary input given a `ref` result is not valid while the result's target ho
 a probe reads `valid(item)` in every cycle of the same run: it is false
 in the one cycle the high input is picked and has not published.
 
-:Rules: TIME-10, END-10
-:Status: agreed
+Rules:
+    TIME-10, END-10
+
+Status:
+    agreed
 */
 test a_reader_is_not_valid_while_its_target_holds_no_value {
     assert eval picked_is_valid(
@@ -106,8 +118,11 @@ The parameter is given a connection that first publishes in the third
 cycle. A reference is present from the first, so `valid(target)` is true
 throughout: nothing of the target is seen through the parameter.
 
-:Rules: TIME-10, FN-16, END-10
-:Status: agreed
+Rules:
+    TIME-10, FN-16, END-10
+
+Status:
+    agreed
 */
 test valid_of_a_ref_parameter_is_whether_a_reference_is_present {
     assert eval reference_is_present(
@@ -130,8 +145,11 @@ The node subscribes to its `ref` parameter and counts its wakes. It is
 woken where the parameter is given its designation, and not by the two
 later publications of the input designated.
 
-:Rules: TIME-10, TIME-3, FN-16, END-10
-:Status: agreed
+Rules:
+    TIME-10, TIME-3, FN-16, END-10
+
+Status:
+    agreed
 */
 test a_ref_parameter_does_not_wake_its_node_for_its_target {
     assert eval count_wakes(target: [1, 2, 3]) == [1, _, _]
@@ -150,8 +168,11 @@ The relay returns its parameter where the parameter is given a
 designation, so its reader moves from the low input to the high one in
 the cycle the flag picks it, and follows that input after.
 
-:Rules: FN-16, TIME-3, TIME-10, END-10
-:Status: agreed
+Rules:
+    FN-16, TIME-3, TIME-10, END-10
+
+Status:
+    agreed
 */
 test a_relay_subscribed_to_its_ref_parameter_follows_it {
     assert eval follow_followed(
@@ -181,8 +202,11 @@ Returning a ref parameter samples the target selected when the node runs.
 The selector changes to high at step two. The relay continues to forward
 low until the next take, when it selects high and reads its retained value.
 
-:Rules: FN-16, TIME-10, END-10
-:Status: agreed
+Rules:
+    FN-16, TIME-10, END-10
+
+Status:
+    agreed
 */
 test a_relay_samples_its_ref_parameter_when_it_runs {
     assert eval followed_sample(
@@ -204,8 +228,11 @@ does not. `idx` then selects element 2, which has not published: the
 reader is silent until it does. The last switch, to element 0, lands with
 that element's tick.
 
-:Rules: FN-16, TIME-1, TIME-3, TIME-10, END-10
-:Status: agreed
+Rules:
+    FN-16, TIME-1, TIME-3, TIME-10, END-10
+
+Status:
+    agreed
 */
 test a_ref_result_follows_the_element_it_designates {
     assert eval follow_routed_item(
@@ -225,8 +252,11 @@ A selected connection supplies its retained value when sampled later.
 Neither producer ticks during either switch. A probe observes the right
 producer's 20 and, after switching back, the left producer's newer 9.
 
-:Rules: TIME-1, TIME-3, CTRL-2, CTRL-13
-:Status: agreed
+Rules:
+    TIME-1, TIME-3, CTRL-2, CTRL-13
+
+Status:
+    agreed
 */
 test a_probe_reads_a_selected_producer_that_stayed_quiet {
     assert eval sample_selection(

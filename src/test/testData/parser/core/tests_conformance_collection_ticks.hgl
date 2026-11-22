@@ -18,8 +18,11 @@ Publishing a complete set replaces its previous membership.
 The successive sets are {1, 2}, {2, 3}, and {4, 5}. A lifted helper
 sums all current members, including the 2 shared by the first two sets.
 
-:Rules: TYPE-9, TIME-7, FN-12
-:Status: agreed
+Rules:
+    TYPE-9, TIME-7, FN-12
+
+Status:
+    agreed
 */
 test a_whole_set_replaces_the_previous_members {
     assert eval total_of_adjacent_members(first: [1, 2, _, 4]) == [3, 5, _, 9]
@@ -30,8 +33,11 @@ A lifted helper reads all current set members after an addition or removal.
 Adding 5 to {2, 3} keeps both old members. Removing 2 leaves {3, 5}.
 The replay uses the proposed set-delta publication profile.
 
-:Rules: TYPE-9, TYPE-16, CEVAL-3, FN-12
-:Status: proposed
+Rules:
+    TYPE-9, TYPE-16, CEVAL-3, FN-12
+
+Status:
+    proposed
 */
 test a_set_delta_changes_only_the_named_members {
     assert eval sum_members(members: [
@@ -62,8 +68,11 @@ A lifted helper runs on a valid empty list and on each subsequent snapshot.
 The first tick publishes an empty list. The next two snapshots are [1, 2]
 and [1, 5]. The intervening silence has no snapshot to process.
 
-:Rules: TIME-7, FN-6, FN-12
-:Status: agreed
+Rules:
+    TIME-7, FN-6, FN-12
+
+Status:
+    agreed
 */
 test lifting_observes_the_complete_list_including_empty {
     assert eval total_of_snapshot(reading: [null, 2, _, 5]) == [0, 3, _, 6]
@@ -83,8 +92,11 @@ A delta with only a smaller size shrinks the list.
 The list [1, 2, 3] is published whole, then a delta sets the size to 1
 without naming the dropped positions in `removed`. The helper sums [1].
 
-:Rules: TYPE-16, TIME-7, FN-12
-:Status: agreed
+Rules:
+    TYPE-16, TIME-7, FN-12
+
+Status:
+    agreed
 */
 test a_size_only_delta_shrinks_the_list {
     assert eval total_after_resize(size: [3, _, 1]) == [6, _, 1]
@@ -108,8 +120,11 @@ A retained list returned by a lifted helper keeps its earlier contents.
 Save [1, 2], then change the second reading to 7 and read the stored 2.
 Saving the latest result makes the last read return 7.
 
-:Rules: FN-12, FN-13, TIME-7
-:Status: agreed
+Rules:
+    FN-12, FN-13, TIME-7
+
+Status:
+    agreed
 */
 test a_retained_list_is_independent_of_later_input_changes {
     assert eval observe_saved_readings(
@@ -136,8 +151,11 @@ Each required child of a fixed list must be valid before a helper using both can
 The low endpoint arrives first. Publishing the high endpoint supplies the
 missing value. A later low tick reuses the retained high endpoint.
 
-:Rules: TYPE-9, TYPE-16, EXPR-7, FN-11
-:Status: agreed
+Rules:
+    TYPE-9, TYPE-16, EXPR-7, FN-11
+
+Status:
+    agreed
 */
 test fixed_list_children_become_readable_independently {
     assert eval span_of_pair(
@@ -158,8 +176,11 @@ A fixed list's delta reports each changed position in `updated`.
 Position 0 publishes 3, then position 1 publishes 8. Neither delta
 removes a position or changes the size.
 
-:Rules: TYPE-16, END-3
-:Status: agreed
+Rules:
+    TYPE-16, END-3
+
+Status:
+    agreed
 */
 test a_fixed_list_delta_reports_the_position_in_updated {
     assert eval pair_delta(
@@ -191,8 +212,11 @@ A projected struct field follows that child's publications.
 The ask changes by itself on the second cycle. The bid stays silent then
 and publishes when its own value changes on the third cycle.
 
-:Rules: TYPE-9, TYPE-16, EXPR-7
-:Status: agreed
+Rules:
+    TYPE-9, TYPE-16, EXPR-7
+
+Status:
+    agreed
 */
 test changing_a_sibling_field_does_not_publish_a_bid {
     assert eval bid_ticks(
@@ -212,8 +236,11 @@ A field projected from an atomic struct follows each whole-struct publication.
 Only the ask changes in the second quote. The complete quote wakes the
 projection, so the bid publishes 10 a second time.
 
-:Rules: TYPE-9, EXPR-7, END-5
-:Status: agreed
+Rules:
+    TYPE-9, EXPR-7, END-5
+
+Status:
+    agreed
 */
 test an_atomic_quote_wakes_its_bid_projection {
     assert eval atomic_bid_ticks(
@@ -236,8 +263,11 @@ Writing several struct fields in one evaluation produces one completed delta.
 The proposed struct publication behavior keeps the ask from the middle
 write and the final bid. The temporary bid of zero stays inside the producer.
 
-:Rules: TIME-2, TIME-7, TYPE-16, END-5
-:Status: proposed
+Rules:
+    TIME-2, TIME-7, TYPE-16, END-5
+
+Status:
+    proposed
 */
 test a_struct_delta_keeps_the_final_write_to_each_field {
     assert eval write_quote_fields(
@@ -269,8 +299,11 @@ A fixed list is valid once any position is valid.
 Position 0 publishes on the second cycle and position 1 on the fourth.
 The probe reads the list every cycle.
 
-:Rules: TIME-9, END-7
-:Status: agreed
+Rules:
+    TIME-9, END-7
+
+Status:
+    agreed
 */
 test a_fixed_list_is_valid_once_one_position_is {
     assert eval observe_pair_valid(
@@ -285,8 +318,11 @@ A fixed list is all valid only once every position is valid.
 The same stimulus as the previous case: the list is all valid from the
 fourth cycle, when position 1 publishes.
 
-:Rules: TIME-9, END-7
-:Status: agreed
+Rules:
+    TIME-9, END-7
+
+Status:
+    agreed
 */
 test a_fixed_list_is_all_valid_once_every_position_is {
     assert eval observe_pair_all_valid(
@@ -315,8 +351,11 @@ A struct is valid once any field is valid.
 The bid publishes on the second cycle and the ask on the fourth.
 The probe reads the struct every cycle.
 
-:Rules: TIME-9, END-7
-:Status: agreed
+Rules:
+    TIME-9, END-7
+
+Status:
+    agreed
 */
 test a_struct_is_valid_once_one_field_is {
     assert eval observe_quote_valid(
@@ -331,8 +370,11 @@ A struct is all valid only once every field is valid.
 The same stimulus as the previous case: the quote is all valid from the
 fourth cycle, when the ask publishes.
 
-:Rules: TIME-9, END-7
-:Status: agreed
+Rules:
+    TIME-9, END-7
+
+Status:
+    agreed
 */
 test a_struct_is_all_valid_once_every_field_is {
     assert eval observe_quote_all_valid(
@@ -363,8 +405,11 @@ A tuple is valid once one position is, and all valid once both are.
 Each delta sets one position: position 0 on the second cycle and
 position 1 on the fourth. Each tick is `[valid, all_valid]`.
 
-:Rules: TIME-9, END-7
-:Status: agreed
+Rules:
+    TIME-9, END-7
+
+Status:
+    agreed
 */
 test a_tuple_is_valid_once_one_position_is_and_all_valid_once_both_are {
     assert eval observe_part_validity(
@@ -384,8 +429,11 @@ The first input cell publishes the quote whole and the third its ask alone.
 Each expectation cell is written whole and is compared with the quote the
 result holds after its cycle.
 
-:Rules: TST-5, TST-9, TIME-7, TIME-9
-:Status: agreed
+Rules:
+    TST-5, TST-9, TIME-7, TIME-9
+
+Status:
+    agreed
 */
 test a_whole_struct_is_a_trace_cell {
     assert eval relay_quote(quote: [
@@ -408,8 +456,11 @@ A whole dictionary is a trace cell, and replaces the entries the input held.
 The third cell holds only the bid, so the ask is gone from the input and
 from the relayed result.
 
-:Rules: TST-5, TST-9, TIME-7, TIME-9
-:Status: agreed
+Rules:
+    TST-5, TST-9, TIME-7, TIME-9
+
+Status:
+    agreed
 */
 test a_whole_dictionary_is_a_trace_cell {
     assert eval relay_book(book: [
@@ -435,8 +486,11 @@ A read of a child that is not valid, at an index known only when it runs, fails.
 Position 0 alone publishes, as 3. Reading it gives 3; reading position 1,
 which has never published, fails the run with `value.unset_read`.
 
-:Rules: TIME-1, ERR-14, END-8, CEVAL-6
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, END-8, CEVAL-6
+
+Status:
+    agreed
 */
 test reading_an_invalid_child_at_a_runtime_index_fails {
     assert eval slot_of_pair(position: [0], reading: [3], slot: [0]) == [3]
@@ -464,8 +518,11 @@ A `result` accepts the read of a child that is not valid as an error.
 The same stimulus as the previous case: reading position 1 gives an error
 coded `value.unset_read`, and the node does not fail.
 
-:Rules: TIME-1, ERR-14, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, END-8
+
+Status:
+    agreed
 */
 test a_result_accepts_the_read_of_an_invalid_child {
     assert eval slot_outcome(
@@ -489,8 +546,11 @@ A negative size in a list's delta reduces the list by that count.
 The list [1, 2, 3] is published whole, then a delta with a size of -1
 drops the last position. The helper sums [1, 2].
 
-:Rules: TYPE-16, END-3, TIME-7, FN-12
-:Status: agreed
+Rules:
+    TYPE-16, END-3, TIME-7, FN-12
+
+Status:
+    agreed
 */
 test a_negative_size_reduces_the_list_by_that_count {
     assert eval total_after_reduction(count: [0, _, 1]) == [6, _, 3]
@@ -510,8 +570,11 @@ An updated entry at the position after a list's last extends the list.
 The list [1, 2] is published whole, then a delta updates position 2 and
 writes no size. The helper sums [1, 2, 5].
 
-:Rules: TYPE-16, END-3, TIME-7, FN-12
-:Status: agreed
+Rules:
+    TYPE-16, END-3, TIME-7, FN-12
+
+Status:
+    agreed
 */
 test an_entry_after_the_last_position_extends_the_list {
     assert eval total_after_extension(reading: [0, _, 5]) == [3, _, 8]
@@ -522,8 +585,11 @@ A negative size larger than the list leaves it empty, and is no failure.
 The list [1, 2, 3] is published whole, then a delta with a size of -5
 reduces it past its length. The helper sums the empty list.
 
-:Rules: TYPE-16, END-3, TIME-9, FN-12
-:Status: agreed
+Rules:
+    TYPE-16, END-3, TIME-9, FN-12
+
+Status:
+    agreed
 */
 test reducing_a_list_past_its_length_leaves_it_empty {
     assert eval total_after_reduction(count: [0, _, 5]) == [6, _, 0]
@@ -543,8 +609,11 @@ An entry past a fixed list's bounds, in a delta made as the program runs, fails.
 Position 0 of a two-position list publishes 3; then the producer writes
 position 2, and its capture's error stream ticks.
 
-:Rules: TYPE-16, END-3, ERR-7
-:Status: agreed
+Rules:
+    TYPE-16, END-3, ERR-7
+
+Status:
+    agreed
 */
 test an_entry_past_a_fixed_lists_end_fails {
     assert eval fixed_entry_failures(slot: [0, 2], reading: [3, 8]) == [_, true]
@@ -572,8 +641,11 @@ The list [1, 2] is published whole, then a delta updates position 3. The
 probe reads, as `[valid(values[2]), valid(values[3]), all_valid(values)]`,
 a gap at position 2 that is not valid.
 
-:Rules: TYPE-16, END-3, TIME-9, TIME-1
-:Status: agreed
+Rules:
+    TYPE-16, END-3, TIME-9, TIME-1
+
+Status:
+    agreed
 */
 test an_entry_past_a_gap_leaves_the_positions_between_not_valid {
     assert eval observe_gap(
@@ -608,8 +680,11 @@ The bid publishes on the second cycle and the note never does. The tick is
 `[all_valid(quote), note_is_null(quote), valid(quote.note)]`: the whole
 value has a null note, and the field's own `valid` says nothing published it.
 
-:Rules: TIME-1, TIME-9, TYPE-15, END-7, END-8
-:Status: agreed
+Rules:
+    TIME-1, TIME-9, TYPE-15, END-7, END-8
+
+Status:
+    agreed
 */
 test a_struct_with_an_optional_field_is_all_valid_and_read_whole {
     assert eval observe_noted_quote(
@@ -640,8 +715,11 @@ A growing list of `f64` read whole gives NaN at a position that holds no value.
 The list [1.0, 2.0] is published whole, then a delta updates position 3. A
 lifted helper is given the whole list, whose third position is the gap.
 
-:Rules: TIME-1, TYPE-16, FN-12, END-8
-:Status: agreed
+Rules:
+    TIME-1, TYPE-16, FN-12, END-8
+
+Status:
+    agreed
 */
 test a_whole_f64_list_reads_nan_in_a_gap {
     assert eval nan_in_gap(reading: [0.0, _, 5.0]) == [false, _, true]
@@ -655,8 +733,11 @@ The list [1, 2] alone is read whole. Once a delta updates position 3, the
 whole read that lifting makes fails with `value.unset_read`: an `i64` has
 no value for "not set".
 
-:Rules: TIME-1, TYPE-16, FN-12, END-8, CEVAL-6
-:Status: agreed
+Rules:
+    TIME-1, TYPE-16, FN-12, END-8, CEVAL-6
+
+Status:
+    agreed
 */
 test a_whole_i64_list_with_a_gap_fails {
     assert eval total_with_gap(reading: [0]) == [3]
@@ -683,8 +764,11 @@ The list [1, 2, 3] is published whole. A delta that sets the size to 2 and
 updates position 1 is written; one that updates position 2 contradicts its
 own size, and the capture's error stream ticks.
 
-:Rules: TYPE-16, END-3, ERR-7
-:Status: agreed
+Rules:
+    TYPE-16, END-3, ERR-7
+
+Status:
+    agreed
 */
 test an_entry_at_or_past_the_size_written_with_it_fails {
     assert eval contradiction_failures(at: [-1, 1, 2]) == [_, _, true]
@@ -708,8 +792,11 @@ third delta removes position 2, the gap, which never held a value. The
 probe reads, as `[valid(values[2]), valid(values[3]), all_valid(values)]`,
 the list as it was.
 
-:Rules: TYPE-16, END-3, TIME-9
-:Status: agreed
+Rules:
+    TYPE-16, END-3, TIME-9
+
+Status:
+    agreed
 */
 test removing_a_position_that_never_held_a_value_is_ignored {
     assert eval observe_removal(
@@ -747,8 +834,11 @@ changes nothing and wakes no reader. After an invalidation the next one
 makes the set valid again. The reader publishes `valid(members)` at each
 wake, and the lifted sum reads the set empty.
 
-:Rules: TIME-7, END-3, END-4, END-5, TIME-3, FN-12
-:Status: agreed
+Rules:
+    TIME-7, END-3, END-4, END-5, TIME-3, FN-12
+
+Status:
+    agreed
 */
 test an_empty_set_delta_ticks_only_where_it_makes_the_set_valid {
     assert eval member_wakes(step: [0, 0, 4, 0]) == [true, _, false, true]
@@ -760,8 +850,11 @@ A set delta that only removes a member the set does not hold is no tick.
 The set [1] is published whole; removing 9 changes nothing and wakes no
 reader, and publishing [1, 2] then does.
 
-:Rules: TIME-7, TYPE-16, END-3, END-5
-:Status: agreed
+Rules:
+    TIME-7, TYPE-16, END-3, END-5
+
+Status:
+    agreed
 */
 test removing_only_an_absent_member_is_no_tick {
     assert eval member_wakes(step: [1, 3, 2]) == [true, _, true]
@@ -772,8 +865,11 @@ A set given, whole, the members it holds is no tick.
 The set [1] is published whole twice, then [1, 2] twice. The second of
 each pair changes nothing and wakes no reader.
 
-:Rules: TIME-7, END-5
-:Status: agreed
+Rules:
+    TIME-7, END-5
+
+Status:
+    agreed
 */
 test a_set_given_the_members_it_holds_is_no_tick {
     assert eval member_wakes(step: [1, 1, 2, 2]) == [true, _, true, _]
@@ -797,8 +893,11 @@ nothing. [1, 2] given twice ticks twice: each position given is a
 publication, as an equal scalar is. The empty list then drops both
 positions, and ticks; given again, it changes nothing.
 
-:Rules: TIME-7, END-5
-:Status: agreed
+Rules:
+    TIME-7, END-5
+
+Status:
+    agreed
 */
 test an_empty_list_given_to_an_empty_list_is_no_tick {
     assert eval whole_reading_wakes(
@@ -840,8 +939,11 @@ changes nothing and wakes no reader. After an invalidation the next one
 makes the list valid again. The reader publishes `valid(readings)` at
 each wake, and the lifted sum reads the list empty.
 
-:Rules: TIME-7, END-3, END-4, END-5, TIME-3, FN-12
-:Status: agreed
+Rules:
+    TIME-7, END-3, END-4, END-5, TIME-3, FN-12
+
+Status:
+    agreed
 */
 test an_empty_list_delta_ticks_only_where_it_makes_the_list_valid {
     assert eval reading_wakes(step: [0, 0, 4, 0]) == [true, _, false, true]
@@ -854,8 +956,11 @@ The list [1, 2] is published whole and a delta updates position 3. The
 removal of position 2, which never held a value, changes nothing and wakes
 no reader; publishing [1, 2] whole again does.
 
-:Rules: TIME-7, TYPE-16, END-3, END-5
-:Status: agreed
+Rules:
+    TIME-7, TYPE-16, END-3, END-5
+
+Status:
+    agreed
 */
 test removing_only_a_position_that_holds_no_value_is_no_tick {
     assert eval reading_wakes(step: [1, 2, 3, 1]) == [true, true, _, true]
@@ -873,8 +978,11 @@ Neither an empty delta nor an ignored removal wakes the subscriber.
 Rewriting only position 0 restores validity but leaves position 1 vacant.
 An explicit size of zero or a whole empty list publishes a valid empty list.
 
-:Rules: TIME-7, TIME-9, TYPE-16, END-3, END-5
-:Status: agreed
+Rules:
+    TIME-7, TIME-9, TYPE-16, END-3, END-5
+
+Status:
+    agreed
 */
 test a_growing_list_keeps_its_vacant_positions {
     assert eval reading_wakes(step: [1, 5, 0, 3, 6, 5, 7, 0]) == [true, false, _, _, true, false, true, _]

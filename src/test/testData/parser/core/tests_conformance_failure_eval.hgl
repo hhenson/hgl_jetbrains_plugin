@@ -8,8 +8,11 @@ fn checked_ratio(divisor: f64) -> f64 {
 An evaluation failure escapes the run even after an earlier successful publication.
 Empty and successful runs provide controls for the same node.
 
-:Rules: CEVAL-6, ERR-5
-:Status: agreed
+Rules:
+    CEVAL-6, ERR-5
+
+Status:
+    agreed
 */
 test eval_preserves_failure {
     assert eval checked_ratio(divisor: []) == []

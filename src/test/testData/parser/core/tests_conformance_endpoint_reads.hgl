@@ -18,8 +18,11 @@ Position 0 publishes 3 and position 1 stays unset. The metadata branch
 observes both positions. The value branch reads 3 or raises
 `value.unset_read` at the read of position 1.
 
-:Rules: TIME-1, ERR-14, END-8, CEVAL-6
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, END-8, CEVAL-6
+
+Status:
+    agreed
 */
 test a_binding_holds_a_dynamic_child_endpoint {
     assert eval bound_slot(
@@ -50,8 +53,11 @@ Each use of a bound endpoint chooses its own read form.
 The valid child gives a value and `ok`. The unset child gives null in the
 nullable form and `err` coded `value.unset_read` in the result form.
 
-:Rules: TIME-1, ERR-14, ERR-15, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, ERR-15, END-8
+
+Status:
+    agreed
 */
 test a_bound_child_is_read_in_the_form_of_each_use {
     assert eval bound_slot_forms(
@@ -76,8 +82,11 @@ A nullable delta read gives null when the selected child has no delta this cycle
 Position 0 publishes 3. The next read of it sees its retained value but no
 delta. Position 1 stays unset until the last cycle, when it publishes 9.
 
-:Rules: TIME-1, ERR-14, TYPE-16, END-3, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, TYPE-16, END-3, END-8
+
+Status:
+    agreed
 */
 test a_nullable_child_delta_read_observes_only_the_current_cycle {
     assert eval slot_delta_as_nullable(
@@ -100,8 +109,11 @@ fn gap_read_is_null(reading: i64) -> bool => nullable_gap_read(extend_with_gap(r
 A whole read of a growing list into a nullable place gives null when an
 `i64` position holds no value. An update beyond the end leaves a gap.
 
-:Rules: TIME-1, ERR-14, TYPE-16, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, TYPE-16, END-8
+
+Status:
+    agreed
 */
 test a_whole_list_with_a_gap_reads_as_null {
     assert eval gap_read_is_null(reading: [0, _, 5]) == [false, _, true]
@@ -120,8 +132,11 @@ fn window_read_is_null(reading: i64) -> bool => nullable_window_read(collect_rea
 A nullable read of a window gives null below its minimum.
 The second publication meets the minimum and makes the whole value readable.
 
-:Rules: TYPE-11, ERR-14, END-9
-:Status: agreed
+Rules:
+    TYPE-11, ERR-14, END-9
+
+Status:
+    agreed
 */
 test a_window_below_its_minimum_reads_as_null {
     assert eval window_read_is_null(reading: [1, 2]) == [true, false]
@@ -153,8 +168,11 @@ The ready entry keeps the dictionary valid. The empty tuple delta leaves
 its entry wholly unset. Setting one position of another entry makes
 that entry valid and incomplete, so the whole read raises.
 
-:Rules: TIME-1, ERR-14, END-8, CEVAL-6
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, END-8, CEVAL-6
+
+Status:
+    agreed
 */
 test a_whole_dictionary_distinguishes_unset_and_partial_entries {
     assert eval tuple_book_value(step: [0, 1]) == [["ready": (7, 8)], ["ready": (7, 8)]]
@@ -176,8 +194,11 @@ fn tuple_book_is_null(step: i64) -> bool => read_tuple_book_as_nullable(step, pu
 A partly valid entry makes a whole dictionary read give null in the nullable form.
 The wholly unset entry allows a value, as does the completed entry.
 
-:Rules: TIME-1, ERR-14, ERR-15, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, ERR-15, END-8
+
+Status:
+    agreed
 */
 test a_partial_dictionary_whole_reads_as_null {
     assert eval tuple_book_is_null(step: [0, 1, 2, 3]) == [false, false, true, false]
@@ -200,8 +221,11 @@ A partly valid entry makes a whole dictionary read give `err` in the result form
 The wholly unset entry and the completed entry allow `ok`. The partial
 entry gives `err` coded `value.unset_read`.
 
-:Rules: TIME-1, ERR-14, ERR-15, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, ERR-15, END-8
+
+Status:
+    agreed
 */
 test a_partial_dictionary_whole_reads_as_err {
     assert eval tuple_book_result(step: [0, 1, 2, 3]) == ["ok", "ok", "value.unset_read", "ok"]
@@ -223,8 +247,11 @@ Each observation reports the entry's validity and whether the read is null.
 The wholly unset entry is invalid and the partial entry is valid. Both read
 as null until the partial entry's second position arrives.
 
-:Rules: TIME-1, ERR-14, END-8
-:Status: agreed
+Rules:
+    TIME-1, ERR-14, END-8
+
+Status:
+    agreed
 */
 test a_partial_tuple_entry_reads_as_null {
     assert eval nullable_tuple_entry_state(

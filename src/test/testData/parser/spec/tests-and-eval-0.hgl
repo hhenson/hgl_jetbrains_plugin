@@ -55,6 +55,23 @@ test bounded {
     assert ticks(eval{length: 4s} beats(every: 1s)) == 3
 }
 
+test with_a_helper {
+    fn twice(value: i64) -> i64 {
+        when { return value * 2 }
+    }
+    assert eval twice(value: [1, _, 3]) == [2, _, 6]
+}
+
+test with_a_type {
+    struct Closed {
+        day: date
+    }
+    operator open_on<C>(calendar: C, day: date) -> bool
+    impl const fn open_on(calendar: Closed, day: date) -> bool =>
+        day != calendar.day
+    assert !open_on(Closed(day: @2026-01-05), @2026-01-05)
+}
+
 @timeout(5s)
 integration_test beats_live {
     let seen = run{length: 1s} beats(every: 10ms)

@@ -12,8 +12,11 @@ fn time_before_each_delay() -> datetime {
 Under the proposed yield timing, a delayed publication carries the value
 computed before suspension. The second delay starts when the source resumes.
 
-:Rules: SOURCE-2, SOURCE-3, CAP-3
-:Status: proposed
+Rules:
+    SOURCE-2, SOURCE-3, CAP-3
+
+Status:
+    proposed
 */
 test a_delayed_yield_keeps_its_payload_until_it_wakes {
     let start_time = @2026-01-05T09:30:00Z
@@ -31,8 +34,11 @@ Absolute targets before the run start are skipped, and the source goes on.
 A target exactly at the start publishes there, and a later target publishes
 at its stated time.
 
-:Rules: SOURCE-3
-:Status: agreed
+Rules:
+    SOURCE-3
+
+Status:
+    agreed
 */
 test absolute_targets_before_at_and_after_start {
     let opening = @2026-01-05T09:30:00Z
@@ -45,8 +51,11 @@ test absolute_targets_before_at_and_after_start {
 The proposed target order is strictly increasing even across skipped targets.
 Both targets start in the past. Equal or decreasing times still fail.
 
-:Rules: SOURCE-3
-:Status: proposed
+Rules:
+    SOURCE-3
+
+Status:
+    proposed
 */
 test skipped_targets_still_establish_source_order {
     let opening = @2026-01-05T09:30:00Z
@@ -68,8 +77,11 @@ fn delayed_quotient(const delay: duration, const divisor: i64) -> i64 {
 The proposed yield order evaluates the payload before validating its target.
 With the same negative delay, a failing payload reports its own error first.
 
-:Rules: SOURCE-2
-:Status: proposed
+Rules:
+    SOURCE-2
+
+Status:
+    proposed
 */
 test yield_payload_failure_precedes_target_validation {
     assert raises("yield.negative_duration") {
@@ -95,8 +107,11 @@ Under the proposed source lifecycle, a bare return ends the source.
 A continuing source keeps its local opening time across suspension, so its
 second publication falls four steps after opening.
 
-:Rules: SOURCE-2, SOURCE-3, SOURCE-4, CAP-3
-:Status: proposed
+Rules:
+    SOURCE-2, SOURCE-3, SOURCE-4, CAP-3
+
+Status:
+    proposed
 */
 test a_resumed_source_keeps_its_locals_until_it_returns {
     assert eval finish_or_resume(finish_early: false) == [_, _, 10, _, 20]

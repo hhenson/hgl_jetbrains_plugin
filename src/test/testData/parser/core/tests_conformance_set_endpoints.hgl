@@ -22,8 +22,11 @@ fn observe_set_updates(command: i64) -> set<i64> =>
 Two writes in one evaluation yield one net set delta downstream.
 Adding and removing 2 cancels within the second cycle under the proposed set delta profile.
 
-:Rules: END-5, TIME-2
-:Status: proposed
+Rules:
+    END-5, TIME-2
+
+Status:
+    proposed
 */
 test set_writes_coalesce {
     assert eval observe_set_updates(command: [1, 2]) == [

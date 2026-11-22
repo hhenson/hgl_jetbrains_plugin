@@ -4,12 +4,119 @@ module core part capabilities
 # and the native operations on them. Contract: spec/capabilities.md. The
 # `log_*` helpers and `LogLevel` are in hgl/core/core.hgl.
 
-# `inject logger` (CAP-2).
+/**
+The capability a node has by `inject logger`: it writes the node's log records.
+
+A node uses its logger in its hooks, and may give it to a parameter of
+type `Logger` of a `const fn`; it does not retain it. Nothing in a
+program constructs one. `log` writes a record at a `LogLevel`, and
+`log_debug`, `log_info`, `log_warning` and `log_error` each write one at
+their level.
+
+| Property | Type | What it is |
+| --- | --- | --- |
+| `level` | `LogLevel` | The logger's current level: records below it are dropped |
+
+A property is read as an ordinary value, `logger.level`, and is not
+assigned.
+
+Examples:
+    ~~~hgl
+    fn noted(value: i64) -> i64 {
+        inject logger
+        when {
+            log_info(logger, "seen")
+            return value
+        }
+    }
+    assert eval noted(value: [1, _, 2]) == [1, _, 2]
+    ~~~
+
+Rules:
+    CAP-1, CAP-2, CAP-8, TIME-8
+*/
 export native type Logger {
     level: LogLevel
 }
 
-# `inject clock` (CAP-3).
+/**
+The capability a node has by `inject clock`: the times of the run as the node is evaluated.
+
+A clock has properties and no operation. A node uses it in its hooks,
+and may give it to a parameter of type `Clock` of a `const fn`; it does
+not retain it. Nothing in a program constructs one.
+
+| Property | Type | What it is |
+| --- | --- | --- |
+| `evaluation_time` | `datetime` | The logical time of the current cycle |
+| `now` | `datetime` | The engine's estimate of wall-clock time |
+| `cycle_time` | `duration` | Real elapsed time since the current cycle began |
+| `next_cycle_evaluation_time` | `datetime` | The earliest time a following cycle could have |
+
+`evaluation_time` is the same for every node in a cycle, and constant
+throughout it; each cycle's is later than the one before by
+`smallest_step` or more. In `start` it is the run's start time, and
+`stop` retains the last cycle's.
+
+`now` is the computer's clock in UTC in a run in real time, and the
+evaluation time plus the cycle time in simulation. It may change between
+reads. A wake asked of a `Scheduler` with `on_wall_clock: true` is timed
+on it in a run in real time.
+
+`next_cycle_evaluation_time` is the evaluation time plus `smallest_step`.
+Reading it asks for no cycle.
+
+A property is read as an ordinary value and is not assigned.
+
+Examples:
+    The clock is given to a `const fn`, which reads the time of each
+    input tick. Each column of the trace is one microsecond.
+
+    ~~~hgl
+    const fn stamped(clock: Clock, value: i64) -> tuple<datetime, i64> =>
+        (clock.evaluation_time, value)
+
+    fn time_of_input(value: i64) -> tuple<datetime, i64> {
+        inject clock
+        when { return stamped(clock, value) }
+    }
+
+    let t = @2026-01-05T09:30:00Z
+    assert eval{start: t} time_of_input(value: [10, _, 20]) ==
+        [(t, 10), _, (t + 2us, 20)]
+    ~~~
+
+    In `start` the evaluation time is the run's start time. The node
+    keeps it in a `cache` and returns it at the input's first tick.
+
+    ~~~hgl
+    fn started_at(value: i64) -> datetime {
+        inject clock
+        cache first: datetime = never
+        start { first = clock.evaluation_time }
+        when { return first }
+    }
+
+    let t = @2026-01-05T09:30:00Z
+    assert eval{start: t} started_at(value: [_, 1]) == [_, t]
+    ~~~
+
+    The next cycle could come one smallest step later.
+
+    ~~~hgl
+    fn next_step(value: i64) -> bool {
+        inject clock
+        when {
+            return clock.next_cycle_evaluation_time ==
+                clock.evaluation_time + smallest_step
+        }
+    }
+    assert eval next_step(value: [1, _, 2]) == [true, _, true]
+    ~~~
+
+Rules:
+    CAP-1, CAP-3, CAP-4, CAP-8, CRUN-3, TIME-8
+*/
 export native type Clock {
     evaluation_time: datetime
     now: datetime
@@ -17,27 +124,359 @@ export native type Clock {
     next_cycle_evaluation_time: datetime
 }
 
-# `inject scheduler` (CAP-4).
+/**
+The capability a node has by `inject scheduler`: wakes the node asks for, which it can tag and cancel.
+
+`schedule(scheduler, at)` asks for a wake, `un_schedule` cancels a
+pending one, and `reset` every one. A node injects `scheduler` or
+`alarm`, not both; `Alarm` is the cheaper form, with no tag and no
+cancellation. A node uses its scheduler in its hooks, and may give it to
+a parameter of type `Scheduler` of a `const fn`; it does not retain it.
+
+| Property | Type | What it is |
+| --- | --- | --- |
+| `next_scheduled_time` | `datetime?` | The time of the earliest pending wake; null with none |
+| `is_scheduled` | `bool` | True while a wake is pending |
+| `is_scheduled_now` | `bool` | Whether a wake is due in the current evaluation |
+
+`is_scheduled_now` is whether a wake asked of the scheduler is due in
+the current evaluation, whether or not an input has ticked in it. It
+stays true for the rest of the evaluation after `un_schedule` or `reset`
+in it. In a node that injects a scheduler the handler selector
+`scheduled()` is this property. A property is read as an ordinary value
+and is not assigned.
+
+What `schedule` takes for `at`:
+
+| `at` | What results |
+| --- | --- |
+| A `duration` more than zero | A wake that long after the current evaluation time |
+| `0s`, asked in `start` | A wake at the start, the node's first evaluation |
+| Another `duration`: zero outside `start`, or one less than zero | Rejected with `schedule.duration_bounds` where the compiler sees its value, a literal or a constant; elsewhere the call fails with `schedule.non_positive_duration` |
+| A `datetime` at or after the current evaluation time | A wake then |
+| A `datetime` before the current evaluation time | Nothing: the wake is dropped, with no failure |
+
+`schedule` on a scheduler takes a `tag`, a `str?` that is null when
+none is given, and `on_wall_clock`, a `bool` that is false when none is
+given. A wake asked for under a tag replaces the pending wake of that
+tag. In a run in real time `on_wall_clock: true` times the wake on the
+wall clock, `clock.now`. The request is then measured from the later of
+the evaluation time and `clock.now`: a `duration` asks for a wake that
+long after it, and a `datetime` is a time on the wall clock. A wake of
+the option that is already due, at or before that time, is not dropped:
+it comes in the next cycle, at the later of that time and the evaluation
+time plus `smallest_step`, and in `start` at that time. In simulation the
+option changes nothing: the wake is timed on evaluation time, as one
+asked for without it.
+
+Examples:
+    A zero duration in `start` wakes the first evaluation, before the
+    input's first tick.
+
+    ~~~hgl
+    fn wake_at_start(value: i64) -> str {
+        inject scheduler
+        start { schedule(scheduler, 0s) }
+        when scheduled() && valid([]) { return "scheduled" }
+        when modified(value) { return "input" }
+    }
+    assert eval wake_at_start(value: [_, 7]) == ["scheduled", "input"]
+    ~~~
+
+    A wake asked for at `never`, before every evaluation time, is dropped,
+    and the run does not fail.
+
+    ~~~hgl
+    fn wake_in_the_past(value: i64) -> str {
+        inject scheduler
+        when scheduled() { return "woken" }
+        when modified(value) {
+            schedule(scheduler, never)
+            return "asked"
+        }
+    }
+    assert eval wake_in_the_past(value: [7, _, 9]) == ["asked", _, "asked"]
+    ~~~
+
+    A duration asks for a wake that long after the evaluation time, and
+    a datetime for one then. Each column of the trace is one microsecond.
+
+    ~~~hgl
+    fn later(value: i64) -> str {
+        inject scheduler, clock
+        when scheduled() { return "woken" }
+        when modified(value) {
+            if value == 1 {
+                schedule(scheduler, 2us)
+            } else {
+                schedule(scheduler, clock.evaluation_time + 1us)
+            }
+            return "asked"
+        }
+    }
+    assert eval later(value: [1]) == ["asked", _, "woken"]
+    assert eval later(value: [2]) == ["asked", "woken"]
+    ~~~
+
+    A wake is pending from `start` until it comes, 2us later.
+
+    ~~~hgl
+    fn next_wake(value: i64) -> datetime? {
+        inject scheduler
+        start { schedule(scheduler, 2us) }
+        when modified(value) { return scheduler.next_scheduled_time }
+    }
+
+    fn pending(value: i64) -> bool {
+        inject scheduler
+        start { schedule(scheduler, 2us) }
+        when modified(value) { return scheduler.is_scheduled }
+    }
+
+    let t = @2026-01-05T09:30:00Z
+    assert eval{start: t} next_wake(value: [1, _, _, 4]) == [t + 2us, _, _, null]
+    assert eval pending(value: [1, _, _, 4]) == [true, _, _, false]
+    ~~~
+
+    A second wake under the same tag replaces the first.
+
+    ~~~hgl
+    fn replaced() -> bool {
+        inject scheduler
+        start {
+            schedule(scheduler, 1us, tag: "poll")
+            schedule(scheduler, 3us, tag: "poll")
+        }
+        when scheduled() { return true }
+    }
+    assert eval replaced() == [_, _, _, true]
+    ~~~
+
+Rules:
+    CAP-1, CAP-4, CAP-8, CRUN-3, TIME-8, TIME-9
+*/
 export native type Scheduler {
     next_scheduled_time: datetime?
     is_scheduled: bool
     is_scheduled_now: bool
 }
 
-# `inject alarm` and `inject global_state` (CAP-5, CAP-6). Neither has a
-# property.
+/**
+The capability a node has by `inject alarm`: a cheaper scheduler, which asks for wakes at best effort and keeps no record of them.
+
+`schedule(alarm, at)` asks for a wake, with `at` a `duration` or a
+`datetime`; asking again keeps the earliest. Nothing is tracked, moved
+or cancelled: an alarm has no property, no tag, no wall clock and no
+cancellation. A node injects it in place of `scheduler`, with temporal
+inputs or none, and not beside it.
+
+What may be asked of an alarm is what may be asked of a `Scheduler`: a
+`duration` more than zero, or `0s` in `start`, which asks for a wake at
+the start, the node's first evaluation. A `datetime` before the current
+evaluation time is dropped. In a node that injects an alarm `scheduled()`
+holds where the node is evaluated and no temporal input has ticked: where
+an input ticks it is false, whether or not the alarm is due.
+
+Examples:
+    ~~~hgl
+    fn alarm_at_start(value: i64) -> str {
+        inject alarm
+        start { schedule(alarm, 0s) }
+        when scheduled() && valid([]) { return "alarm" }
+        when modified(value) { return "input" }
+    }
+    assert eval alarm_at_start(value: [_, 7]) == ["alarm", "input"]
+    ~~~
+
+    An input ticks at every step, so the node sees an input each time,
+    whether or not its alarm is delivered.
+
+    ~~~hgl
+    fn alarm_or_input(value: i64) -> str {
+        inject alarm
+        start { schedule(alarm, 2us) }
+        when scheduled() && valid([]) { return "alarm" }
+        when modified(value) { return "input" }
+    }
+    assert eval alarm_or_input(value: [1, 2, 3, 4]) ==
+        ["input", "input", "input", "input"]
+    ~~~
+
+Rules:
+    CAP-1, CAP-4, CAP-5, TIME-8, TIME-9
+*/
 export native type Alarm
+
+/**
+The capability a node, a graph or an application has by `inject global_state`: the run's store, of ordinary values under string keys.
+
+`get<V>(global_state, key)` reads the value under a key and gives a
+`result<V, error>`; the call may write `V` or infer it from its place.
+`has` asks whether the key holds a value, and `put` puts one there. Each
+key is fixed when the graph is built. The store has no property.
+
+- A node uses it in its hooks.
+- A graph uses it where the graph is built: each call on it is
+  evaluated once then, in the order written, before any node of that
+  graph starts, and is given no connection (`connection.as_constant`).
+- An application uses it only to set the run's store, with calls of
+  `put` before its run statement.
+
+- A key that holds no value is a failure of `get`. The place the call is
+  given to takes the `result`, raises the failure where it needs the
+  value, or takes null in the nullable form. Where `V` is itself
+  nullable, a stored null is a success.
+- A key keeps the type of its first value. A `put` of another type is
+  rejected with `store.key_type` where the two are in one program, and
+  fails otherwise.
+- Reading or writing the store wakes no node and is no temporal input,
+  so it orders no two nodes. A `put` is seen by what is evaluated after
+  it; what a node sees of a `put` by another node of the same rank in
+  the same cycle is undefined.
+- A run has one store. Before its graph is built the store holds what
+  the run's application put there before its run statement, and nothing
+  else: the store of a test's `eval` starts empty. Nothing outside the
+  program puts a value there.
+- The key `"run.output"` is the run's: a program that names it is
+  rejected when its graph is built.
+
+Examples:
+    `start` gives the count a value where it has none, and each input
+    tick adds one.
+
+    ~~~hgl
+    fn counted(value: i64) -> i64 {
+        inject global_state
+        start {
+            if !has(global_state, "count") { put(global_state, "count", 0) }
+        }
+        when {
+            put(global_state, "count", get<i64>(global_state, "count") + 1)
+            return get<i64>(global_state, "count")
+        }
+    }
+    assert eval counted(value: [5, _, 5]) == [1, _, 2]
+    ~~~
+
+    A key that holds nothing, read where an `i64?` is taken, is null.
+
+    ~~~hgl
+    fn absent(value: i64) -> bool {
+        inject global_state
+        when {
+            let held: i64? = get<i64>(global_state, "absent")
+            return held == null
+        }
+    }
+    assert eval absent(value: [1]) == [true]
+    ~~~
+
+Rules:
+    CAP-1, CAP-6, CRUN-7, CRUN-8, TIME-2, TIME-8, FN-1, FN-9, ERR-15, UNIT-14
+*/
 export native type GlobalState
 
-# `inject run_config` (CAP-7): the configuration a run is given (CRUN-2),
-# as it is supplied. A field left out is null.
+/**
+The configuration of a run, as it is supplied: the type of the capability `run_config`.
+
+A run has one configuration, fixed for the run, which it is given and
+the program does not make: no call constructs a `RunConfig`. A test
+gives an `eval` or a `run` its configuration in braces after the word,
+`eval{start: t, length: 3s} f(...)`, an entry for each field it gives.
+An application's run statement takes none (`run.configuration`): what
+starts the application supplies its configuration, and the application
+gives defaults for the fields that leaves out, with
+`inject run_config{length: 3s}` before its run statement. An `end` or a
+`length` that what starts it gives replaces a default of either.
+An application and an integration test read the configuration by
+`inject run_config`; no function does, and one that needs a bound of the
+run takes it as a `const` argument.
+
+| Property | Type | What it is |
+| --- | --- | --- |
+| `start` | `datetime?` | The run's start, inclusive: no cycle runs before it |
+| `end` | `datetime?` | The run's end, exclusive: no cycle runs at or after it |
+| `length` | `duration?` | The end, counted from the start the run has: the run ends as one whose `end` is that start and `length` later |
+
+A field the configuration leaves out is null: `run_config.start` of a
+run given no start is null, and not the start the run resolves. A start
+left out is `earliest_start` in simulation and the host clock's present
+time in real time. A configuration with both an `end` and a `length` is
+refused before the run's graph is built, with `run.end_and_length`. With
+neither, a simulation ends when nothing is scheduled, and a run in real
+time when its host stops it.
+
+Examples:
+    A length of two microseconds ends the run before the input's second
+    tick.
+
+    ~~~hgl
+    fn time_of(value: i64) -> datetime {
+        inject clock
+        when { return clock.evaluation_time }
+    }
+
+    let t = @2026-01-05T09:30:00Z
+    assert eval{start: t} time_of(value: [10, _, 20]) == [t, _, t + 2us]
+    assert eval{start: t, length: 2us} time_of(value: [10, _, 20]) == [t]
+    ~~~
+
+    An application gives a default for `start` and reads the
+    configuration as supplied: the default, or the start that what
+    starts the application gives. This cannot run as an example: an example
+    is a test of its module, and `inject run_config` belongs to an
+    application or an integration test.
+
+    ~~~hgl no-run
+    application examples.limited.three
+
+    use examples.limited::{counted}
+
+    inject run_config{start: @2026-01-05T09:30:00Z}
+    inject global_state
+    put(global_state, "limit", 3)
+    put(global_state, "opened", run_config.start)
+
+    eval counted()
+    ~~~
+
+Rules:
+    CAP-1, CAP-7, CRUN-1, CRUN-2, RUN-6, TIME-8, UNIT-14
+*/
 export native type RunConfig {
     start: datetime?
     end: datetime?
     length: duration?
 }
 
-# CAP-2: one record at `level`.
+/**
+Write one record of `message` at `level`.
+
+`log_debug`, `log_info`, `log_warning` and `log_error` each call it at
+their level. It is called with the `Logger` of a node, in a hook of the
+node that injects it or in a `const fn` the node gives the logger to.
+
+Args:
+    logger: The logger the record is written to.
+    level: The record's level, a `LogLevel`: `.debug`, `.info`,
+        `.warning` or `.error`.
+    message: The record's text.
+
+Examples:
+    ~~~hgl
+    fn reported(value: i64) -> i64 {
+        inject logger
+        when {
+            log(logger, .warning, "value seen")
+            return value
+        }
+    }
+    assert eval reported(value: [3, _, 4]) == [3, _, 4]
+    ~~~
+
+Rules:
+    CAP-2, TIME-8
+*/
 export native const fn log(logger: Logger, level: LogLevel, message: str)
 
 # CAP-4: a wake on the scheduler, under a tag or without one, on the
@@ -59,8 +498,79 @@ native impl const fn schedule(
     on_wall_clock: bool = false,
 )
 
-# CAP-4: cancel a pending wake, and every pending wake.
+/**
+Cancel a pending wake asked of the scheduler.
+
+`un_schedule(scheduler)` cancels the earliest pending wake, and
+`un_schedule(scheduler, tag: name)` the wake asked for under `name`;
+`reset` cancels every one. Where it is called in
+an evaluation in which a wake is due, `is_scheduled_now`, and so
+`scheduled()`, stays true for the rest of that evaluation. An `Alarm`
+has no cancellation.
+
+Args:
+    scheduler: The scheduler of the node that injects it.
+    tag: The tag of the wake to cancel, a `str?`. With none given, the
+        earliest pending wake is cancelled.
+
+Examples:
+    Two wakes are asked for in `start`, at 1us and at 3us. Without a tag
+    the earliest is cancelled; with `tag: "late"` the later one.
+
+    ~~~hgl
+    fn one_left(const tagged: bool) -> bool {
+        inject scheduler
+        start {
+            schedule(scheduler, 1us, tag: "early")
+            schedule(scheduler, 3us, tag: "late")
+            if tagged {
+                un_schedule(scheduler, tag: "late")
+            } else {
+                un_schedule(scheduler)
+            }
+        }
+        when scheduled() { return true }
+    }
+    assert eval one_left(tagged: false) == [_, _, _, true]
+    assert eval one_left(tagged: true) == [_, true]
+    ~~~
+
+Rules:
+    CAP-4, CAP-8, TIME-8, TIME-9
+*/
 export native const fn un_schedule(scheduler: Scheduler, tag: str? = null)
+
+/**
+Cancel every pending wake asked of the scheduler.
+
+`un_schedule` cancels one: the earliest, or the one of a tag. Where it is called in an evaluation in which
+a wake is due, `is_scheduled_now`, and so `scheduled()`, stays true for
+the rest of that evaluation. An `Alarm` has no cancellation.
+
+Args:
+    scheduler: The scheduler of the node that injects it.
+
+Examples:
+    A node with no inputs asks for two wakes in `start`, at 1us and at
+    3us; after `reset` there, it is never woken.
+
+    ~~~hgl
+    fn two_wakes(const cleared: bool) -> bool {
+        inject scheduler
+        start {
+            schedule(scheduler, 1us, tag: "early")
+            schedule(scheduler, 3us, tag: "late")
+            if cleared { reset(scheduler) }
+        }
+        when scheduled() { return true }
+    }
+    assert eval two_wakes(cleared: false) == [_, true, _, true]
+    assert eval two_wakes(cleared: true) == []
+    ~~~
+
+Rules:
+    CAP-4, CAP-8, TIME-8, TIME-9
+*/
 export native const fn reset(scheduler: Scheduler)
 
 # CAP-5: a wake on the alarm. It takes no tag and no clock. What may be

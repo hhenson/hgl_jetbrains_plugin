@@ -36,8 +36,11 @@ error later delivers a new event with the original node, phase and time.
 The negative input fails on the second cycle. Both later requests propagate
 that error. A missing context or a different node or phase would publish null.
 
-:Rules: ERR-4, ERR-7, ERR-8
-:Status: agreed
+Rules:
+    ERR-4, ERR-7, ERR-8
+
+Status:
+    agreed
 */
 test propagating_a_retained_error_preserves_its_origin {
     let first_failure = earliest_start + 1us
@@ -62,8 +65,11 @@ A start failure escapes a capture before the first evaluation.
 With divisor one the node forwards its input. Divisor zero fails even when
 the input has no publications.
 
-:Rules: ERR-7, ERR-8, CRUN-6
-:Status: agreed
+Rules:
+    ERR-7, ERR-8, CRUN-6
+
+Status:
+    agreed
 */
 test a_start_failure_escapes_without_an_input_tick {
     assert eval captured_start(value: [7], divisor: 1) == [7]

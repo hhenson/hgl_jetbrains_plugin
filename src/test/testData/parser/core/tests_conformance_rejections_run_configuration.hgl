@@ -11,8 +11,11 @@ A run's configuration is supplied to the run, and no call constructs one:
 call of a native type's name, which rejects with the code
 `call.not_callable`.
 
-:Rules: RUN-6, NATIVE-6, CAP-1, CAP-7
-:Status: agreed
+Rules:
+    RUN-6, NATIVE-6, CAP-1, CAP-7
+
+Status:
+    agreed
 */
 test a_run_configuration_constructed {
     # expect-error(type, "call.not_callable")
@@ -24,8 +27,11 @@ Each entry of an eval's configuration names a field of `RunConfig`:
 `start`, `end` or `length`. One that names none is an argument that names
 no parameter, and rejects with the code `argument.unknown`.
 
-:Rules: RUN-6, TST-5, CAP-7
-:Status: agreed
+Rules:
+    RUN-6, TST-5, CAP-7
+
+Status:
+    agreed
 */
 test an_eval_configured_with_a_field_it_has_not {
     # expect-error(name, "argument.unknown")
@@ -37,8 +43,11 @@ A function does not inject `run_config`: one that needs a bound of its run
 takes it as a `const` argument. The `inject` rejects with the code
 `inject.position`.
 
-:Rules: RUN-6, TIME-8, FN-9
-:Status: agreed
+Rules:
+    RUN-6, TIME-8, FN-9
+
+Status:
+    agreed
 */
 fn reading_bounded_by_its_run(reading: i64) -> i64 {
     # expect-error(injectable, "inject.position")
@@ -51,8 +60,11 @@ A test that is no integration test does not inject `run_config`: its
 evals give their configuration in braces. The `inject` rejects with the
 code `inject.position`.
 
-:Rules: RUN-6, TST-3, TST-17
-:Status: agreed
+Rules:
+    RUN-6, TST-3, TST-17
+
+Status:
+    agreed
 */
 test a_unit_test_injects_its_run_configuration {
     # expect-error(injectable, "inject.position")
@@ -64,8 +76,11 @@ Only `run_config` is injected with a configuration in braces. Braces on an
 `inject` of any other capability reject with the code
 `inject.configuration`.
 
-:Rules: RUN-6, TIME-8
-:Status: agreed
+Rules:
+    RUN-6, TIME-8
+
+Status:
+    agreed
 */
 fn stepped_time(reading: i64) -> datetime {
     # expect-error(injectable, "inject.configuration")
@@ -78,8 +93,11 @@ A key of the global store keeps one type in a program. A `put` of a `str`
 under a key a `put` of an `i64` used before rejects with the code
 `store.key_type`, at the later use.
 
-:Rules: TIME-8, CAP-6
-:Status: agreed
+Rules:
+    TIME-8, CAP-6
+
+Status:
+    agreed
 */
 fn reading_stored_twice(reading: i64) -> i64 {
     inject global_state
@@ -95,8 +113,11 @@ fn reading_stored_twice(reading: i64) -> i64 {
 A `get` of the store is a use of its key too. A `get` of an `f64` under a
 key a `put` of an `i64` used before rejects with the code `store.key_type`.
 
-:Rules: TIME-8, CAP-6
-:Status: agreed
+Rules:
+    TIME-8, CAP-6
+
+Status:
+    agreed
 */
 fn reading_read_as_another_type(reading: i64) -> f64 {
     inject global_state

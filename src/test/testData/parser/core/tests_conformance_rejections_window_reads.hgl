@@ -5,8 +5,11 @@ The delta of a window of a duration requires a result or nullable place.
 An exit without an arrival leaves a plain `i64` place with no delta to
 hold. A window of ticks admits the plain read.
 
-:Rules: TYPE-11, ERR-14, END-3, END-9
-:Status: agreed
+Rules:
+    TYPE-11, ERR-14, END-3, END-9
+
+Status:
+    agreed
 */
 fn arrival_read_plainly(readings: rolling_window<i64, 3us, 1us>) -> i64 {
     when modified(readings) {
@@ -20,8 +23,11 @@ A window's `removed_value` is read only where its place takes a `result`, a wind
 In most cycles no value leaves a window. A result of `result<i64, error>`
 would be admitted.
 
-:Rules: TYPE-11, ERR-14, END-9
-:Status: agreed
+Rules:
+    TYPE-11, ERR-14, END-9
+
+Status:
+    agreed
 */
 fn departure_read_plainly(readings: rolling_window<i64, 2>) -> i64 {
     when modified(readings) {
@@ -33,8 +39,11 @@ fn departure_read_plainly(readings: rolling_window<i64, 2>) -> i64 {
 /**
 A nullable place also rejects `removed_value`, including for a window of ticks.
 
-:Rules: TYPE-11, ERR-14, END-9
-:Status: agreed
+Rules:
+    TYPE-11, ERR-14, END-9
+
+Status:
+    agreed
 */
 fn departure_read_as_nullable(readings: rolling_window<i64, 2>) -> i64? {
     when modified(readings) {

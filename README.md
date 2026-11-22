@@ -30,9 +30,29 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.7.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.8.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
+
+## Code documentation
+
+Hover over a declaration or a resolved name to see its written signature and
+the summary from its `/** ... */` comment. **View → Quick Documentation**
+shows the full comment, including HGL sections such as `Args:`, `Returns:`
+and `Examples:`. Hover over a parameter, a named call argument, or a generic
+to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
+and tables. Fenced formulas and diagrams display their source.
+
+For modules outside the project, use a version 1 `documentation.json` export.
+Put it at the project root or set **Documentation model** under **Languages &
+Frameworks → HGL Test Runner**. Generate it with the compiler’s JSON format:
+
+```sh
+hgl doc path/to/library --format json --out .
+```
+
+Hover reads the export for selectively imported names, module aliases and the
+core prelude. Project source takes precedence, including unsaved edits.
 
 ## Compiler diagnostics on save
 

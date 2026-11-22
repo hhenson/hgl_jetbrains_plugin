@@ -29,8 +29,11 @@ Nodes in one run share stored values. Writing a key alone does not wake a reader
 The first probe finds an empty store. The second coincides with a write on
 an upstream node. The third sees the value written while the reader was idle.
 
-:Rules: CAP-6, CRUN-7, TIME-2
-:Status: agreed
+Rules:
+    CAP-6, CRUN-7, TIME-2
+
+Status:
+    agreed
 */
 test an_ordered_reader_sees_the_latest_store_write {
     assert eval ordered_store_read(
@@ -55,8 +58,11 @@ fn stored_snapshot(value: i64) -> bool {
 A stored ordinary value keeps the contents it had when it was written.
 After saving a one-entry list, grow the original and read back the saved copy.
 
-:Rules: CAP-6, TYPE-5, LIST-3
-:Status: agreed
+Rules:
+    CAP-6, TYPE-5, LIST-3
+
+Status:
+    agreed
 */
 test a_store_write_retains_the_value_at_the_write {
     assert eval stored_snapshot(value: [7, 8]) == [true, true]
@@ -80,8 +86,11 @@ fn read_before_write(value: i64?) -> str {
 A key holding null is present in the store.
 Read the key before each write. It starts absent, then holds null, then 7.
 
-:Rules: CAP-6, CRUN-7, TYPE-14
-:Status: agreed
+Rules:
+    CAP-6, CRUN-7, TYPE-14
+
+Status:
+    agreed
 */
 test a_stored_null_is_distinct_from_an_absent_key {
     assert eval read_before_write(value: [null, 7, 0]) == ["absent", "null", "number"]
@@ -112,8 +121,11 @@ A store write becomes visible without waking a reader of the same key.
 The writer and reader have independent inputs. Their ticks alternate so
 every read sees a completed write or the initial empty store.
 
-:Rules: CAP-6, CRUN-7
-:Status: agreed
+Rules:
+    CAP-6, CRUN-7
+
+Status:
+    agreed
 */
 test a_store_write_does_not_wake_a_reader {
     assert eval independently_sampled_store(

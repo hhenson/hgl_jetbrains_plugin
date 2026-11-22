@@ -8,8 +8,11 @@ Simulation includes a tick at the configured start and excludes one at the end.
 A gap in the input leaves the later tick at its own time. Set the start
 explicitly so the absolute timestamps can also be checked.
 
-:Rules: CRUN-2, CRUN-3, CEVAL-2, CRUN-8, TST-16
-:Status: agreed
+Rules:
+    CRUN-2, CRUN-3, CEVAL-2, CRUN-8, TST-16
+
+Status:
+    agreed
 */
 test a_simulation_runs_from_start_up_to_end {
     let opening = @2026-01-05T09:30:00Z
@@ -22,8 +25,11 @@ test a_simulation_runs_from_start_up_to_end {
 A length counts from the simulation's actual start.
 A length of one step admits the opening tick. A zero length admits none.
 
-:Rules: CRUN-2
-:Status: agreed
+Rules:
+    CRUN-2
+
+Status:
+    agreed
 */
 test a_run_length_counts_from_its_start {
     let opening = @2026-01-05T09:30:00Z
@@ -36,8 +42,11 @@ A run with both an end and a length fails before evaluation.
 The target would divide by zero on its first tick, making the two failures
 distinguishable.
 
-:Rules: CRUN-2
-:Status: agreed
+Rules:
+    CRUN-2
+
+Status:
+    agreed
 */
 test conflicting_run_bounds_fail_before_evaluation {
     assert raises("run.end_and_length") {
@@ -58,8 +67,11 @@ fn started_total(value: i64) -> i64 {
 State is initialized before start, and start runs once before evaluation.
 The multiply in start and the additions on ticks distinguish all three steps.
 
-:Rules: CRUN-1, TIME-5, TIME-6
-:Status: agreed
+Rules:
+    CRUN-1, TIME-5, TIME-6
+
+Status:
+    agreed
 */
 test start_runs_after_initialization_and_before_ticks {
     assert eval started_total(value: [1, _, 4]) == [7, _, 11]
@@ -78,8 +90,11 @@ fn divide_at_stop(divisor: i64) {
 A sink's stop hook can read its last valid input, and a stop failure escapes eval.
 Only the final divisor matters. An empty input exercises the validity guard.
 
-:Rules: TIME-5, CRUN-6, CEVAL-6
-:Status: agreed
+Rules:
+    TIME-5, CRUN-6, CEVAL-6
+
+Status:
+    agreed
 */
 test stop_reads_the_final_input_of_an_outputless_node {
     eval divide_at_stop(divisor: [])
@@ -115,8 +130,11 @@ Two nodes stop in reverse order of their starts.
 At stop the second node stores its final input. The first node to start
 must then find that divisor. Zero makes both stop hooks observable.
 
-:Rules: CRUN-6, TIME-5, CAP-6
-:Status: agreed
+Rules:
+    CRUN-6, TIME-5, CAP-6
+
+Status:
+    agreed
 */
 test the_first_node_to_start_is_the_last_to_stop {
     assert eval two_started_nodes(value: [7]) == [7]
@@ -140,8 +158,11 @@ The next run starts with an empty store even after the previous run failed.
 Each run writes the same key on its first tick. Only its own later ticks
 should find it.
 
-:Rules: CRUN-1, CRUN-7, CEVAL-5, CAP-6
-:Status: agreed
+Rules:
+    CRUN-1, CRUN-7, CEVAL-5, CAP-6
+
+Status:
+    agreed
 */
 test a_failed_run_leaves_no_store_for_the_next_run {
     assert raises("numeric.division_by_zero") {

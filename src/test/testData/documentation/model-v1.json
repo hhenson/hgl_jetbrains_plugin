@@ -1,0 +1,858 @@
+{
+  "schemaVersion": 1,
+  "modules": [
+    {
+      "name": "core",
+      "application": false,
+      "parts": [
+        {
+          "name": null,
+          "source": {
+            "module": "core",
+            "part": null,
+            "file": "<core>/core/core.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "calendar",
+          "source": {
+            "module": "core",
+            "part": "calendar",
+            "file": "<core>/core/calendar.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "capabilities",
+          "source": {
+            "module": "core",
+            "part": "capabilities",
+            "file": "<core>/native/capabilities.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "endpoints",
+          "source": {
+            "module": "core",
+            "part": "endpoints",
+            "file": "<core>/native/endpoints.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "lists",
+          "source": {
+            "module": "core",
+            "part": "lists",
+            "file": "<core>/native/lists.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "scalar_operators",
+          "source": {
+            "module": "core",
+            "part": "scalar_operators",
+            "file": "<core>/native/scalar_operators.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "tenors",
+          "source": {
+            "module": "core",
+            "part": "tenors",
+            "file": "<core>/native/tenors.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        }
+      ],
+      "declarations": [
+        {
+          "kind": "constant",
+          "name": "smallest_step",
+          "canonicalName": "core::smallest_step",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "core",
+            "part": null,
+            "file": "<core>/core/core.hgl",
+            "line": 37,
+            "column": 14
+          },
+          "documentation": null,
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": "duration",
+          "default": null,
+          "value": "1us",
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        }
+      ]
+    },
+    {
+      "name": "examples.apidoc",
+      "application": false,
+      "parts": [
+        {
+          "name": null,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 2,
+            "column": 8
+          },
+          "documentation": {
+            "text": "The application programming interface.",
+            "summary": "The application programming interface.",
+            "sections": []
+          }
+        },
+        {
+          "name": "shifts",
+          "source": {
+            "module": "examples.apidoc",
+            "part": "shifts",
+            "file": "parts/shift.hgl",
+            "line": 2,
+            "column": 8
+          },
+          "documentation": {
+            "text": "A part that contains candidates.",
+            "summary": "A part that contains candidates.",
+            "sections": []
+          }
+        }
+      ],
+      "declarations": [
+        {
+          "kind": "struct",
+          "name": "Box",
+          "canonicalName": "examples.apidoc::Box",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 8,
+            "column": 15
+          },
+          "documentation": {
+            "text": "A typed box.\nType Args:\n    T: Payload type.",
+            "summary": "A typed box.",
+            "sections": [
+              {
+                "heading": "Type Args:",
+                "recognized": true,
+                "text": "T: Payload type.",
+                "entries": [
+                  {
+                    "key": "T",
+                    "text": "Payload type."
+                  }
+                ]
+              }
+            ]
+          },
+          "genericParameters": [
+            {
+              "name": "T",
+              "kind": "type",
+              "type": null,
+              "bounds": null,
+              "written": "T",
+              "default": null
+            }
+          ],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "canonicalName": "examples.apidoc::Box.value",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.apidoc",
+                "part": null,
+                "file": "api.hgl",
+                "line": 10,
+                "column": 5
+              },
+              "documentation": {
+                "text": "The payload.",
+                "summary": "The payload.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "T",
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "canonicalName": "examples.apidoc::Box.label",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.apidoc",
+                "part": null,
+                "file": "api.hgl",
+                "line": 12,
+                "column": 5
+              },
+              "documentation": {
+                "text": "An optional label.",
+                "summary": "An optional label.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "str",
+              "default": "\"café\"",
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ],
+          "candidates": []
+        },
+        {
+          "kind": "enum",
+          "name": "Side",
+          "canonicalName": "examples.apidoc::Side",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 16,
+            "column": 13
+          },
+          "documentation": {
+            "text": "Named sides.",
+            "summary": "Named sides.",
+            "sections": []
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [
+            {
+              "kind": "enumMember",
+              "name": "buy",
+              "canonicalName": "examples.apidoc::Side.buy",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.apidoc",
+                "part": null,
+                "file": "api.hgl",
+                "line": 18,
+                "column": 5
+              },
+              "documentation": {
+                "text": "A buyer.",
+                "summary": "A buyer.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": "2",
+              "value": "2",
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "enumMember",
+              "name": "sell",
+              "canonicalName": "examples.apidoc::Side.sell",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.apidoc",
+                "part": null,
+                "file": "api.hgl",
+                "line": 20,
+                "column": 5
+              },
+              "documentation": {
+                "text": "A seller.",
+                "summary": "A seller.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": "3",
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ],
+          "candidates": []
+        },
+        {
+          "kind": "function",
+          "name": "identity",
+          "canonicalName": "examples.apidoc::identity",
+          "role": "value",
+          "exported": true,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 57,
+            "column": 17
+          },
+          "documentation": {
+            "text": "First public callable.\n\nArgs:\n    input: A café value with  two spaces.\n        A continuation that keeps its indent.\n    count:\nType Args:\n    T: Its type.\n    N: Its maximum.\n\nUnknown:\n    A heading that stays prose.\n\nReturns:\n    The same value, `input`.\nRequires:\n    N: The constraint is prose until key spelling is specified.\nNotes:\n    |x|     |y|\n    | ----- | - |\n    | café  | \\\\ |\nExamples:\n    ~~~hgl\n    assert false\n    ~~~",
+            "summary": "First public callable.",
+            "sections": [
+              {
+                "heading": "Args:",
+                "recognized": true,
+                "text": "input: A café value with  two spaces.\n    A continuation that keeps its indent.\ncount:",
+                "entries": [
+                  {
+                    "key": "input",
+                    "text": "A café value with  two spaces.\n    A continuation that keeps its indent."
+                  },
+                  {
+                    "key": "count",
+                    "text": ""
+                  }
+                ]
+              },
+              {
+                "heading": "Type Args:",
+                "recognized": true,
+                "text": "T: Its type.\nN: Its maximum.",
+                "entries": [
+                  {
+                    "key": "T",
+                    "text": "Its type."
+                  },
+                  {
+                    "key": "N",
+                    "text": "Its maximum."
+                  }
+                ]
+              },
+              {
+                "heading": "Unknown:",
+                "recognized": false,
+                "text": "A heading that stays prose.",
+                "entries": []
+              },
+              {
+                "heading": "Returns:",
+                "recognized": true,
+                "text": "The same value, `input`.",
+                "entries": []
+              },
+              {
+                "heading": "Requires:",
+                "recognized": true,
+                "text": "N: The constraint is prose until key spelling is specified.",
+                "entries": []
+              },
+              {
+                "heading": "Notes:",
+                "recognized": true,
+                "text": "|x|     |y|\n| ----- | - |\n| café  | \\\\ |",
+                "entries": []
+              },
+              {
+                "heading": "Examples:",
+                "recognized": true,
+                "text": "~~~hgl\nassert false\n~~~",
+                "entries": []
+              }
+            ]
+          },
+          "genericParameters": [
+            {
+              "name": "T",
+              "kind": "type",
+              "type": null,
+              "bounds": null,
+              "written": "T",
+              "default": null
+            },
+            {
+              "name": "N",
+              "kind": "value",
+              "type": "i64",
+              "bounds": null,
+              "written": "const N: i64 = 3",
+              "default": "3"
+            }
+          ],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "input",
+              "type": "T",
+              "written": "input: T",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            },
+            {
+              "name": "count",
+              "type": "i64",
+              "written": "count: i64 = 2",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": "2"
+            }
+          ],
+          "result": {
+            "type": "T",
+            "written": "-> T",
+            "reference": false
+          },
+          "requires": "requires N == 3",
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        },
+        {
+          "kind": "function",
+          "name": "identity",
+          "canonicalName": "examples.apidoc::identity",
+          "role": "temporal",
+          "exported": true,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 62,
+            "column": 11
+          },
+          "documentation": {
+            "text": "The temporal callable with the same canonical name.",
+            "summary": "The temporal callable with the same canonical name.",
+            "sections": []
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "input",
+              "type": "i64",
+              "written": "input: i64",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "i64",
+            "written": "-> i64",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        },
+        {
+          "kind": "operator",
+          "name": "shifted",
+          "canonicalName": "examples.apidoc::shifted",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 71,
+            "column": 17
+          },
+          "documentation": {
+            "text": "A public operator's own documentation.\nArgs:\n    offset: Configuration, supplied by name.\n    input: Value to offset.",
+            "summary": "A public operator's own documentation.",
+            "sections": [
+              {
+                "heading": "Args:",
+                "recognized": true,
+                "text": "offset: Configuration, supplied by name.\ninput: Value to offset.",
+                "entries": [
+                  {
+                    "key": "offset",
+                    "text": "Configuration, supplied by name."
+                  },
+                  {
+                    "key": "input",
+                    "text": "Value to offset."
+                  }
+                ]
+              }
+            ]
+          },
+          "genericParameters": [
+            {
+              "name": "T",
+              "kind": "type",
+              "type": null,
+              "bounds": null,
+              "written": "T",
+              "default": null
+            }
+          ],
+          "configurationParameters": [
+            {
+              "name": "offset",
+              "type": "i64",
+              "written": "offset: i64 = 2",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": "2"
+            }
+          ],
+          "parameters": [
+            {
+              "name": "input",
+              "type": "T",
+              "written": "input: T",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "T",
+            "written": "-> T",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": [
+            {
+              "kind": "candidate",
+              "name": "shifted",
+              "canonicalName": "examples.apidoc::shifted",
+              "role": "value",
+              "exported": false,
+              "source": {
+                "module": "examples.apidoc",
+                "part": "shifts",
+                "file": "parts/shift.hgl",
+                "line": 5,
+                "column": 15
+              },
+              "documentation": {
+                "text": "An integer candidate's text.",
+                "summary": "An integer candidate's text.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [
+                {
+                  "name": "offset",
+                  "type": "i64",
+                  "written": "offset: i64",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": "i64",
+                  "written": "input: i64",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "result": {
+                "type": "i64",
+                "written": "-> i64",
+                "reference": false
+              },
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "nativeCandidate",
+              "name": "shifted",
+              "canonicalName": "examples.apidoc::shifted",
+              "role": "value",
+              "exported": false,
+              "source": {
+                "module": "examples.apidoc",
+                "part": "shifts",
+                "file": "parts/shift.hgl",
+                "line": 8,
+                "column": 22
+              },
+              "documentation": {
+                "text": "A native floating candidate's text.",
+                "summary": "A native floating candidate's text.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [
+                {
+                  "name": "offset",
+                  "type": "i64",
+                  "written": "offset: i64",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": "f64",
+                  "written": "input: f64",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "result": {
+                "type": "f64",
+                "written": "-> f64",
+                "reference": false
+              },
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "candidate",
+              "name": "shifted",
+              "canonicalName": "examples.apidoc::shifted",
+              "role": "value",
+              "exported": false,
+              "source": {
+                "module": "examples.other",
+                "part": null,
+                "file": "foreign.hgl",
+                "line": 7,
+                "column": 15
+              },
+              "documentation": {
+                "text": "An externally declared duration candidate.",
+                "summary": "An externally declared duration candidate.",
+                "sections": []
+              },
+              "genericParameters": [],
+              "configurationParameters": [
+                {
+                  "name": "offset",
+                  "type": "i64",
+                  "written": "offset: i64",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": "duration",
+                  "written": "input: duration",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "result": {
+                "type": "duration",
+                "written": "-> duration",
+                "reference": false
+              },
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "internal",
+          "canonicalName": "examples.apidoc::internal",
+          "role": "value",
+          "exported": false,
+          "source": {
+            "module": "examples.apidoc",
+            "part": null,
+            "file": "api.hgl",
+            "line": 74,
+            "column": 10
+          },
+          "documentation": {
+            "text": "A private function.",
+            "summary": "A private function.",
+            "sections": []
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": {
+            "type": "bool",
+            "written": "-> bool",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        }
+      ]
+    }
+  ]
+}

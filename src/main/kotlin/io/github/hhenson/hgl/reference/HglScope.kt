@@ -7,6 +7,8 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.psi.HglBlock
 import io.github.hhenson.hgl.psi.HglConfigurationParameters
+import io.github.hhenson.hgl.psi.HglConstantDecl
+import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglCacheDecl
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
@@ -56,7 +58,11 @@ object HglScope {
                 is HglNativeFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
                 is HglOperatorDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
                 is HglStructDecl -> genericParameters(scope.genericParameters)
-                is HglTestContext, is HglTestDecl -> {
+                is HglTestDecl -> {
+                    inTests = true
+                    scope.helperDeclarations.filterNot { it.isOperatorImplementation }
+                }
+                is HglTestContext -> {
                     inTests = true
                     emptyList()
                 }
@@ -87,10 +93,13 @@ object HglScope {
             .map { scope -> scope.filter { it.name == name && (includeImplementations || !it.isOperatorImplementation) } }
             .firstOrNull { it.isNotEmpty() }
             ?: return emptyList()
-        return direct.flatMap { declaration ->
+        val declarations = direct.flatMap { declaration ->
             if (declaration is HglImportItem) declaration.importedDeclarations().ifEmpty { listOf(declaration) }
             else listOf(declaration)
         }.distinct()
+        if (!includeImplementations || declarations.none { it is HglOperatorDecl }) return declarations
+        val test = from.parentOfType<HglTestDecl>() ?: return declarations
+        return declarations + test.helperDeclarations.filter { it.name == name && it.isOperatorImplementation }
     }
 
     /** Parts share declarations and test helpers. Imports and application bindings belong to their file. */
@@ -163,6 +172,11 @@ object HglScope {
         return result
     }
 }
+
+internal val HglTestDecl.helperDeclarations: List<HglNamedElement>
+    get() = block?.children.orEmpty().filterIsInstance<HglNamedElement>().filter {
+        it is HglFunctionDecl || it is HglConstantDecl || it is HglStructDecl || it is HglEnumDecl || it is HglOperatorDecl
+    }
 
 internal val HglNamedElement.isOperatorImplementation: Boolean
     get() = (this is HglFunctionDecl && implKw != null) || (this is HglNativeFunctionDecl && implKw != null)

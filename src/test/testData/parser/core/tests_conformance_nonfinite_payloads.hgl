@@ -27,8 +27,11 @@ NaN and either infinity are valid scalar payloads and retain their values throug
 The first probe sees an invalid endpoint. Later probes distinguish each special
 value, including the NaN read again during a gap.
 
-:Rules: END-1, TIME-1
-:Status: agreed
+Rules:
+    END-1, TIME-1
+
+Status:
+    agreed
 */
 test nonfinite_values_are_valid_payloads {
     assert eval sample_float(

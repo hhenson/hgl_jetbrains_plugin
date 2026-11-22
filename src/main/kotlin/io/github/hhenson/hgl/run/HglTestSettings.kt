@@ -21,6 +21,7 @@ class HglTestSettings : PersistentStateComponent<HglTestSettings.Options> {
         var executable: String = "hgl",
         var roots: String = "",
         var checkOnSave: Boolean = true,
+        var documentationModel: String = "",
     ) {
         fun sourceRoots(): List<String> = roots.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
     }
@@ -41,6 +42,10 @@ class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL
     override fun createPanel() = panel {
         row { checkBox("Check HGL sources on save").bindSelected(settings::checkOnSave) }
         row("HGL executable:") { textField().bindText(settings::executable).align(AlignX.FILL) }
+        row("Documentation model:") {
+            textField().bindText(settings::documentationModel).align(AlignX.FILL)
+                .comment("Optional hgl doc JSON file. Defaults to documentation.json in the project root.")
+        }
         row("Source roots:") {
             textArea().bindText(settings::roots).align(AlignX.FILL)
                 .comment("One file or directory per line, relative to the project or absolute. Leave empty to use the selected source file.")

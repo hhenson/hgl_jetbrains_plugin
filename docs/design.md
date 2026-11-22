@@ -24,7 +24,7 @@ phase checking, overload resolution and runtime conformance belong to the
 compiler. The editor reads its structured diagnostics on save. Current
 navigation uses the plugin's syntax
 scopes and module index. Module parts share declarations and test helpers.
-Imports stay file-local. Other modules see exported declarations, including exported operators,
+Each named test has a private scope for its own declarations and operator candidates. Imports stay file-local. Other modules see exported declarations, including exported operators,
 and the public `core` prelude. Applications have their own file scope.
 
 Operator gutters link a declaration to its HGL and native candidates in both
@@ -32,6 +32,32 @@ directions (GEN-4). A name index narrows the search to files with an `impl`
 header. Any module can contribute overloads by selectively importing the operator
 in the file that declares them. Candidates also bind to operators in their own
 module or the core prelude. The chooser shows typed signatures and file paths.
+
+## Code documentation
+
+Editor offsets and PSI elements share one documentation target. Hover reads
+the written signature and summary. Quick Documentation groups SDOC-3 sections
+and renders CommonMark with tables (SDOC-7). Raw HTML is displayed as text.
+Math and Mermaid fences display their source. A code span with a unique
+declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
+matching entry from the owner's `Args:` or `Type Args:` section.
+
+A call to an operator shows the public declaration. An implementation shows
+its own documentation at its declaration. Other source overloads remain
+separate targets. The IDE handles unsaved edits directly. A future tooltip
+with inferred types or the selected overload would need a compiler query
+mapping a source position to its resolved declaration and instantiated type.
+
+An optional version 1 compiler export supplies documentation for modules
+without indexed source. The plugin caches the model against its JSON file.
+Canonical names group overloads. Kind and source location distinguish them.
+A bundled `<core>/` location is a display name. Exported comments use their
+own module for links. The model does not record imports or call-site bindings.
+
+CI regenerates the JSON fixture from a real export of the pinned compiler's
+documentation test program. Named constructor arguments select the struct's
+field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
+both source comments and exported documentation.
 
 ## Compiler diagnostics on save
 

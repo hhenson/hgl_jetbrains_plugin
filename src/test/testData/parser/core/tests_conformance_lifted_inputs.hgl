@@ -8,8 +8,11 @@ const fn scaled_value(value: i64, factor: i64 = 2) -> i64 => value * factor
 A lifted function uses a default until its input first publishes.
 Thereafter it uses the retained factor. A repeated input still produces a tick.
 
-:Rules: FN-6, FN-11, END-2
-:Status: agreed
+Rules:
+    FN-6, FN-11, END-2
+
+Status:
+    agreed
 */
 test lifted_default_gives_way_to_a_publication {
     assert eval scaled_value(
@@ -22,8 +25,11 @@ test lifted_default_gives_way_to_a_publication {
 A default on one input leaves the other required input's validity gate in place.
 The factor ticks first. Its retained value is used when the required value arrives.
 
-:Rules: FN-6, FN-11
-:Status: agreed
+Rules:
+    FN-6, FN-11
+
+Status:
+    agreed
 */
 test lifted_default_still_requires_other_inputs {
     assert eval scaled_value(
@@ -40,8 +46,11 @@ const fn observed_default(trigger: bool, value: i64? = 9) -> i64? => value
 A lifted nullable parameter binds null when its input has never published.
 Only a notification wakes the helper. The gap between the triggers stays silent.
 
-:Rules: FN-6, FN-11, TIME-7
-:Status: agreed
+Rules:
+    FN-6, FN-11, TIME-7
+
+Status:
+    agreed
 */
 test lifted_nullable_binds_null_on_a_trigger {
     assert eval observed_input(
@@ -54,8 +63,11 @@ test lifted_nullable_binds_null_on_a_trigger {
 A valid null takes precedence over a lifted parameter's default.
 The first trigger sees the default. After null is published, a later trigger sees null again.
 
-:Rules: FN-11, END-1, TIME-7
-:Status: agreed
+Rules:
+    FN-11, END-1, TIME-7
+
+Status:
+    agreed
 */
 test published_null_takes_precedence_over_a_default {
     assert eval observed_default(
@@ -74,8 +86,11 @@ candidate for, and each instance selects its own.
 The `i64` instance compares two `i64` and the `f64` instance two `f64`;
 each is lifted over its two inputs.
 
-:Rules: GEN-3, GEN-7, FN-6
-:Status: agreed
+Rules:
+    GEN-3, GEN-7, FN-6
+
+Status:
+    agreed
 */
 test a_membership_admits_what_each_listed_type_has {
     assert eval less_under_membership<i64>(a: [1, 3], b: [2, 2]) ==

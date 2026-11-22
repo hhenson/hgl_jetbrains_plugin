@@ -18,8 +18,11 @@ Removing a dictionary key makes it absent until a later update adds it again.
 B stays present throughout. An update to B causes a fresh lookup of A while
 it is missing. Adding A again supplies its new price.
 
-:Rules: TYPE-9, TYPE-16, TIME-7, FN-12, ERR-6
-:Status: agreed
+Rules:
+    TYPE-9, TYPE-16, TIME-7, FN-12, ERR-6
+
+Status:
+    agreed
 */
 test a_removed_key_is_absent_until_added_again {
     assert eval observe_a(
@@ -39,8 +42,11 @@ A is set to 7; the second delta removes B, which was never added. A probe
 looks A up in every cycle, so the case does not depend on whether that
 delta ticks. A keeps 7 until it is set to 9.
 
-:Rules: TYPE-16, END-3, FN-12, ERR-6
-:Status: agreed
+Rules:
+    TYPE-16, END-3, FN-12, ERR-6
+
+Status:
+    agreed
 */
 test removing_an_absent_key_is_ignored {
     assert eval probe_a_after_writes(
@@ -79,8 +85,11 @@ valid, changes nothing and wakes no reader. After an invalidation the next
 one makes it valid again. The reader publishes `valid(book)` at each wake,
 and the lifted lookup finds no A.
 
-:Rules: TIME-7, END-3, END-4, END-5, TIME-3, FN-12
-:Status: agreed
+Rules:
+    TIME-7, END-3, END-4, END-5, TIME-3, FN-12
+
+Status:
+    agreed
 */
 test an_empty_dictionary_delta_ticks_only_where_it_makes_the_dictionary_valid {
     assert eval book_wakes(step: [0, 0, 4, 0]) == [true, _, false, true]
@@ -103,8 +112,11 @@ The first empty dictionary makes it valid, and ticks; the second changes
 nothing. ["A": 7] given twice ticks twice: each entry given is a
 publication, as an equal scalar is.
 
-:Rules: TIME-7, END-5
-:Status: agreed
+Rules:
+    TIME-7, END-5
+
+Status:
+    agreed
 */
 test an_empty_dictionary_given_to_an_empty_dictionary_is_no_tick {
     assert eval whole_book_wakes(step: [0, 0, 1, 1]) == [true, _, true, true]
@@ -115,8 +127,11 @@ A dictionary delta that only removes a key the dictionary does not hold is no ti
 A is set to 7; removing B changes nothing and wakes no reader, and setting
 A to 9 then does.
 
-:Rules: TIME-7, TYPE-16, END-3, END-5
-:Status: agreed
+Rules:
+    TIME-7, TYPE-16, END-3, END-5
+
+Status:
+    agreed
 */
 test removing_only_an_absent_key_is_no_tick {
     assert eval book_wakes(step: [1, 3, 2]) == [true, _, true]

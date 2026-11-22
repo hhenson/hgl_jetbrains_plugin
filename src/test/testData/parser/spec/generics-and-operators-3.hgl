@@ -1,3 +1,6 @@
-const fn keep<const size: i64 = 3>(values: list<f64>) -> list<f64> => values
-struct Window<const size: i64 = 3> { values: list<f64, size> }
-operator window<T, const size: i64 = 3>(value: T) -> list<T, size>
+const fn same<T>(a: T, b: T) -> T => a
+const fn larger<T>(a: T, b: T) -> T
+    requires T in {i64, f64} => if a < b { b } else { a }
+
+const fn kept(a: i64, b: i64) -> i64? => same(a, b)
+const fn best(a: i64, b: i64) -> i64? => larger(a, b)

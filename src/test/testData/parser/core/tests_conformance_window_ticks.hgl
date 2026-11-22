@@ -18,8 +18,11 @@ The first reading arrives on the second cycle and the second on the
 fourth; the probe reads the window every cycle. Each tick is
 `[valid, all_valid]`.
 
-:Rules: TYPE-11, TIME-9, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TIME-9, END-9
+
+Status:
+    agreed
 */
 test a_window_is_valid_before_its_minimum_and_all_valid_at_it {
     assert eval observe_window_validity(
@@ -47,8 +50,11 @@ drops the first: the totals are 3, 6 and 9. Under ordinary validity the
 first reading is read alone, and the run fails with `value.unset_read`.
 A window's value is read as a `list<V>` of the values held, oldest first.
 
-:Rules: TYPE-11, END-9, CEVAL-6
-:Status: agreed
+Rules:
+    TYPE-11, END-9, CEVAL-6
+
+Status:
+    agreed
 */
 test reading_a_window_before_it_is_all_valid_fails {
     assert eval ready_total(reading: [1, 2, 3, 4]) == [_, 3, 6, 9]
@@ -77,8 +83,11 @@ The first reading leaves the window below its minimum of two: reading it
 gives an error coded `value.unset_read`, and the node does not fail. The
 second reading makes it all valid.
 
-:Rules: TYPE-11, ERR-14, END-9
-:Status: agreed
+Rules:
+    TYPE-11, ERR-14, END-9
+
+Status:
+    agreed
 */
 test a_result_accepts_the_read_of_a_window_before_it_is_all_valid {
     assert eval window_outcome(reading: [1, 2]) == ["value.unset_read", "ok"]
@@ -94,8 +103,11 @@ The default binds for an input that is not valid. After the first reading
 the window is valid and not all valid: the helper is not invoked, and no 0
 is published. From the second reading the totals are 3 and 6.
 
-:Rules: FN-11, FN-12, TYPE-11, END-9
-:Status: agreed
+Rules:
+    FN-11, FN-12, TYPE-11, END-9
+
+Status:
+    agreed
 */
 test a_default_does_not_stand_for_a_window_below_its_minimum {
     assert eval defaulted_total(reading: [1, 2, 3]) == [_, 3, 6]
@@ -120,8 +132,11 @@ readings arrive at 0us and 1us, and nothing arrives after. The first, of
 age 3us at 3us, is held then, and leaves at 4us, when the window falls
 under its minimum of 1us; the second leaves at 5us.
 
-:Rules: TYPE-11, TIME-3, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TIME-3, END-9
+
+Status:
+    agreed
 */
 test a_value_leaves_a_window_of_a_duration_with_a_tick {
     assert eval observe_recent_readiness(reading: [1, 2]) ==
@@ -147,8 +162,11 @@ every cycle. From 2us the readings span the minimum of 2us, and time
 passing changes nothing until, at 5us, the first leaves: the two held
 span 1us. Each tick is `[valid, all_valid]`.
 
-:Rules: TYPE-11, TIME-9, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TIME-9, END-9
+
+Status:
+    agreed
 */
 test a_window_of_a_duration_falls_back_under_its_minimum {
     assert eval observe_spanned_validity(
@@ -178,8 +196,11 @@ readings held where the window is all valid, else -1. The readings arrive
 at 0us and 1us, and each leaves 4us after it arrives: at 4us the window
 holds the second alone, and at 5us it is empty.
 
-:Rules: TYPE-11, END-9
-:Status: agreed
+Rules:
+    TYPE-11, END-9
+
+Status:
+    agreed
 */
 test a_zero_minimum_is_held_by_the_first_value {
     assert eval observe_any_total(reading: [1, 2]) == [1, 3, _, _, 2, -1]
@@ -197,8 +218,11 @@ A window of a duration emptied by exits stays valid, and is not all valid.
 The one reading arrives at 0us and leaves at 4us, and the reader is woken
 by the window alone. Each tick is `[valid, all_valid]`.
 
-:Rules: TYPE-11, END-9
-:Status: agreed
+Rules:
+    TYPE-11, END-9
+
+Status:
+    agreed
 */
 test a_window_emptied_by_exits_stays_valid {
     assert eval observe_recent_validity(reading: [1]) ==
@@ -234,8 +258,11 @@ The window holds two readings. Each tick is the delta, read plainly, and
 the window is full no value leaves it; the third reading pushes the first
 out.
 
-:Rules: TYPE-11, TYPE-16, ERR-14, END-3, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TYPE-16, ERR-14, END-3, END-9
+
+Status:
+    agreed
 */
 test an_arrival_at_a_full_window_of_ticks_pushes_out_its_oldest_value {
     assert eval observe_pair_changes(reading: [1, 2, 3]) ==
@@ -258,8 +285,11 @@ value or its error's code. The readings of 1 and 2 arrive at 0us and
 1us. The 1 leaves at 4us with nothing arriving, and the 3 arrives at 5us
 as the 2 leaves: one tick, with both. The run ends before the 3 leaves.
 
-:Rules: TYPE-11, TYPE-16, ERR-14, END-3, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TYPE-16, ERR-14, END-3, END-9
+
+Status:
+    agreed
 */
 test a_window_of_a_duration_has_no_delta_where_a_value_only_leaves {
     assert eval{length: 6us} observe_recent_changes(reading: [1, 2, _, _, _, 3]) == [
@@ -285,8 +315,11 @@ The readings of 1 and 2 arrive at 0us and 1us. At 4us the 1 leaves and
 the reader publishes null. At 5us the 2 leaves as the 3 arrives, and the
 reader publishes the arrival. The quiet cycles at 2us and 3us are silent.
 
-:Rules: TYPE-11, TYPE-16, ERR-14, END-3, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TYPE-16, ERR-14, END-3, END-9
+
+Status:
+    agreed
 */
 test a_nullable_duration_window_delta_shows_arrivals_and_exits {
     assert eval{length: 6us} observe_nullable_recent_arrival(reading: [1, 2, _, _, _, 3]) ==
@@ -310,8 +343,11 @@ either exit. Given that recording as its input, the reader sees what it
 sees of the window the readings make, cycle by cycle: the values held,
 and an empty list once none is.
 
-:Rules: TYPE-11, TST-16, CEVAL-3, CEVAL-4, END-9
-:Status: agreed
+Rules:
+    TYPE-11, TST-16, CEVAL-3, CEVAL-4, END-9
+
+Status:
+    agreed
 */
 test a_recording_of_a_window_holds_its_arrivals_and_replays_the_same_window {
     assert eval collect_any(reading: [1, 2]) == [1, 2]
