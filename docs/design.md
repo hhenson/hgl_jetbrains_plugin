@@ -75,6 +75,21 @@ invocation failure via stderr, which the IDE shows in a project notification.
 Only exits 0 and 1 carry JSON reports. An unsupported report version also
 raises a project notification.
 
+## New projects
+
+CLion and RustRover use the same directory project generator. It copies the
+bundled module and application into `src/`, creates `build/`, `bin/` and
+`docs/`, and opens the application. Tests live alongside the code they
+exercise. The project tracks `hgl.json`. Its `build` object holds
+`compiler`, `sourceRoots`, `buildDir`, `binDir` and `docsDir`. The IDE
+edits this file and preserves unrelated JSON fields. The private workspace
+keeps compiler and documentation overrides and the check-on-save switch.
+
+Run and Test pass `buildDir` to the compiler's `--keep` option. The current
+compiler places executables in that workspace. `binDir` records the intended
+standalone binary destination. Generate HGL Documentation invokes `hgl doc`
+for HTML and JSON under `docsDir`. The editor reads the generated JSON model.
+
 ## Application and test execution
 
 The gutter marks the `application` keyword or the name of a test.
@@ -98,6 +113,12 @@ Empty roots select the declaration's file. The IDE owns the Run console,
 stop and rerun actions. The compiler
 owns selection and outcomes.
 
+HGL tests use the platform test results tree. The converter reads the
+compiler's stdout case headers and indented details. Executable and rejection
+cases retain their compiler identities. A “not run” outcome appears as
+skipped. Compiler invocation failures appear as runner errors. Applications
+keep their ordinary Run console.
+
 ## Grammar and PSI
 
 Newlines are explicit tokens. Whitespace and comments stay in the PSI.
@@ -117,6 +138,19 @@ Names in scope are supplied independently by reference completion.
 At a callback call, completion and Go to Declaration use the function type of
 the parameter the callee resolves to (FN-17). Only names written in that type
 are visible. Completion omits slots filled by positional or named arguments.
+
+## Application debugging
+
+The application gutter uses the same configuration and source roots for Run
+and Debug. The Debug runner asks `hgl run --debug-build DIR` for its version 1
+launch description. The IDE launches that executable under LLDB via
+the platform’s experimental Debug Adapter Protocol API, checked against
+both IDE versions. macOS launches the active Apple toolchain adapter with
+`/usr/bin/xcrun lldb-dap`. Linux uses the adapter bundled with the IDE.
+The supported build range is limited to the verified
+platform branch. Before widening it, run Plugin Verifier and the native
+breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and stack
+frames to the HGL file. Each session owns its temporary build until it stops.
 
 ## Validation
 

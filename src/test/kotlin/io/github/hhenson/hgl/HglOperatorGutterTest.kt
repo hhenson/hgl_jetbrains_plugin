@@ -1,7 +1,6 @@
 package io.github.hhenson.hgl
 
 import com.intellij.codeInsight.daemon.LineMarkerInfo
-import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.navigation.NavigationGutterIconRenderer
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.command.WriteCommandAction
@@ -21,9 +20,10 @@ class HglOperatorGutterTest : HglEditorFixture() {
     private fun markers(file: PsiFile): List<LineMarkerInfo<*>> {
         myFixture.configureFromExistingVirtualFile(file.virtualFile)
         myFixture.doHighlighting()
-        return DaemonCodeAnalyzerImpl.getLineMarkers(myFixture.editor.document, project).filter {
-            it.icon == AllIcons.Gutter.ImplementedMethod || it.icon == AllIcons.Gutter.ImplementingMethod
-        }
+        return myFixture.findAllGutters()
+            .filterIsInstance<LineMarkerInfo.LineMarkerGutterIconRenderer<*>>()
+            .filter { it.icon == AllIcons.Gutter.ImplementedMethod || it.icon == AllIcons.Gutter.ImplementingMethod }
+            .map { it.lineMarkerInfo }
     }
 
     private fun targets(marker: LineMarkerInfo<*>): List<PsiElement> =

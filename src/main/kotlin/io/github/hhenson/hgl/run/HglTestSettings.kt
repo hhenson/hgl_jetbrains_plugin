@@ -6,6 +6,9 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
 import com.intellij.openapi.components.service
+import io.github.hhenson.hgl.project.HglBuild
+import io.github.hhenson.hgl.project.HglBuildFile
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.dsl.builder.AlignX
@@ -22,6 +25,7 @@ class HglTestSettings : PersistentStateComponent<HglTestSettings.Options> {
         var roots: String = "",
         var checkOnSave: Boolean = true,
         var documentationModel: String = "",
+        var compilerOverride: String = "",
     ) {
         fun sourceRoots(): List<String> = roots.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
     }
@@ -31,24 +35,69 @@ class HglTestSettings : PersistentStateComponent<HglTestSettings.Options> {
     override fun loadState(state: Options) { options = state }
 }
 
-class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL Test Runner") {
-    private val settings = project.service<HglTestSettings>().state
+internal fun Project.buildSettings(): HglBuild {
+    val local = service<HglTestSettings>().state
+    val shared = service<HglBuildFile>().read()
+        ?: HglBuild(compiler = local.executable, sourceRoots = local.sourceRoots(), buildDir = "")
+    return if (local.compilerOverride.isBlank()) shared else shared.copy(compiler = local.compilerOverride)
+}
+
+class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL") {
+    private val file = project.service<HglBuildFile>()
+    private val local = project.service<HglTestSettings>().state
+    private var previous: HglBuild? = null
+    private fun existing() = previous ?: HglBuild(compiler = local.executable, sourceRoots = local.sourceRoots())
+    private var compiler = ""
+    private var roots = ""
+    private var buildDir = ""
+    private var binDir = ""
+    private var docsDir = ""
+    private var localDraft = local.copy()
+
+    override fun reset() {
+        previous = runCatching { file.read() }.getOrNull()
+        val build = existing()
+        compiler = build.compiler
+        roots = build.sourceRoots.joinToString("\n")
+        buildDir = build.buildDir
+        binDir = build.binDir
+        docsDir = build.docsDir
+        localDraft = local.copy()
+        super.reset()
+    }
 
     override fun apply() {
         super.apply()
+        val build = HglBuild(compiler.trim(), roots.lines().map(String::trim).filter(String::isNotEmpty),
+            buildDir.trim(), binDir.trim(), docsDir.trim())
+        try {
+            if (build != existing()) {
+                file.save(build, previous)
+                previous = build
+            }
+        } catch (error: Exception) {
+            throw ConfigurationException(error.localizedMessage ?: "Cannot save hgl.json.")
+        }
+        local.compilerOverride = localDraft.compilerOverride.trim()
+        local.checkOnSave = localDraft.checkOnSave
+        local.documentationModel = localDraft.documentationModel.trim()
         project.getServiceIfCreated(HglCheckService::class.java)?.reset()
     }
 
     override fun createPanel() = panel {
-        row { checkBox("Check HGL sources on save").bindSelected(settings::checkOnSave) }
-        row("HGL executable:") { textField().bindText(settings::executable).align(AlignX.FILL) }
-        row("Documentation model:") {
-            textField().bindText(settings::documentationModel).align(AlignX.FILL)
-                .comment("Optional hgl doc JSON file. Defaults to documentation.json in the project root.")
+        group("Project build settings (hgl.json)") {
+            row("Compiler:") { textField().bindText(::compiler).align(AlignX.FILL) }
+            row("Source roots:") { textArea().bindText(::roots).align(AlignX.FILL).comment("One source file or directory per line.") }
+            row("Build directory:") { textField().bindText(::buildDir).align(AlignX.FILL) }
+            row("Binary directory:") { textField().bindText(::binDir).align(AlignX.FILL) }
+            row("Documentation directory:") { textField().bindText(::docsDir).align(AlignX.FILL) }
         }
-        row("Source roots:") {
-            textArea().bindText(settings::roots).align(AlignX.FILL)
-                .comment("One file or directory per line, relative to the project or absolute. Leave empty to use the selected source file.")
+        group("This workspace") {
+            row("Compiler override:") { textField().bindText({ localDraft.compilerOverride }, { localDraft.compilerOverride = it }).align(AlignX.FILL) }
+            row("Documentation model override:") {
+                textField().bindText({ localDraft.documentationModel }, { localDraft.documentationModel = it }).align(AlignX.FILL)
+            }
+            row { checkBox("Check HGL sources on save").bindSelected({ localDraft.checkOnSave }, { localDraft.checkOnSave = it }) }
         }
     }
 }

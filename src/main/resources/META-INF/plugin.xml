@@ -11,10 +11,12 @@
     <a href="https://github.com/hhenson/hgl_spec">hgl_spec</a>.
     ]]></description>
 
-    <!-- Only platform and language APIs are used, so one build installs on
-         CLion, PyCharm, RustRover and IntelliJ IDEA. -->
+    <!-- Editing is available across IDEs. Native debugging is optional. -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.platform.testRunner</depends>
+
+    <depends optional="true" config-file="hgl-debug.xml">com.intellij.nativeDebug</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileType name="HGL"
@@ -45,15 +47,24 @@
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
         <platform.backend.documentation.psiTargetProvider
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
+        <directoryProjectGenerator implementation="io.github.hhenson.hgl.project.HglProjectGenerator"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglTestType"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglApplicationType"/>
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglTestProducer"/>
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglApplicationProducer"/>
         <runLineMarkerContributor language="HGL" implementationClass="io.github.hhenson.hgl.run.HglRunGutter"/>
         <codeInsight.lineMarkerProvider language="HGL" implementationClass="io.github.hhenson.hgl.reference.HglOperatorGutter"/>
-        <projectConfigurable parentId="language" id="hgl.test.runner" displayName="HGL Test Runner"
+        <projectConfigurable parentId="build" id="hgl.test.runner" displayName="HGL"
                              instance="io.github.hhenson.hgl.run.HglTestSettingsPage"/>
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglModuleIndex"/>
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglImplementationIndex"/>
     </extensions>
+    <actions>
+        <action id="HGL.GenerateDocumentation" class="io.github.hhenson.hgl.documentation.HglGenerateDocs"
+                text="Generate HGL Documentation" description="Generate HTML and JSON documentation from the HGL source roots"
+                icon="AllIcons.Actions.Preview">
+            <add-to-group group-id="BuildMenu" anchor="last"/>
+            <add-to-group group-id="MainToolbarRight" anchor="first"/>
+        </action>
+    </actions>
 </idea-plugin>

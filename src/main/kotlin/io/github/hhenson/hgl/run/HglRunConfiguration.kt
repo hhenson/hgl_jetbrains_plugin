@@ -10,12 +10,13 @@ import com.intellij.execution.configurations.SimpleConfigurationType
 import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.openapi.components.service
+import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.LabeledComponent
 import com.intellij.openapi.util.NotNullLazyValue
 import io.github.hhenson.hgl.HglIcons
+import java.nio.file.Path
 import javax.swing.JTextField
 
 private const val IDENTIFIER = "[A-Za-z_][A-Za-z_0-9]*"
@@ -63,27 +64,35 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
 
     override fun checkConfiguration() {
         if (!selector.matches(runType.selectorPattern)) throw RuntimeConfigurationError("Invalid ${runType.selectorLabel.lowercase()}.")
-        val settings = project.service<HglTestSettings>().state
-        if (settings.executable.isBlank()) throw RuntimeConfigurationError("Set the HGL executable in Settings | HGL Test Runner.")
-        if (sourcePath.isBlank() && settings.roots.isBlank()) {
-            throw RuntimeConfigurationError("Run from a declaration or set source roots in Settings | HGL Test Runner.")
+        val settings = try { project.buildSettings() } catch (error: IllegalArgumentException) {
+            throw RuntimeConfigurationError(error.localizedMessage)
+        }
+        if (settings.compiler.isBlank()) throw RuntimeConfigurationError("Set the HGL executable in Settings | Build, Execution, Deployment | HGL.")
+        if (sourcePath.isBlank() && settings.sourceRoots.isEmpty()) {
+            throw RuntimeConfigurationError("Run from a declaration or set source roots in Settings | Build, Execution, Deployment | HGL.")
         }
     }
 
-    internal fun commandLine(): GeneralCommandLine {
+    internal fun commandLine(debugBuild: Path? = null): GeneralCommandLine {
         checkConfiguration()
-        val settings = project.service<HglTestSettings>().state
-        val roots = settings.sourceRoots()
-        val command = hglCommandLine(settings.executable)
+        val settings = project.buildSettings()
+        val roots = settings.sourceRoots
+        val command = hglCommandLine(settings.compiler)
             .withParameters(runType.command)
             .withParameters(selector, "--target", "cpp")
             .withWorkDirectory(project.basePath)
+        if (debugBuild != null) command.addParameters("--debug-build", debugBuild.toString())
+        else if (settings.buildDir.isNotBlank()) command.addParameters("--keep", settings.buildDir)
         command.addParameter("--")
         command.addParameters(roots.ifEmpty { listOf(sourcePath) })
         return command
     }
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment) = object : CommandLineState(environment) {
+        override fun createConsole(executor: Executor) =
+            if (runType is HglTestType) SMTestRunnerConnectionUtil.createConsole(HglTestConsole(this@HglRunConfiguration, executor))
+            else super.createConsole(executor)
+
         override fun startProcess() = KillableColoredProcessHandler(commandLine()).also {
             ProcessTerminatedListener.attach(it, project)
         }

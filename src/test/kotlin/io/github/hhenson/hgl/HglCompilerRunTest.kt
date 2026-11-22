@@ -4,11 +4,17 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
 import com.intellij.openapi.components.service
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.progress.EmptyProgressIndicator
+import io.github.hhenson.hgl.documentation.HglGenerateDocs
+import io.github.hhenson.hgl.project.HglBuildFile
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
+import io.github.hhenson.hgl.run.HglRunGutter
 import io.github.hhenson.hgl.run.HglRunConfiguration
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
@@ -36,7 +42,14 @@ class HglCompilerRunTest : HglEditorFixture() {
             for (case in listOf("ordinary", "live", "broken")) {
                 myFixture.configureByText("checks.hgl", source.replace(" $case {", " <caret>$case {"))
                 val leaf = myFixture.file.findElementAt(myFixture.caretOffset)!!
-                val output = runInConsole(runConfigurationAt(leaf))
+                val output = runInConsole(runConfigurationAt(leaf)) { view ->
+                    val root = view.resultsViewer.testsRootNode
+                    PlatformTestUtil.waitWithEventsDispatching("missing test result", { root.isFinal && root.children.isNotEmpty() }, 10)
+                    val result = root.children.single()
+                    assertEquals("checkout.suite::$case", result.name)
+                    assertEquals(case != "broken", result.isPassed)
+                    assertEquals(case == "broken", result.isDefect)
+                }
                 val expected = if (case == "broken") "failed" else "passed"
                 val cases = output.stdout.lines().filter { "executable " in it && "::" in it }
                 assertSize(1, cases)
@@ -82,7 +95,45 @@ class HglCompilerRunTest : HglEditorFixture() {
         }
     }
 
-    private fun runInConsole(configuration: HglRunConfiguration): ProcessOutput {
+    fun testNewProjectRunsHelloWorldAndItsTestFromTheGutter() {
+        val root = VfsUtil.findFileByIoFile(File(project.basePath!!), true)!!
+        val settings = project.service<HglTestSettings>()
+        val before = settings.state
+        try {
+            settings.loadState(HglTestSettings.Options(compilerOverride = System.getenv("HGL_TEST_CLI")))
+            val starter = hglStarter()
+            starter.generateProject(project, root, starter.createPeer().settings, module)
+
+            val shared = project.service<HglBuildFile>()
+            val initial = shared.read()!!
+            val build = initial.copy(buildDir = "custom build", docsDir = "api reference")
+            shared.save(build, initial)
+            val index = HglGenerateDocs.generate(project, null, EmptyProgressIndicator()).toFile()
+            assertEquals(root.toNioPath().resolve("api reference/index.html"), index.toPath())
+            assertTrue(index.isFile)
+            assertTrue(index.parentFile.resolve("documentation.json").readText().contains("greeting"))
+
+            fun runAt(path: String, token: String): ProcessOutput {
+                myFixture.configureFromExistingVirtualFile(root.findFileByRelativePath(path)!!)
+                val leaf = myFixture.file.findElementAt(myFixture.file.text.indexOf(token))!!
+                assertNotNull(HglRunGutter().getInfo(leaf))
+                return runInConsole(runConfigurationAt(leaf))
+            }
+
+            val app = runAt("src/main.hgl", "application")
+            assertEquals(app.stderr, 0, app.exitCode)
+            assertEquals(listOf("1970-01-01T00:00:00.000001Z  \"Hello, world!\"",
+                "ran hello.main on cpp: 1 publication"), app.stdout.trim().lines())
+            assertTrue(root.toNioPath().resolve("custom build/build.ninja").toFile().isFile)
+            val test = runAt("src/hello.hgl", "says_hello")
+            assertEquals(test.stdout + test.stderr, 0, test.exitCode)
+            assertTrue(test.stdout, Regex("passed\\s+executable\\s+hello::says_hello").containsMatchIn(test.stdout))
+        } finally {
+            settings.loadState(before)
+        }
+    }
+
+    private fun runInConsole(configuration: HglRunConfiguration, inspect: ((SMTRunnerConsoleView) -> Unit)? = null): ProcessOutput {
         val executor = DefaultRunExecutor.getRunExecutorInstance()
         val environment = ExecutionEnvironmentBuilder.create(executor, configuration).build()
         val result = configuration.getState(executor, environment).execute(executor, environment.runner)
@@ -92,6 +143,7 @@ class HglCompilerRunTest : HglEditorFixture() {
             handler.addProcessListener(CapturingProcessAdapter(output))
             handler.startNotify()
             PlatformTestUtil.waitWithEventsDispatching("hgl timed out", { handler.isProcessTerminated }, 150)
+            inspect?.invoke(result.executionConsole as SMTRunnerConsoleView)
             output.exitCode = handler.exitCode!!
             return output
         } finally {

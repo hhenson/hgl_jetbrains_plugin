@@ -23,16 +23,45 @@ declaration examples, core mapping declarations and every core HGL file.
 ## Build and install
 
 Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
-2026.2. To use an installed IDE, pass `-PplatformLocalPath=/path/to/IDE`.
+2026.3.0.1 and tests the same plugin in RustRover 2026.3.1. To use an installed IDE, pass `-PplatformLocalPath=/path/to/IDE`.
 
 ```sh
 ./gradlew test testRustRover buildPlugin
 ./gradlew verifyPlugin
 ```
 
-Install `build/distributions/hgl-jetbrains-plugin-0.8.0.zip` through
+Install `build/distributions/hgl-jetbrains-plugin-0.10.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
-requires platform build 262 or later.
+supports the 2026.3 platform from build 263.7307.257 through 263.*.
+
+## Create an HGL project
+
+Choose **New Project → HGL**, select a directory, and click **Create**.
+Run `application hello.main` from the gutter in `src/main.hgl` to publish
+`"Hello, world!"` once. Run the named test `says_hello` beside `greeting`
+in `src/hello.hgl`.
+
+**Settings → Build, Execution, Deployment → HGL** edits the `build` section
+of `hgl.json`. Commit this file to share the compiler command, source roots,
+and output paths. Paths are relative to the project or absolute. A workspace
+compiler override is private to your IDE. Existing projects retain their
+runner settings until they save shared build settings.
+
+| Directory | Purpose |
+| --- | --- |
+| `src/` | Application, module, and inline tests |
+| `build/` | Compiler workspace for Run and Test |
+| `bin/` | Destination reserved for standalone binaries |
+| `docs/` | Generated HTML site and IDE documentation model |
+
+Click **Generate HGL Documentation** on the main toolbar or in **Build**.
+Choose **Open documentation** in the completion notification to read the site.
+The equivalent compiler commands for the starter are:
+
+```sh
+hgl doc src --out docs
+hgl doc src --format json --out docs
+```
 
 ## Code documentation
 
@@ -44,8 +73,7 @@ to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
 and tables. Fenced formulas and diagrams display their source.
 
 For modules outside the project, use a version 1 `documentation.json` export.
-Put it at the project root or set **Documentation model** under **Languages &
-Frameworks → HGL Test Runner**. Generate it with the compiler’s JSON format:
+New projects read it from the configured documentation directory. Use **Documentation model override** in the HGL build settings for another file. Generate it with the compiler’s JSON format:
 
 ```sh
 hgl doc path/to/library --format json --out .
@@ -58,7 +86,7 @@ core prelude. Project source takes precedence, including unsaved edits.
 
 Save an HGL file to see compiler errors and warnings in the editor. Hover
 over an underline for its code, message and related locations. In
-**Settings → Languages & Frameworks → HGL Test Runner**, you can override
+**Settings → Build, Execution, Deployment → HGL**, you can override
 the compiler path. Set source roots for multi-file programs.
 **Check HGL sources on save** is enabled by default in trusted
 projects.
@@ -68,7 +96,17 @@ projects.
 Click the gutter triangle beside an `application` header, a named `test`,
 or an `integration_test`. For `application demo.backtest`, the IDE runs
 `hgl run --application demo.backtest` with the configured roots. The Run
-window shows the output and exit status. Rerun repeats the same selection.
+window shows the output and exit status. Tests open the JetBrains test results
+tree. Select a failed or skipped case for the compiler's reason. The root
+retains the full output. Rerun repeats the same selection.
+
+To debug, set a line breakpoint on an executable HGL statement and choose
+**Debug** from the application gutter. The Debug window opens the HGL source
+at the breakpoint. Resume to see timestamped publications in its console.
+This requires a compiler with `hgl run --debug-build`. On macOS the plugin
+uses Apple's LLDB adapter from the active developer tools. Run
+`xcrun --find lldb-dap` to check its location. On Linux it uses the IDE's
+bundled LLDB adapter.
 
 On Apple Silicon, install the compiler with `brew install hhenson/hgraph/hgl`.
 Both IDEs look for `hgl` on their console `PATH`, then in `/opt/homebrew/bin`

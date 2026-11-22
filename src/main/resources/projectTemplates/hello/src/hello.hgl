@@ -1,0 +1,10 @@
+module hello
+
+/** Publishes one greeting at startup. */
+export fn greeting() -> str {
+    yield 0s: "Hello, world!"
+}
+
+test says_hello {
+    assert eval greeting() == ["Hello, world!"]
+}
