@@ -1,4 +1,4 @@
-module core_implementation part record_eval
+module core_conformance part record_eval
 
 # CEVAL-4 is agreed. The set delta profile used by this fixture is proposed.
 

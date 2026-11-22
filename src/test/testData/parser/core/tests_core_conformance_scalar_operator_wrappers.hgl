@@ -1,4 +1,4 @@
-module core_implementation part scalar_operator_wrappers
+module core_conformance part scalar_operator_wrappers
 
 # NUM-1: typed operands select the two mixed candidates, not literal coercion.
 test mixed_numeric_arithmetic {

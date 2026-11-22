@@ -138,6 +138,290 @@
       ]
     },
     {
+      "name": "demo.test_local_declarations",
+      "application": false,
+      "parts": [
+        {
+          "name": null,
+          "source": {
+            "module": "demo.test_local_declarations",
+            "part": null,
+            "file": "test_local_declarations.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        }
+      ],
+      "declarations": [
+        {
+          "kind": "operator",
+          "name": "classify",
+          "canonicalName": "demo.test_local_declarations::classify",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "demo.test_local_declarations",
+            "part": null,
+            "file": "test_local_declarations.hgl",
+            "line": 5,
+            "column": 17
+          },
+          "documentation": null,
+          "genericParameters": [
+            {
+              "name": "T",
+              "kind": "type",
+              "type": null,
+              "bounds": null,
+              "written": "T",
+              "default": null
+            }
+          ],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "value",
+              "type": "T",
+              "written": "value: T",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "i64",
+            "written": "-> i64",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": [
+            {
+              "kind": "candidate",
+              "name": "classify",
+              "canonicalName": "demo.test_local_declarations::classify",
+              "role": "value",
+              "exported": false,
+              "source": {
+                "module": "demo.test_local_declarations",
+                "part": null,
+                "file": "test_local_declarations.hgl",
+                "line": 6,
+                "column": 15
+              },
+              "documentation": null,
+              "genericParameters": [
+                {
+                  "name": "T",
+                  "kind": "type",
+                  "type": null,
+                  "bounds": null,
+                  "written": "T",
+                  "default": null
+                }
+              ],
+              "configurationParameters": [],
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": "T",
+                  "written": "value: T",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                }
+              ],
+              "result": {
+                "type": "i64",
+                "written": "-> i64",
+                "reference": false
+              },
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ]
+        },
+        {
+          "kind": "struct",
+          "name": "Closed",
+          "canonicalName": "demo.test_local_declarations::with_a_type::Closed",
+          "role": null,
+          "exported": false,
+          "source": {
+            "module": "demo.test_local_declarations",
+            "part": null,
+            "file": "test_local_declarations.hgl",
+            "line": 16,
+            "column": 12
+          },
+          "documentation": null,
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [
+            {
+              "kind": "field",
+              "name": "day",
+              "canonicalName": "demo.test_local_declarations::with_a_type::Closed.day",
+              "role": null,
+              "exported": false,
+              "source": {
+                "module": "demo.test_local_declarations",
+                "part": null,
+                "file": "test_local_declarations.hgl",
+                "line": 17,
+                "column": 9
+              },
+              "documentation": null,
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "date",
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ],
+          "candidates": []
+        },
+        {
+          "kind": "struct",
+          "name": "Closed",
+          "canonicalName": "demo.test_local_declarations::independent_types_and_operator::Closed",
+          "role": null,
+          "exported": false,
+          "source": {
+            "module": "demo.test_local_declarations",
+            "part": null,
+            "file": "test_local_declarations.hgl",
+            "line": 37,
+            "column": 12
+          },
+          "documentation": null,
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [
+            {
+              "kind": "field",
+              "name": "count",
+              "canonicalName": "demo.test_local_declarations::independent_types_and_operator::Closed.count",
+              "role": null,
+              "exported": false,
+              "source": {
+                "module": "demo.test_local_declarations",
+                "part": null,
+                "file": "test_local_declarations.hgl",
+                "line": 38,
+                "column": 9
+              },
+              "documentation": null,
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "i64",
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ],
+          "candidates": []
+        },
+        {
+          "kind": "candidate",
+          "name": "classify",
+          "canonicalName": "demo.test_local_declarations::local_candidate::classify",
+          "role": "value",
+          "exported": false,
+          "source": {
+            "module": "demo.test_local_declarations",
+            "part": null,
+            "file": "test_local_declarations.hgl",
+            "line": 69,
+            "column": 19
+          },
+          "documentation": null,
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "value",
+              "type": "i64",
+              "written": "value: i64",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "i64",
+            "written": "-> i64",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        }
+      ]
+    },
+    {
       "name": "examples.apidoc",
       "application": false,
       "parts": [

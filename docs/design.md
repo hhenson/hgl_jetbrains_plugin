@@ -54,9 +54,11 @@ Canonical names group overloads. Kind and source location distinguish them.
 A bundled `<core>/` location is a display name. Exported comments use their
 own module for links. The model does not record imports or call-site bindings.
 
-CI regenerates the JSON fixture from a real export of the pinned compiler's
-documentation test program. Named constructor arguments select the struct's
-field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
+CI regenerates the JSON fixture from the pinned compiler’s documentation and
+test-local declaration examples. A private export qualifies a test-local name
+with its owning test. An operator’s candidate list includes implementations
+declared at module scope, including those in importing modules. Named
+constructor arguments select the struct's field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
 both source comments and exported documentation.
 
 ## Compiler diagnostics on save

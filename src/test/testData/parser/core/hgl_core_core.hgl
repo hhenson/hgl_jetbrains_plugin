@@ -1131,6 +1131,11 @@ date and counts n business days on, so `day + 0B` is the business day on
 or after `day`. A count below zero moves the other way: `day + (-tenor)`
 is `day - tenor`. The date is always on the left of a tenor.
 
+Over `i64` and `f64`, this operator declares associativity, commutativity
+and an identity of `0` and `0.0`, respectively. These are contracts
+(GEN-9, RED-7): grouping floating operations can change the last digits
+of a result. A caller that needs one grouping asks for an ordered reduction.
+
 Type Args:
     L: The left operand's type.
     R: The right operand's type.
@@ -1290,10 +1295,12 @@ Examples:
     ~~~
 
 Rules:
-    NUM-1, NUM-2, NUM-8, OPS-1, OPS-9, OPS-10, TEN-1, TEN-2, TEN-4, TEN-5,
+    RED-7, GEN-9, NUM-1, NUM-2, NUM-8, OPS-1, OPS-9, OPS-10, TEN-1, TEN-2, TEN-4, TEN-5,
     TEN-6, TEN-7, END-1, END-4, EXPR-10, FN-3, FN-6, FN-11, GEN-5, GEN-6
 */
 export operator add_<L, R, O>(lhs: L, rhs: R) -> O
+    properties<i64> { associative, commutative, identity = 0 }
+    properties<f64> { associative, commutative, identity = 0.0 }
 
 /**
 Subtract with binary `-`: two numbers, durations or tenors, a duration
@@ -1512,6 +1519,11 @@ quotient, use `div_`.
 | `tenor` | `i64`, in either order | `tenor` |
 | `str` | `i64`, in either order | `str` |
 
+Over `i64` and `f64`, this operator declares associativity, commutativity
+and an identity of `1` and `1.0`, respectively. These are contracts
+(GEN-9, RED-7): grouping floating operations can change the last digits
+of a result. A caller that needs one grouping asks for an ordered reduction.
+
 Type Args:
     L: The left operand's type.
     R: The right operand's type.
@@ -1577,10 +1589,12 @@ Examples:
     ~~~
 
 Rules:
-    NUM-1, NUM-2, NUM-8, OPS-1, OPS-10, TEN-1, TEN-2, END-1, END-4, FN-3,
+    RED-7, GEN-9, NUM-1, NUM-2, NUM-8, OPS-1, OPS-10, TEN-1, TEN-2, END-1, END-4, FN-3,
     FN-6, FN-11, GEN-5
 */
 export operator mul_<L, R, O>(lhs: L, rhs: R) -> O
+    properties<i64> { associative, commutative, identity = 1 }
+    properties<f64> { associative, commutative, identity = 1.0 }
 
 /**
 Divide with `/`, keeping the fraction: two numbers give an `f64`, and a

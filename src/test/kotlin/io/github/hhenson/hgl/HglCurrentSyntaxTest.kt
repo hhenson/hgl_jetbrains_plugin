@@ -4,8 +4,10 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.ParsingTestCase
 import io.github.hhenson.hgl.parser.HglParserDefinition
+import io.github.hhenson.hgl.psi.HglConstraintRelation
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglOperatorConfiguration
 
 /** Regressions for current HGL forms absent from the original plugin. */
 class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinition()) {
@@ -49,6 +51,35 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
             test failure {
                 assert raises("numeric.division_by_zero") { eval ratio(value: [0.0]) }
             }
+        """)
+    }
+
+    fun testInequalityIsAConstraintRelation() {
+        val file = accepted("""
+            module demo.constraints
+            const fn distinct<T, U>(a: T, b: U) -> bool requires T != U => true
+            const fn nonzero<const n: i64>(x: i64) -> i64 requires n != 0 && n != 1 => x
+        """)
+        val relations = PsiTreeUtil.findChildrenOfType(file, HglConstraintRelation::class.java)
+        assertEquals(listOf("!= U", "!= 0", "!= 1"), relations.map { it.text })
+    }
+
+    fun testToleranceConfigurationInBothOperatorSpellings() {
+        val file = accepted("""
+            module demo.tolerance
+            const fn symbol(lhs: f64, rhs: f64) -> bool => lhs =={abs: 0.01} rhs
+            const fn named(lhs: f64, rhs: f64) -> bool => eq_{abs: 0.01}(lhs, rhs)
+        """)
+        val options = PsiTreeUtil.findChildrenOfType(file, HglOperatorConfiguration::class.java)
+        assertEquals(listOf("{abs: 0.01}", "{abs: 0.01}"), options.map { it.text })
+    }
+
+    fun testForwardedLawAndCapabilityMembership() {
+        accepted("""
+            module demo.laws
+            operator schedule<C, W>(capability: C, at: W) requires C in {Scheduler, Alarm}
+            const fn reduce<T, const associative: bool = associative(f)>(f: const fn(T, T) -> T, a: T, b: T) -> T
+                requires associative in {true, false} => fold{associative: associative}(f, a, b)
         """)
     }
 

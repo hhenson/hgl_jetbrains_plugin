@@ -1,4 +1,4 @@
-module core_implementation part dense_traces
+module core_conformance part dense_traces
 
 fn replay_scalar(value: i64) -> i64 {
     when { return value }

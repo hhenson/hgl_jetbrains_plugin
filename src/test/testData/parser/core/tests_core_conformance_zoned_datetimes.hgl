@@ -1,4 +1,4 @@
-module core_implementation part zoned_datetimes
+module core_conformance part zoned_datetimes
 
 /**
 A duration added to a zoned datetime moves its instant, not its wall clock.

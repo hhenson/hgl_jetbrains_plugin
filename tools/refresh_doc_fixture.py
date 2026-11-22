@@ -7,13 +7,17 @@ import subprocess
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("compiler", type=Path, help="compiler checkout with a debug build of hgl")
 compiler = parser.parse_args().compiler.resolve()
+fixtures = compiler / "crates/hgl_cli/tests/fixtures"
 export = subprocess.check_output([
-    compiler / "target/debug/hgl", "doc", compiler / "crates/hgl_cli/tests/fixtures/doc",
+    compiler / "target/debug/hgl", "doc", fixtures / "doc", fixtures / "test_local_declarations.hgl",
     "--format", "json", "--private",
 ])
 model = json.loads(export)
 names = {"core::smallest_step", "examples.apidoc::Box", "examples.apidoc::Side",
-         "examples.apidoc::identity", "examples.apidoc::shifted", "examples.apidoc::internal"}
+         "examples.apidoc::identity", "examples.apidoc::shifted", "examples.apidoc::internal",
+         "demo.test_local_declarations::classify", "demo.test_local_declarations::local_candidate::classify",
+         "demo.test_local_declarations::with_a_type::Closed",
+         "demo.test_local_declarations::independent_types_and_operator::Closed"}
 for module in model["modules"]:
     module["declarations"] = [d for d in module["declarations"] if d["canonicalName"] in names]
 model["modules"] = [m for m in model["modules"] if m["declarations"]]

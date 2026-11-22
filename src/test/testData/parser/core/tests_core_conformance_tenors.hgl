@@ -1,4 +1,4 @@
-module core_implementation part tenors
+module core_conformance part tenors
 
 # A calendar of a library's own: one day closed, beside the weekend.
 struct Closed {
