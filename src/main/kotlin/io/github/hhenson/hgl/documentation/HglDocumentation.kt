@@ -31,14 +31,25 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumenta
             null -> emptyList()
             else -> listOfNotNull(reference.resolve())
         }
-        if (resolved.isNotEmpty()) {
-            return resolved.distinct().mapNotNull { documentationTarget(it, null) }
+        val local = resolved.distinct().mapNotNull { documentationTarget(it, null) }
+        if (local.isNotEmpty()) return local
+        if (resolved.all { it is HglImportItem }) {
+            val external = when (reference) {
+                is HglQualifiedNameReference -> exportTargets(reference.element)
+                is io.github.hhenson.hgl.reference.HglImportItemReference -> {
+                    val item = reference.element
+                    val module = item.parentOfType<HglUseDecl>()?.modulePath?.dottedName
+                    if (module == null) emptyList() else exportTargets(file, module, item.text)
+                }
+                else -> emptyList()
+            }
+            if (external.isNotEmpty()) return external
         }
 
         val leaf = file.findElementAt(offset) ?: return emptyList()
         val label = leaf.parentOfType<HglMemberName>()
         if (label?.parent is HglNamedArgument) {
-            return argumentDeclarations(label).mapNotNull { documentationTarget(it, leaf) }
+            return argumentTargets(label)
         }
         val declaration = generateSequence(leaf) { it.parent }.firstOrNull {
             it is HglNamedElement || it is HglFunctionTypeParameter || it is HglModuleDecl || it is HglApplicationDecl
@@ -52,7 +63,7 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumenta
         return listOfNotNull(documentationTarget(declaration, leaf))
     }
 
-    private fun argumentDeclarations(label: HglMemberName): List<PsiElement> {
+    private fun argumentTargets(label: HglMemberName): List<DocumentationTarget> {
         val argument = label.parent.parent as? HglArgument ?: return emptyList()
         val arguments = argument.parent as? HglArguments ?: return emptyList()
         val callee = when (val call = arguments.parent) {
@@ -63,18 +74,22 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumenta
         }
         val reference = callee?.reference as? HglQualifiedNameReference ?: return emptyList()
         val name = label.text
-        return reference.declarations(includeImplementations = false).flatMap { target ->
+        val declarations = reference.declarations(includeImplementations = false)
+        if (declarations.all { it is HglImportItem }) return exportTargets(reference.element, name)
+        return declarations.flatMap { target ->
             when (target) {
                 is HglParameter -> target.functionType?.functionTypeParameterList.orEmpty().filter { it.ident?.text == name }
                 is HglStructDecl -> target.structBody?.structMemberList.orEmpty().filter { it.name == name }
                 else -> PsiTreeUtil.getChildOfType(target, HglFunctionSignature::class.java)
                     ?.parameterList.orEmpty().filter { it.name == name }
             }
-        }.distinct()
+        }.distinct().mapNotNull { documentationTarget(it, label) }
     }
 }
 
-private class HglDocumentationTarget(private val element: PsiElement) : DocumentationTarget {
+private class HglDocumentationTarget(private val element: PsiElement) : DocumentationTarget, HglLinkedDoc {
+    override fun symbol(name: String) = sourceDocSymbol(element, name)
+
     override fun createPointer(): Pointer<out DocumentationTarget> {
         val pointer = SmartPointerManager.createPointer(element)
         return Pointer { pointer.element?.let { HglDocumentationTarget(it) } }
@@ -87,7 +102,7 @@ private class HglDocumentationTarget(private val element: PsiElement) : Document
         HglDocumentation.html(element)?.let { DocumentationResult.documentation(it) }
 }
 
-/** Source documentation follows SDOC-1 through SDOC-4. reST content remains literal. */
+/** Documentation of the current source buffer. */
 object HglDocumentation {
     fun attached(element: PsiElement): String? {
         if (element !is HglFunctionDecl && element !is HglNativeFunctionDecl &&
@@ -147,24 +162,6 @@ object HglDocumentation {
 
     fun html(element: PsiElement, brief: Boolean = false): String? {
         val signature = signature(element) ?: return null
-        val sections = sections(element)
-        return buildString {
-            append("<div class='definition'><pre>").append(escape(signature)).append("</pre></div>")
-            if (brief) {
-                val summary = sections.firstOrNull()?.takeIf { it.heading == null }?.lines
-                    ?.takeWhile { it.isNotBlank() }?.joinToString("\n")
-                if (!summary.isNullOrEmpty()) append("<div class='content'><pre>").append(escape(summary)).append("</pre></div>")
-            } else if (sections.isNotEmpty()) {
-                append("<div class='content'>")
-                for ((heading, lines) in sections) {
-                    if (heading != null) append("<h4>").append(heading).append("</h4>")
-                    if (lines.isNotEmpty()) append("<pre>").append(escape(lines.joinToString("\n"))).append("</pre>")
-                }
-                append("</div>")
-            }
-        }
+        return docHtml(signature, sections(element), brief) { sourceDocSymbol(element, it) != null }
     }
-
-    private fun escape(text: String): String = text.replace("&", "&amp;")
-        .replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
 }

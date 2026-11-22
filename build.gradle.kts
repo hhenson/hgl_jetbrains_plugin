@@ -42,6 +42,8 @@ dependencies {
         pluginVerifier("1.411")
         zipSigner()
     }
+    implementation("org.commonmark:commonmark:0.33.0")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:0.33.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.opentest4j:opentest4j:1.3.0")
 }

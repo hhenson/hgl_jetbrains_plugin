@@ -1,15 +1,24 @@
 module examples.documented
 
 /**
-Double a value.
+Double a value, as `tripled` triples one.
 
 Args:
     value: Input value.
 
 Returns:
-    Twice the input.
+    Twice the input, $`2v`$.
+
+Examples:
+    ~~~hgl
+    assert doubled(2) == 4
+    assert doubled(tripled(1)) == 6
+    ~~~
 */
 const fn doubled(value: i64) -> i64 => value * 2
+
+/** Triple a value. */
+const fn tripled(value: i64) -> i64 => value * 3
 
 /** A side of the order book. */
 export enum Side {

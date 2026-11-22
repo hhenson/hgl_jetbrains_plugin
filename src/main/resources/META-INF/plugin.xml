@@ -40,6 +40,7 @@
         <lang.refactoringSupport language="HGL" implementationClass="io.github.hhenson.hgl.reference.HglRefactoringSupportProvider"/>
         <completion.contributor language="HGL"
                                 implementationClass="io.github.hhenson.hgl.completion.HglCompletionContributor"/>
+        <platform.backend.documentation.linkHandler implementation="io.github.hhenson.hgl.documentation.HglDocLinkHandler"/>
         <platform.backend.documentation.targetProvider
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
         <platform.backend.documentation.psiTargetProvider

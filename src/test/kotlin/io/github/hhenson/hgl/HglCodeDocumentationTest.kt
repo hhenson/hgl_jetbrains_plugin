@@ -44,9 +44,9 @@ class HglCodeDocumentationTest : HglEditorFixture() {
                 value: The input.
 
             Examples:
-                .. code-block:: hgl
-
-                    keep("<unsafe>")
+                ~~~hgl
+                keep("<unsafe>")
+                ~~~
 
             Custom:
                 Uninterpreted content.
@@ -61,8 +61,8 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         val html = HglDocumentation.html(function)!!
         assertTrue(html.contains("<h4>Args:</h4>"))
         assertTrue(html.contains("<h4>Examples:</h4>"))
-        assertTrue(html.contains(".. code-block:: hgl\n\n    keep(&quot;&lt;unsafe&gt;&quot;)"))
-        assertTrue(html.contains("Custom:\n    Uninterpreted content."))
+        assertTrue(html, html.contains("language-hgl") && html.contains("keep(&quot;&lt;unsafe&gt;&quot;)"))
+        assertTrue(html.contains("Custom:") && html.contains("Uninterpreted content."))
         assertFalse(html.contains("<h4>Custom:"))
     }
 
@@ -84,7 +84,7 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         """.trimIndent()
         val parameter = hint(source.replace("=> value", "=> val<caret>ue"))
         assertTrue(parameter.contains("value: T"))
-        assertTrue(parameter.contains("Value to return.\n    Continued here."))
+        assertTrue(parameter.contains("Value to return.") && parameter.contains("Continued here."))
         assertFalse(parameter.contains("Other input"))
         assertFalse(parameter.contains("Enclosing summary"))
         val generic = hint(source.replace("value: T,", "value: <caret>T,"))

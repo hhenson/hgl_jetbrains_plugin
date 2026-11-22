@@ -37,7 +37,9 @@ module or the core prelude. The chooser shows typed signatures and file paths.
 
 Editor offsets and PSI elements share one documentation target. Hover reads
 the written signature and summary. Quick Documentation groups SDOC-3 sections
-and preserves the reStructuredText inside them. Parameter help reads the
+and renders CommonMark with tables (SDOC-7). Raw HTML is displayed as text.
+Math and Mermaid fences display their source. A code span with a unique
+declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
 
 A call to an operator shows the public declaration. An implementation shows
@@ -45,6 +47,15 @@ its own documentation at its declaration. Other source overloads remain
 separate targets. The IDE handles unsaved edits directly. A future tooltip
 with inferred types or the selected overload would need a compiler query
 mapping a source position to its resolved declaration and instantiated type.
+
+An optional version 1 compiler export supplies documentation for modules
+without indexed source. The plugin caches the model against its JSON file.
+Canonical names group overloads. Kind and source location distinguish them.
+A bundled `<core>/` location is a display name. Exported comments use their
+own module for links. The model does not record imports or call-site bindings.
+
+The language pin includes the [Markdown documentation contract](https://github.com/hhenson/hgl_spec/pull/213).
+The JSON fixture is a subset of the [compiler exporter’s test program](https://github.com/hhenson/hgl-compiler/tree/5a1b9f721b1223b7a2a62ec33816029bea394e7c/crates/hgl_cli/tests/fixtures/doc).
 
 ## Compiler diagnostics on save
 

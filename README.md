@@ -37,7 +37,19 @@ Hover over a declaration or a resolved name to see its written signature and
 the summary from its `/** ... */` comment. **View → Quick Documentation**
 shows the full comment, including HGL sections such as `Args:`, `Returns:`
 and `Examples:`. Hover over a parameter, a named call argument, or a generic
-to see its own entry from `Args:` or `Type Args:`. The IDE reads project source directly.
+to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
+and tables. Fenced formulas and diagrams display their source.
+
+For modules outside the project, use a version 1 `documentation.json` export.
+Put it at the project root or set **Documentation model** under **Languages &
+Frameworks → HGL Test Runner**. A compiler with the `doc` command can produce it:
+
+```sh
+hgl doc path/to/library --format json --out .
+```
+
+Hover reads the export for selectively imported names, module aliases and the
+core prelude. Project source takes precedence, including unsaved edits.
 
 ## Compiler diagnostics on save
 
