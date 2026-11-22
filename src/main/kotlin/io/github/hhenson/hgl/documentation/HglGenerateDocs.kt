@@ -66,7 +66,7 @@ class HglGenerateDocs : DumbAwareAction() {
             val build = project.buildSettings()
             val roots = build.sourceRoots.ifEmpty { listOfNotNull(selected) }
             if (roots.isEmpty()) throw ExecutionException("Set source roots in HGL build settings or select an HGL file.")
-            val out = base.resolve(build.docsDir.ifBlank { "docs" }).normalize()
+            val out = base.resolve(build.docsDir).normalize()
             for (format in listOf("html", "json")) {
                 indicator.checkCanceled()
                 val command = hglCommandLine(build.compiler).withWorkDirectory(base.toFile())

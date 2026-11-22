@@ -38,7 +38,7 @@ class HglTestSettings : PersistentStateComponent<HglTestSettings.Options> {
 internal fun Project.buildSettings(): HglBuild {
     val local = service<HglTestSettings>().state
     val shared = service<HglBuildFile>().read()
-        ?: HglBuild(compiler = local.executable, sourceRoots = local.sourceRoots(), buildDir = "", docsDir = "")
+        ?: HglBuild(compiler = local.executable, sourceRoots = local.sourceRoots(), buildDir = "")
     return if (local.compilerOverride.isBlank()) shared else shared.copy(compiler = local.compilerOverride)
 }
 

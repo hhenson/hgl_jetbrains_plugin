@@ -14,12 +14,14 @@ import com.intellij.openapi.vfs.VirtualFile
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
+internal const val DEFAULT_DOCS_DIR = "docs"
+
 internal data class HglBuild(
     val compiler: String = "hgl",
     val sourceRoots: List<String> = listOf("src"),
     val buildDir: String = "build",
     val binDir: String = "bin",
-    val docsDir: String = "docs",
+    val docsDir: String = DEFAULT_DOCS_DIR,
 ) {
     fun validate() {
         require(compiler.isNotBlank()) { "Enter an HGL compiler command or path." }
