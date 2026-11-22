@@ -1,0 +1,7 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <programRunner implementation="io.github.hhenson.hgl.debug.HglDebugRunner"/>
+        <xdebugger.breakpointType implementation="io.github.hhenson.hgl.debug.HglLineBreakpoint"/>
+        <platform.dap.debugAdapterSupportProvider implementation="io.github.hhenson.hgl.debug.HglAdapterProvider"/>
+    </extensions>
+</idea-plugin>

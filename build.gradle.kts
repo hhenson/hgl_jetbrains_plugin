@@ -38,6 +38,7 @@ dependencies {
         // Use -PplatformLocalPath=<CLion installation> to avoid downloading it.
         val localPath = providers.gradleProperty("platformLocalPath")
         if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
+        bundledModule("intellij.platform.dap")
         testFramework(TestFrameworkType.Platform)
         pluginVerifier("1.411")
         zipSigner()
@@ -131,6 +132,8 @@ tasks.test {
 
 // A parser regression must fail CI instead of leaving an editor test spinning.
 tasks.withType<Test>().configureEach {
+    // Bundled LLDB imports Python modules inside the read-only IDE distribution.
+    environment("PYTHONDONTWRITEBYTECODE", "1")
     inputs.dir("src/test/testData").withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file("spec/hgl_spec/spec/language/source-text.md").withPathSensitivity(PathSensitivity.RELATIVE)
     val workspace = providers.gradleProperty("hglBenchmarkWorkspace")
@@ -138,7 +141,7 @@ tasks.withType<Test>().configureEach {
         systemProperty("hglBenchmarkWorkspace", file(workspace.get()).absolutePath)
         outputs.upToDateWhen { false }
     } else exclude("**/HglPerformanceBaselineTest.class")
-    if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class")
+    if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class", "**/HglDebugApplicationTest.class")
     else outputs.upToDateWhen { false }
     timeout = Duration.ofMinutes(5)
 }
