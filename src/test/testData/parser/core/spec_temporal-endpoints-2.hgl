@@ -1,0 +1,15 @@
+module examples.scalar_invalidation
+
+fn produce(command: i64) -> i64 {
+    inject out
+    when {
+        if command != 0 { return command }
+        invalidate(out)
+    }
+}
+
+fn watch(input: i64) -> bool {
+    when valid([]) { return valid(input) }
+}
+
+fn observe(command: i64) -> bool => watch(produce(command))

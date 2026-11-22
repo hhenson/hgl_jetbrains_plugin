@@ -1,0 +1,9 @@
+module examples.execution
+
+fn positive(value: i64) -> i64 {
+    when value > 0 { return value }
+}
+
+test silent_ticks {
+    assert eval positive(value: [7, _, 0, 9, _]) == [7, _, _, 9]
+}

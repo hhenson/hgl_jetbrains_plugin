@@ -6,11 +6,11 @@ module core part calendar
 
 # TEN-5: whether `day` is a business day of `calendar`. A calendar is any
 # value this has a candidate for.
-operator business_day<C>(calendar: C, day: date) -> bool
+export operator business_day<C>(calendar: C, day: date) -> bool
 
 # TEN-8: the business day a rolling rule gives for `day` on `calendar`. A
 # rolling rule is any value this has a candidate for.
-operator roll<R, C>(rolling_rule: R, calendar: C, day: date) -> date
+export operator roll<R, C>(rolling_rule: R, calendar: C, day: date) -> date
 
 # TEN-8: the four common rolling rules, for any calendar.
 export enum Rolling { following, modified_following, preceding, modified_preceding }

@@ -1,0 +1,7 @@
+module examples.test_value_helper
+
+const fn twice_value(value: i64) -> i64 => value * 2
+
+test scalar_value {
+    assert twice_value(7) == 14
+}

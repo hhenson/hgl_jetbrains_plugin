@@ -1,0 +1,18 @@
+module examples.lists
+
+test a_list_grows {
+    var entries: list<i64> = [1, 2]
+    let before = entries
+    append(entries, 3)
+    extend(entries, [4, 5])
+    assert entries == [1, 2, 3, 4, 5]
+    assert before == [1, 2]
+}
+
+fn gathered(value: i64) -> list<i64> {
+    cache seen: list<i64> = []
+    when {
+        append(seen, value)
+        return seen
+    }
+}
