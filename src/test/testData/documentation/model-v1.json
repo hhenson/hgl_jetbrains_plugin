@@ -94,10 +94,33 @@
             "module": "core",
             "part": null,
             "file": "<core>/core/core.hgl",
-            "line": 37,
+            "line": 416,
             "column": 14
           },
-          "documentation": null,
+          "documentation": {
+            "text": "The least by which one cycle's evaluation time follows another's: a microsecond.\n\n`earliest_start` is this much after `never`, and `latest_end` this much\nbefore `forever`.\n\nExamples:\n    ~~~hgl\n    assert smallest_step == 1us\n    assert earliest_start - never == smallest_step\n    ~~~\n\nRules:\n    CRUN-3",
+            "summary": "The least by which one cycle's evaluation time follows another's: a microsecond.",
+            "sections": [
+              {
+                "heading": null,
+                "recognized": false,
+                "text": "`earliest_start` is this much after `never`, and `latest_end` this much\nbefore `forever`.",
+                "entries": []
+              },
+              {
+                "heading": "Examples:",
+                "recognized": true,
+                "text": "~~~hgl\nassert smallest_step == 1us\nassert earliest_start - never == smallest_step\n~~~",
+                "entries": []
+              },
+              {
+                "heading": "Rules:",
+                "recognized": false,
+                "text": "CRUN-3",
+                "entries": []
+              }
+            ]
+          },
           "genericParameters": [],
           "configurationParameters": [],
           "parameters": [],

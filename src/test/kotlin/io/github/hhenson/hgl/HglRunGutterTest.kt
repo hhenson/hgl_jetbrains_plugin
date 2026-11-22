@@ -3,10 +3,13 @@ package io.github.hhenson.hgl
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.actions.RunConfigurationProducer
 import com.intellij.execution.configurations.RuntimeConfigurationError
+import com.intellij.execution.executors.DefaultDebugExecutor
+import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.lineMarker.RunLineMarkerContributor
 import com.intellij.openapi.components.service
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import io.github.hhenson.hgl.debug.HglDebugRunner
 import io.github.hhenson.hgl.run.HglApplicationProducer
 import io.github.hhenson.hgl.run.HglRunConfiguration
 import io.github.hhenson.hgl.run.HglRunGutter
@@ -28,6 +31,7 @@ class HglRunGutterTest : HglEditorFixture() {
             assertNull(marker.getInfo(leaf.parent))
             val configuration = runConfigurationAt(leaf)
             assertEquals("HglSingleTest", configuration.type.id)
+            assertNull(ProgramRunner.getRunner(DefaultDebugExecutor.EXECUTOR_ID, configuration))
             assertEquals("market.quotes::selected", configuration.selector)
             assertEquals(listOf("test", "--test", "market.quotes::selected", "--target", "cpp", "--", configuration.sourcePath),
                 configuration.commandLine().parametersList.list)
@@ -40,6 +44,7 @@ class HglRunGutterTest : HglEditorFixture() {
         assertEquals(listOf(leaf), marked.toList())
         val configuration = runConfigurationAt(leaf)
         assertEquals("HglApplication", configuration.type.id)
+        assertTrue(ProgramRunner.getRunner(DefaultDebugExecutor.EXECUTOR_ID, configuration) is HglDebugRunner)
         assertEquals("demo.east.backtest", configuration.name)
         assertEquals(listOf("run", "--application", "demo.east.backtest", "--target", "cpp", "--",
             myFixture.file.virtualFile.path), configuration.commandLine().parametersList.list)

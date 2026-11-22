@@ -70,6 +70,12 @@ or an `integration_test`. For `application demo.backtest`, the IDE runs
 `hgl run --application demo.backtest` with the configured roots. The Run
 window shows the output and exit status. Rerun repeats the same selection.
 
+To debug, set a line breakpoint on an executable HGL statement and choose
+**Debug** from the application gutter. The Debug window opens the HGL source
+at the breakpoint. Resume to see timestamped publications in its console.
+This requires a compiler with `hgl run --debug-build` and the bundled LLDB
+debug adapter in CLion or RustRover.
+
 On Apple Silicon, install the compiler with `brew install hhenson/hgraph/hgl`.
 Both IDEs look for `hgl` on their console `PATH`, then in `/opt/homebrew/bin`
 on macOS. This also lets the C++ runner find Homebrew’s CMake and Ninja.
