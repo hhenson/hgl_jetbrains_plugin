@@ -4,7 +4,6 @@ import com.google.gson.JsonParser
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
-import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
@@ -27,7 +26,6 @@ import com.intellij.execution.RunManager
 import io.github.hhenson.hgl.run.HglRunGutter
 import io.github.hhenson.hgl.run.HglRunTestsAction
 import io.github.hhenson.hgl.run.HglRunIntegrationTestsAction
-import io.github.hhenson.hgl.run.hglCommandLine
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
 
@@ -214,14 +212,13 @@ class HglCompilerRunTest : HglEditorFixture() {
             use support::{one}
             test ordinary { assert one() == 1 }
             integration_test live { assert one() == 1 }
+            integration_test rejects {
+                # expect-error(type, "type.mismatch")
+                assert 1
+            }
         """)
         source("src/chosen/nested/cases.hgl", "module nested\ntest ordinary { assert true }\nintegration_test live { assert true }")
-        val preview = System.getenv("HGL_TEST_SCOPE_CLI")
-        val compiler = preview ?: requireNotNull(System.getenv("HGL_TEST_CLI"))
-        val help = CapturingProcessHandler(hglCommandLine(compiler).withParameters("test", "--help")).runProcess()
-        assertEquals(help.stderr, 0, help.exitCode)
-        val supportsSelection = "--test-path" in help.stdout && "--integration-only" in help.stdout
-        if (preview != null) assertTrue("The selected compiler must support both test filters", supportsSelection)
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
         project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("src", "support")), null)
         val selected = VfsUtil.findFileByIoFile(file, true)!!
         for (target in listOf(selected, selected.parent)) {
@@ -230,17 +227,13 @@ class HglCompilerRunTest : HglEditorFixture() {
                 val output = runInConsole(settings.configuration) { view ->
                     val root = view.resultsViewer.testsRootNode
                     PlatformTestUtil.waitWithEventsDispatching("missing scope results", { root.isFinal && root.children.isNotEmpty() }, 10)
-                    if (supportsSelection) {
-                        val modules = if (target.isDirectory) listOf("features", "nested") else listOf("features")
-                        assertEquals(modules.map { "${it}::$test" }.toSet(), root.children.map { it.name }.toSet())
-                        assertTrue(root.children.all { it.isPassed })
-                    } else {
-                        val error = root.children.single()
-                        assertTrue(error.isDefect)
-                        assertTrue(error.errorMessage.orEmpty().contains("requires an HGL compiler with hgl test --test-path"))
-                    }
+                    val modules = if (target.isDirectory) listOf("features", "nested") else listOf("features")
+                    val expected = modules.map { "${it}::$test" }.toMutableSet()
+                    if (action is HglRunIntegrationTestsAction) expected.add("features::rejects")
+                    assertEquals(expected, root.children.map { it.name }.toSet())
+                    assertTrue(root.children.all { it.isPassed })
                 }
-                assertEquals(output.stdout + output.stderr, if (supportsSelection) 0 else 2, output.exitCode)
+                assertEquals(output.stdout + output.stderr, 0, output.exitCode)
             }
         }
     }
@@ -259,7 +252,7 @@ class HglCompilerRunTest : HglEditorFixture() {
             source("$app.hgl", "application $app\nuse prices::{emit}\neval emit()")
         }
         val shared = project.service<HglBuildFile>()
-        val compiler = System.getenv("HGL_TEST_SCOPE_CLI") ?: requireNotNull(System.getenv("HGL_TEST_CLI"))
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
         shared.save(HglBuild(compiler = compiler), null)
         val targets = project.service<HglProjectTargets>()
         targets.start()
@@ -281,19 +274,15 @@ class HglCompilerRunTest : HglEditorFixture() {
             "All HGL Tests" to setOf("prices::ordinary", "prices::extra_check", "other::ordinary"),
             "All HGL Integration Tests" to setOf("prices::live", "other::live"),
         )
-        val supportsModuleTests = "--test-path" in CapturingProcessHandler(hglCommandLine(compiler)
-            .withParameters("test", "--help")).runProcess().stdout
-        if (System.getenv("HGL_TEST_SCOPE_CLI") != null) assertTrue(supportsModuleTests)
         for ((name, expected) in groups) {
             val configuration = target(name)
-            val supported = supportsModuleTests || name == "All HGL Tests"
             val result = runInConsole(configuration) { view ->
                 val tree = view.resultsViewer.testsRootNode
                 PlatformTestUtil.waitWithEventsDispatching("missing toolbar results", { tree.isFinal && tree.children.isNotEmpty() }, 10)
-                if (supported) assertEquals(expected, tree.children.map { it.name }.toSet())
-                else assertTrue(tree.children.single().errorMessage.orEmpty().contains("requires an HGL compiler"))
+                assertEquals(expected, tree.children.map { it.name }.toSet())
+                assertTrue(tree.children.all { it.isPassed })
             }
-            assertEquals(result.stdout + result.stderr, if (supported) 0 else 2, result.exitCode)
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
         }
     }
 
