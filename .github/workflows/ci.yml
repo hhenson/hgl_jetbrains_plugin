@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hhenson/hgl-compiler
-          ref: d6ee3bf7cdb042bbf2f8ca88ae097e9d481c9b91
+          ref: e908b5cf11936454ef0647f54b95aec23949fb2f
           path: build/test-compiler
           submodules: recursive
           persist-credentials: false
@@ -52,9 +52,6 @@ jobs:
           echo "$HGL_HGRAPH_DEPS/bin" >> "$GITHUB_PATH"
           cargo build --locked --bin hgl
           echo "HGL_TEST_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
-          if target/debug/hgl test --help | grep -F -- '--debug-build' > /dev/null; then
-            echo "HGL_TEST_DEBUG_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
-          fi
       - name: Verify the compiler documentation fixture
         run: |
           python3 tools/refresh_doc_fixture.py build/test-compiler

@@ -49,7 +49,7 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
         """.trimIndent())
         val root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
         PsiTestUtil.addContentRoot(module, root)
-        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_DEBUG_CLI")), null)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_CLI")), null)
         project.service<HglProjectTargets>().start()
         val runManager = RunManager.getInstance(project)
         PlatformTestUtil.waitWithEventsDispatching("Missing beta suite configurations", {
@@ -143,7 +143,7 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
         """.trimIndent())
         val source = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
         PsiTestUtil.addContentRoot(module, source.parent)
-        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_DEBUG_CLI")), null)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_CLI")), null)
         val errors = CopyOnWriteArrayList<Notification>()
         project.messageBus.connect(testRootDisposable).subscribe(Notifications.TOPIC, object : Notifications {
             override fun notify(notification: Notification) {
@@ -213,7 +213,7 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
         """.trimIndent())
         val folder = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(root)!!
         PsiTestUtil.addContentRoot(module, folder)
-        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_DEBUG_CLI")), null)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_CLI")), null)
         val manager = XDebuggerManager.getInstance(project)
         val type = XDebuggerUtil.getInstance().findBreakpointType(HglLineBreakpoint::class.java)
         val files = modules.map { folder.findChild("$it.hgl")!! }

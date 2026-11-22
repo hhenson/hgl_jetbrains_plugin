@@ -144,9 +144,12 @@ tasks.withType<Test>().configureEach {
         systemProperty("hglBenchmarkWorkspace", file(workspace.get()).absolutePath)
         outputs.upToDateWhen { false }
     } else exclude("**/HglPerformanceBaselineTest.class")
-    if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class", "**/HglDebugApplicationTest.class")
-    else outputs.upToDateWhen { false }
-    if (!providers.environmentVariable("HGL_TEST_DEBUG_CLI").isPresent) exclude("**/HglDebugTestSuiteTest.class")
+    if (providers.environmentVariable("HGL_TEST_CLI").isPresent) {
+        outputs.upToDateWhen { false }
+    } else {
+        exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class",
+            "**/HglDebugApplicationTest.class", "**/HglDebugTestSuiteTest.class")
+    }
     timeout = Duration.ofMinutes(5)
 }
 

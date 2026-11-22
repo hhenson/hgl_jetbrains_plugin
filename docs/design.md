@@ -208,8 +208,8 @@ includes the module and application. CLion also imports both generated C++ units
 In both IDEs the pinned compiler runs ordinary and integration tests separately
 for a single file and a recursive folder with dependencies in another root.
 A rejection owned by an integration test appears only in the integration run.
-Set `HGL_TEST_DEBUG_CLI` to a compiler supporting the version 1 test launch
-plan. Both IDEs check LLDB stops on the HGL assertion line for named, module
+The same pinned compiler supplies the version 1 test launch plan.
+Both IDEs check LLDB stops on the HGL assertion line for named, module
 and project selections of each test kind. They check Step Over between HGL
 assertions, the reported source line after a failed rejection or assertion,
 and Continue and Stop across module boundaries.
