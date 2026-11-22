@@ -119,6 +119,13 @@
                 "text": "CRUN-3",
                 "entries": []
               }
+            ],
+            "examples": [
+              {
+                "code": "assert smallest_step == 1us\nassert earliest_start - never == smallest_step\n",
+                "position": 1,
+                "runnable": true
+              }
             ]
           },
           "genericParameters": [],
@@ -464,6 +471,13 @@
                 "recognized": true,
                 "text": "~~~hgl\nassert false\n~~~",
                 "entries": []
+              }
+            ],
+            "examples": [
+              {
+                "code": "assert false\n",
+                "position": 1,
+                "runnable": true
               }
             ]
           },

@@ -179,8 +179,9 @@ CI pins the compiler independently and exercises both IDEs with the native hgrap
 Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
 tests locally. Both IDEs build the starter and verify that its compilation database
 includes the module and application. CLion also imports both generated C++ units.
-Set `HGL_TEST_SCOPE_CLI` to run the file and folder selection cases against a compiler
-with `--test-path` and `--integration-only`.
+In both IDEs the pinned compiler runs ordinary and integration tests separately
+for a single file and a recursive folder with dependencies in another root.
+A rejection owned by an integration test appears only in the integration run.
 
 ## Performance baseline
 
