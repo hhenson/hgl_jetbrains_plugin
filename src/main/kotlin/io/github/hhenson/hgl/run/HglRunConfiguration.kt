@@ -10,6 +10,7 @@ import com.intellij.execution.configurations.SimpleConfigurationType
 import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.LabeledComponent
@@ -88,6 +89,10 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
     }
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment) = object : CommandLineState(environment) {
+        override fun createConsole(executor: Executor) =
+            if (runType is HglTestType) SMTestRunnerConnectionUtil.createConsole(HglTestConsole(this@HglRunConfiguration, executor))
+            else super.createConsole(executor)
+
         override fun startProcess() = KillableColoredProcessHandler(commandLine()).also {
             ProcessTerminatedListener.attach(it, project)
         }

@@ -4,6 +4,7 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
 import com.intellij.openapi.components.service
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.progress.EmptyProgressIndicator
@@ -41,7 +42,14 @@ class HglCompilerRunTest : HglEditorFixture() {
             for (case in listOf("ordinary", "live", "broken")) {
                 myFixture.configureByText("checks.hgl", source.replace(" $case {", " <caret>$case {"))
                 val leaf = myFixture.file.findElementAt(myFixture.caretOffset)!!
-                val output = runInConsole(runConfigurationAt(leaf))
+                val output = runInConsole(runConfigurationAt(leaf)) { view ->
+                    val root = view.resultsViewer.testsRootNode
+                    PlatformTestUtil.waitWithEventsDispatching("missing test result", { root.isFinal && root.children.isNotEmpty() }, 10)
+                    val result = root.children.single()
+                    assertEquals("checkout.suite::$case", result.name)
+                    assertEquals(case != "broken", result.isPassed)
+                    assertEquals(case == "broken", result.isDefect)
+                }
                 val expected = if (case == "broken") "failed" else "passed"
                 val cases = output.stdout.lines().filter { "executable " in it && "::" in it }
                 assertSize(1, cases)
@@ -125,7 +133,7 @@ class HglCompilerRunTest : HglEditorFixture() {
         }
     }
 
-    private fun runInConsole(configuration: HglRunConfiguration): ProcessOutput {
+    private fun runInConsole(configuration: HglRunConfiguration, inspect: ((SMTRunnerConsoleView) -> Unit)? = null): ProcessOutput {
         val executor = DefaultRunExecutor.getRunExecutorInstance()
         val environment = ExecutionEnvironmentBuilder.create(executor, configuration).build()
         val result = configuration.getState(executor, environment).execute(executor, environment.runner)
@@ -135,6 +143,7 @@ class HglCompilerRunTest : HglEditorFixture() {
             handler.addProcessListener(CapturingProcessAdapter(output))
             handler.startNotify()
             PlatformTestUtil.waitWithEventsDispatching("hgl timed out", { handler.isProcessTerminated }, 150)
+            inspect?.invoke(result.executionConsole as SMTRunnerConsoleView)
             output.exitCode = handler.exitCode!!
             return output
         } finally {
