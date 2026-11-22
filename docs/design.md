@@ -90,6 +90,14 @@ compiler places executables in that workspace. `binDir` records the intended
 standalone binary destination. Generate HGL Documentation invokes `hgl doc`
 for HTML and JSON under `docsDir`. The editor reads the generated JSON model.
 
+## Building and indexing generated C++
+
+Build runs `hgl build --target cpp --compile-commands --out <buildDir> -- <roots>` in
+the project directory. On success it refreshes the generated files under `buildDir`.
+The optional CLion Compilation Database integration links that file to the current
+project and refreshes the model when the database changes. Moving the build directory
+repoints the database link created by HGL. RustRover reports the generated file path.
+
 ## Application and test execution
 
 The gutter marks the `application` keyword or the name of a test.
@@ -159,7 +167,10 @@ distribution once, then pass that ZIP to Plugin Verifier for both products.
 These checks validate editor integration. Execution conformance runs through
 the compiler and runtime.
 
-CI pins the compiler independently and exercises both IDEs with the native hgraph SDK. Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process tests locally.
+CI pins the compiler independently and exercises both IDEs with the native hgraph SDK.
+Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
+tests locally. Both IDEs build the starter and verify that its compilation database
+includes the module and application. CLion also imports both generated C++ units.
 
 ## Performance baseline
 
