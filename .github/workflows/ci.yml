@@ -52,6 +52,9 @@ jobs:
           echo "$HGL_HGRAPH_DEPS/bin" >> "$GITHUB_PATH"
           cargo build --locked --bin hgl
           echo "HGL_TEST_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
+          if target/debug/hgl test --help | grep -F -- '--debug-build' > /dev/null; then
+            echo "HGL_TEST_DEBUG_CLI=$PWD/target/debug/hgl" >> "$GITHUB_ENV"
+          fi
       - name: Verify the compiler documentation fixture
         run: |
           python3 tools/refresh_doc_fixture.py build/test-compiler

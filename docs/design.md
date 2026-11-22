@@ -93,7 +93,8 @@ for HTML and JSON under `docsDir`. The editor reads the generated JSON model.
 ## Building and indexing generated C++
 
 Build runs `hgl build --target cpp --compile-commands --out <buildDir> -- <roots>` in
-the project directory. On success it refreshes the generated files under `buildDir`.
+the project directory for Release. Debug adds `--debug` and writes to
+`<buildDir>/debug`. On success the plugin refreshes the generated files under `buildDir`.
 The optional CLion Compilation Database integration links that file to the current
 project and refreshes the model when the database changes. Moving the build directory
 repoints the database link created by HGL. RustRover reports the generated file path.
@@ -155,7 +156,19 @@ At a callback call, completion and Go to Declaration use the function type of
 the parameter the callee resolves to (FN-17). Only names written in that type
 are visible. Completion omits slots filled by positional or named arguments.
 
-## Application debugging
+## Toolbar targets
+
+The IDE discovers application and module headers in the configured source
+roots. With no configured roots it uses indexed HGL sources under the project
+directory. Saving a source file updates its header. A path or source-root
+change rebuilds the catalog. Generated Run/Debug configurations live in the
+IDE workspace. Removing a declaration retires its generated entry.
+
+A module selection passes one `--test-path` per module part. A project
+selection passes all source roots without a path filter. Both use the same
+runner as file and folder selections, preserving dependency roots and test kind.
+
+## Application and test debugging
 
 The application gutter uses the same configuration and source roots for Run
 and Debug. The Debug runner asks `hgl run --debug-build DIR` for its version 1
@@ -166,7 +179,14 @@ both IDE versions. macOS launches the active Apple toolchain adapter with
 The supported build range is limited to the verified
 platform branch. Before widening it, run Plugin Verifier and the native
 breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and stack
-frames to the HGL file. Each session owns its temporary build until it stops.
+frames to the HGL file.
+
+A test configuration passes its Run selectors to `hgl test --debug-build DIR`.
+The compiler returns an ordered list of module launches and any skipped cases.
+The IDE starts each executable under LLDB with the supplied arguments and
+environment. It reads the module’s results file at exit. Terminal outcomes
+allow the next launch, including after an assertion failure. A partial record
+ends the group. The temporary build lives until the group finishes.
 
 ## Validation
 
@@ -180,7 +200,9 @@ Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
 tests locally. Both IDEs build the starter and verify that its compilation database
 includes the module and application. CLion also imports both generated C++ units.
 Set `HGL_TEST_SCOPE_CLI` to run the file and folder selection cases against a compiler
-with `--test-path` and `--integration-only`.
+with `--test-path` and `--integration-only`. Set `HGL_TEST_DEBUG_CLI` to a
+compiler supporting the version 1 test launch plan to exercise group Continue
+and Stop under LLDB in both IDEs.
 
 ## Performance baseline
 

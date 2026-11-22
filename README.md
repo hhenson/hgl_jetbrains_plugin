@@ -54,7 +54,10 @@ runner settings until they save shared build settings.
 | `bin/` | Destination reserved for standalone binaries |
 | `docs/` | Generated HTML site and IDE documentation model |
 
-Choose **Build → Build HGL Project** or click its toolbar button. This requires a
+Choose **Build → Build HGL Project → Release** or **Debug**. Both modes are
+also on the Build HGL toolbar button. Release writes to the configured build
+directory. Debug writes to its `debug/` subdirectory and includes native
+debug symbols. Both require a
 compiler with `hgl build --compile-commands`. CLion loads the generated C++
 and its compiler flags into the open project. Build again after changing the
 HGL sources to refresh the C++ model. RustRover reports the location of
@@ -99,6 +102,16 @@ projects.
 
 ## Run an HGL application or test
 
+Open the **Run/Debug** dropdown. **HGL Applications** lists each application by
+name. **HGL Tests** offers these selections for both Run and Debug.
+
+| Selection | Cases |
+| --- | --- |
+| `prices — Tests` | Ordinary tests in every part of module `prices` |
+| `prices — Integration Tests` | Integration tests in every part of `prices` |
+| **All HGL Tests** | Ordinary tests across the project’s source roots |
+| **All HGL Integration Tests** | Integration tests across the same roots |
+
 Right-click an HGL file or folder in the **Project** window, or right-click an
 HGL editor tab. Choose **Run HGL Tests** for ordinary tests or **Run HGL
 Integration Tests** for integration tests. A folder includes its subfolders.
@@ -117,7 +130,13 @@ retains the full output. Rerun repeats the same selection.
 To debug, set a line breakpoint on an executable HGL statement and choose
 **Debug** from the application gutter. The Debug window opens the HGL source
 at the breakpoint. Resume to see timestamped publications in its console.
-This requires a compiler with `hgl run --debug-build`. On macOS the plugin
+Application debugging requires `hgl run --debug-build`. Test debugging requires
+`hgl test --debug-build`. Use **Debug** on a named test or on a suite
+configuration. A selection spanning modules opens one LLDB session per module,
+in order. Continue after a breakpoint to proceed. Stop cancels the remaining
+modules. The IDE reports failures and skipped cases.
+
+On macOS the plugin
 uses Apple's LLDB adapter from the active developer tools. Run
 `xcrun --find lldb-dap` to check its location. On Linux it uses the IDE's
 bundled LLDB adapter.

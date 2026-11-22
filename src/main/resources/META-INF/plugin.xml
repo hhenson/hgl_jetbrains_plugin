@@ -49,6 +49,7 @@
         <platform.backend.documentation.psiTargetProvider
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
         <directoryProjectGenerator implementation="io.github.hhenson.hgl.project.HglProjectGenerator"/>
+        <postStartupActivity implementation="io.github.hhenson.hgl.run.HglTargetsStartup"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglTestType"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglScopedTestType"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglApplicationType"/>
@@ -72,12 +73,14 @@
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="HGL.RunTests"/>
             <add-to-group group-id="EditorTabPopupMenu" anchor="after" relative-to-action="HGL.RunTests"/>
         </action>
-        <action id="HGL.Build" class="io.github.hhenson.hgl.project.HglBuildAction"
-                text="Build HGL Project" description="Build HGL and index the generated C++ in CLion"
-                icon="AllIcons.Actions.Compile">
+        <group id="HGL.BuildModes" text="Build HGL Project" popup="true" icon="AllIcons.Actions.Compile">
+            <action id="HGL.Build" class="io.github.hhenson.hgl.project.HglBuildAction"
+                    text="Release" description="Build the project with the compiler's release settings"/>
+            <action id="HGL.BuildDebug" class="io.github.hhenson.hgl.project.HglDebugBuildAction"
+                    text="Debug" description="Build the project with native debug symbols"/>
             <add-to-group group-id="BuildMenu" anchor="first"/>
             <add-to-group group-id="MainToolbarRight" anchor="first"/>
-        </action>
+        </group>
         <action id="HGL.GenerateDocumentation" class="io.github.hhenson.hgl.documentation.HglGenerateDocs"
                 text="Generate HGL Documentation" description="Generate HTML and JSON documentation from the HGL source roots"
                 icon="AllIcons.Actions.Preview">

@@ -42,6 +42,7 @@ class HglApplicationType : HglRunType(
 )
 
 class HglRunOptions : RunConfigurationOptions() {
+    var discoveredId by string("")
     var selector by string("")
     var sourcePath by string("")
 }
@@ -49,6 +50,9 @@ class HglRunOptions : RunConfigurationOptions() {
 class HglRunConfiguration(project: Project, private val runType: HglRunType) :
     RunConfigurationBase<HglRunOptions>(project, runType, runType.displayName) {
     private val runOptions get() = options as HglRunOptions
+    internal var discoveredId: String
+        get() = runOptions.discoveredId.orEmpty()
+        set(value) { runOptions.discoveredId = value }
     var selector: String
         get() = runOptions.selector.orEmpty()
         set(value) { runOptions.selector = value }

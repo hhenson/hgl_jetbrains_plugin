@@ -146,6 +146,7 @@ tasks.withType<Test>().configureEach {
     } else exclude("**/HglPerformanceBaselineTest.class")
     if (!providers.environmentVariable("HGL_TEST_CLI").isPresent) exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class", "**/HglDebugApplicationTest.class")
     else outputs.upToDateWhen { false }
+    if (!providers.environmentVariable("HGL_TEST_DEBUG_CLI").isPresent) exclude("**/HglDebugTestSuiteTest.class")
     timeout = Duration.ofMinutes(5)
 }
 
