@@ -6,6 +6,7 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.configurations.ConfigurationTypeUtil
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.ide.trustedProjects.TrustedProjects
+import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -24,6 +25,7 @@ abstract class HglTestScopeAction(private val integrationOnly: Boolean) : AnActi
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     private fun selection(event: AnActionEvent): VirtualFile? {
+        if (event.place == ActionPlaces.EDITOR_TAB_POPUP) return event.getData(CommonDataKeys.VIRTUAL_FILE)
         val files = event.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY)
         return if (files == null) event.getData(CommonDataKeys.VIRTUAL_FILE) else files.singleOrNull()
     }

@@ -2,6 +2,7 @@ package io.github.hhenson.hgl
 
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -46,6 +47,11 @@ class HglTestScopeActionTest : HglEditorFixture() {
             assertFalse(visible(other))
             assertFalse(visible(other.parent))
             assertFalse(visible(file, other))
+            val tab = SimpleDataContext.builder().add(CommonDataKeys.PROJECT, project)
+                .add(CommonDataKeys.VIRTUAL_FILE, file).add(CommonDataKeys.VIRTUAL_FILE_ARRAY, arrayOf(other)).build()
+            val event = AnActionEvent.createEvent(action, tab, null, ActionPlaces.EDITOR_TAB_POPUP, ActionUiKind.POPUP, null)
+            action.update(event)
+            assertTrue(event.presentation.isVisible)
         }
     }
 
