@@ -41,6 +41,7 @@ dependencies {
         bundledModule("intellij.platform.debugger")
         bundledModule("intellij.platform.dap")
         bundledPlugin("com.intellij.platform.testRunner")
+        bundledPlugin("com.intellij.clion-compdb")
         testFramework(TestFrameworkType.Platform)
         pluginVerifier("1.411")
         zipSigner()

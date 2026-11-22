@@ -16,6 +16,7 @@
     <depends>com.intellij.modules.lang</depends>
     <depends>com.intellij.platform.testRunner</depends>
 
+    <depends optional="true" config-file="hgl-compdb.xml">com.intellij.clion-compdb</depends>
     <depends optional="true" config-file="hgl-debug.xml">com.intellij.nativeDebug</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -60,6 +61,12 @@
         <fileBasedIndex implementation="io.github.hhenson.hgl.reference.HglImplementationIndex"/>
     </extensions>
     <actions>
+        <action id="HGL.Build" class="io.github.hhenson.hgl.project.HglBuildAction"
+                text="Build HGL Project" description="Build HGL and index the generated C++ in CLion"
+                icon="AllIcons.Actions.Compile">
+            <add-to-group group-id="BuildMenu" anchor="first"/>
+            <add-to-group group-id="MainToolbarRight" anchor="first"/>
+        </action>
         <action id="HGL.GenerateDocumentation" class="io.github.hhenson.hgl.documentation.HglGenerateDocs"
                 text="Generate HGL Documentation" description="Generate HTML and JSON documentation from the HGL source roots"
                 icon="AllIcons.Actions.Preview">

@@ -50,9 +50,15 @@ runner settings until they save shared build settings.
 | Directory | Purpose |
 | --- | --- |
 | `src/` | Application, module, and inline tests |
-| `build/` | Compiler workspace for Run and Test |
+| `build/` | Compiler workspace for Build, Run and Test |
 | `bin/` | Destination reserved for standalone binaries |
 | `docs/` | Generated HTML site and IDE documentation model |
+
+Choose **Build → Build HGL Project** or click its toolbar button. This requires a
+compiler with `hgl build --compile-commands`. CLion loads the generated C++
+and its compiler flags into the open project. Build again after changing the
+HGL sources to refresh the C++ model. RustRover reports the location of
+`compile_commands.json` in the configured build directory.
 
 Click **Generate HGL Documentation** on the main toolbar or in **Build**.
 Choose **Open documentation** in the completion notification to read the site.
