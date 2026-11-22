@@ -60,9 +60,8 @@ object HglColors {
 class HglSyntaxHighlighter : SyntaxHighlighterBase() {
     override fun getHighlightingLexer(): Lexer = HglLexerAdapter()
 
-    override fun getTokenHighlights(tokenType: IElementType?): Array<TextAttributesKey> {
+    override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKey> {
         val key = when {
-            tokenType == null -> return emptyArray()
             HglTokenSets.HARD_KEYWORDS.contains(tokenType) -> HglColors.KEYWORD
             HglTokenSets.TYPE_KEYWORDS.contains(tokenType) -> HglColors.TYPE_KEYWORD
             HglTokenSets.LITERAL_KEYWORDS.contains(tokenType) -> HglColors.LITERAL_KEYWORD

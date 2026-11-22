@@ -29,7 +29,11 @@ class HglAdapterProvider : DebugAdapterSupportProvider<HglAdapterId> {
     override val adapterId = HglAdapterId
     override fun createDebugAdapterDescriptor(project: Project) = object : DebugAdapterDescriptor<HglAdapterId>() {
         override val id = HglAdapterId
-        override val breakpointsDescription = DapBreakpointsDescription(HglLineBreakpoint::class.java, HglExceptionBreakpoint::class.java)
+        override val breakpointsDescription = DapBreakpointsDescription(
+            sourceBreakpointType = HglLineBreakpoint::class.java,
+            exceptionBreakpointType = HglExceptionBreakpoint::class.java,
+            functionBreakpointType = null,
+        )
         override suspend fun launchDebugAdapter(environment: ExecutionEnvironment, executionResult: ExecutionResult?, sessionId: String) =
             CommandLineDebugAdapterHandle(GeneralCommandLine(bundledLldb().toString()))
     }

@@ -23,7 +23,7 @@ declaration examples, core mapping declarations and every core HGL file.
 ## Build and install
 
 Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
-2026.2. To use an installed IDE, pass `-PplatformLocalPath=/path/to/IDE`.
+2026.3.0.1 and tests the same plugin in RustRover 2026.3.1. To use an installed IDE, pass `-PplatformLocalPath=/path/to/IDE`.
 
 ```sh
 ./gradlew test testRustRover buildPlugin
@@ -32,7 +32,7 @@ Use JDK 25 and clone with `--recurse-submodules`. The build downloads CLion
 
 Install `build/distributions/hgl-jetbrains-plugin-0.9.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
-requires platform build 262 or later.
+supports the 2026.3 platform from build 263.7307.257 through 263.*.
 
 ## Create an HGL project
 
