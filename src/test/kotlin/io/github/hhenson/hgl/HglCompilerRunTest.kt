@@ -1,15 +1,21 @@
 package io.github.hhenson.hgl
 
+import com.google.gson.JsonParser
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.CapturingProcessAdapter
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
 import com.intellij.openapi.components.service
+import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsManagerImpl
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import io.github.hhenson.hgl.documentation.HglGenerateDocs
+import io.github.hhenson.hgl.project.HglBuildAction
 import io.github.hhenson.hgl.project.HglBuildFile
+import io.github.hhenson.hgl.project.HglCompilationDatabaseImporter
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.LightProjectDescriptor
@@ -130,6 +136,36 @@ class HglCompilerRunTest : HglEditorFixture() {
             assertTrue(test.stdout, Regex("passed\\s+executable\\s+hello::says_hello").containsMatchIn(test.stdout))
         } finally {
             settings.loadState(before)
+        }
+    }
+
+    fun testBuildProducesIndexableCppForStarterProject() {
+        val root = VfsUtil.findFileByIoFile(File(project.basePath!!), true)!!
+        val starter = hglStarter()
+        starter.generateProject(project, root, starter.createPeer().settings, module)
+        val shared = project.service<HglBuildFile>()
+        val initial = shared.read()!!
+        val preview = System.getenv("HGL_TEST_BUILD_CLI")
+        shared.save(initial.copy(compiler = preview ?: System.getenv("HGL_TEST_CLI"), buildDir = "native output"), initial)
+        val database = try {
+            HglBuildAction.build(project, null, EmptyProgressIndicator())
+        } catch (e: ExecutionException) {
+            // Older CI pins must surface a clear failure. A selected preview must complete the build.
+            if (preview == null && e.message.orEmpty().startsWith("The configured compiler must support")) return
+            throw e
+        }
+        assertEquals(root.toNioPath().resolve("native output/compile_commands.json"), database.toNioPath())
+        val units = JsonParser.parseString(database.toNioPath().toFile().readText()).asJsonArray
+            .map { File(it.asJsonObject["file"].asString).name }.toSet()
+        val expected = setOf("mod-hello.cpp", "app-hello-main.cpp")
+        assertTrue(units.toString(), units.containsAll(expected))
+        project.getService(HglCompilationDatabaseImporter::class.java)?.let { importer ->
+            Registry.get("external.system.auto.import.disabled").setValue(false, testRootDisposable)
+            ExternalProjectsManagerImpl.getInstance(project).init()
+            importer.load(database)
+            PlatformTestUtil.waitWithEventsDispatching("CLion did not import the starter's generated C++", {
+                importedCppFiles(project, database).containsAll(expected)
+            }, 60)
         }
     }
 
