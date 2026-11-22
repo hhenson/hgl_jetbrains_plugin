@@ -73,6 +73,12 @@ class HglDocModelTest : HglEditorFixture() {
         }
     }
 
+    fun testGeneratedModelTakesPrecedenceOverLegacyRootExport() {
+        myFixture.addFileToProject("documentation.json", """{"schemaVersion":1,"modules":[]}""")
+        myFixture.addFileToProject("docs/documentation.json", model)
+        assertSize(2, targets("module consumer\nuse examples.apidoc as api\nfn g() => api::ide<caret>ntity(2)"))
+    }
+
     fun testOperatorKeepsItsOwnDocumentationAndAllCandidateOrigins() {
         val docs = HglDocModel.read(model)
         val operator = docs.declarations("examples.apidoc::shifted").single()

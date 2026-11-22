@@ -75,6 +75,21 @@ invocation failure via stderr, which the IDE shows in a project notification.
 Only exits 0 and 1 carry JSON reports. An unsupported report version also
 raises a project notification.
 
+## New projects
+
+CLion and RustRover use the same directory project generator. It copies the
+bundled module and application into `src/`, creates `build/`, `bin/` and
+`docs/`, and opens the application. Tests live alongside the code they
+exercise. The project tracks `hgl.json`. Its `build` object holds
+`compiler`, `sourceRoots`, `buildDir`, `binDir` and `docsDir`. The IDE
+edits this file and preserves unrelated JSON fields. The private workspace
+keeps compiler and documentation overrides and the check-on-save switch.
+
+Run and Test pass `buildDir` to the compiler's `--keep` option. The current
+compiler places executables in that workspace. `binDir` records the intended
+standalone binary destination. Generate HGL Documentation invokes `hgl doc`
+for HTML and JSON under `docsDir`. The editor reads the generated JSON model.
+
 ## Application and test execution
 
 The gutter marks the `application` keyword or the name of a test.
