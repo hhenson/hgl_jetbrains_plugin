@@ -38,8 +38,9 @@ dependencies {
         // Use -PplatformLocalPath=<CLion installation> to avoid downloading it.
         val localPath = providers.gradleProperty("platformLocalPath")
         if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
+        bundledModule("intellij.platform.debugger")
         bundledModule("intellij.platform.dap")
-        bundledPlugin("intellij.testRunner.plugin")
+        bundledPlugin("com.intellij.platform.testRunner")
         testFramework(TestFrameworkType.Platform)
         pluginVerifier("1.411")
         zipSigner()
@@ -95,13 +96,13 @@ intellijPlatform {
         }
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
-            untilBuild = provider { null }
+            untilBuild = providers.gradleProperty("pluginUntilBuild")
         }
     }
     pluginVerification {
         ides {
-            create(IntelliJPlatformType.CLion, "2026.2")
-            create(IntelliJPlatformType.RustRover, "2026.2")
+            create(IntelliJPlatformType.CLion, providers.gradleProperty("platformVersion").get())
+            create(IntelliJPlatformType.RustRover, providers.gradleProperty("rustRoverVersion").get())
         }
     }
     publishing {
@@ -120,7 +121,7 @@ intellijPlatformTesting {
     testIde {
         register("testRustRover") {
             type = IntelliJPlatformType.RustRover
-            version = providers.gradleProperty("platformVersion")
+            version = providers.gradleProperty("rustRoverVersion")
             testFramework(TestFrameworkType.Platform)
         }
     }

@@ -3,11 +3,18 @@ package io.github.hhenson.hgl
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.util.io.FileUtil
+import io.github.hhenson.hgl.debug.lldbCommandLine
 import io.github.hhenson.hgl.run.appendHomebrewBin
 import io.github.hhenson.hgl.run.hglCommandLine
 import java.io.File
 
 class HglCommandLineTest : HglEditorFixture() {
+    fun testMacDebuggerUsesTheActiveAppleToolchain() {
+        val command = lldbCommandLine(isMac = true)
+        assertEquals("/usr/bin/xcrun", command.exePath)
+        assertEquals(listOf("lldb-dap"), command.parametersList.list)
+    }
+
     fun testDefaultMacSearchPathAndConfiguredExecutable() {
         val override = File("custom compiler", "hgl").absolutePath
         val command = hglCommandLine(" $override ")

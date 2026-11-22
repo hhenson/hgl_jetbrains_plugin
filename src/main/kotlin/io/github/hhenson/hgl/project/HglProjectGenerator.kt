@@ -1,7 +1,7 @@
 package io.github.hhenson.hgl.project
 
 import com.intellij.facet.ui.ValidationResult
-import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -80,6 +80,6 @@ class HglProjectGenerator : DirectoryProjectGenerator<Any> {
         }
 
         VfsUtil.markDirtyAndRefresh(false, true, true, baseDir)
-        baseDir.findFileByRelativePath("src/main.hgl")?.let { FileEditorManager.getInstance(project).openFile(it, true) }
+        baseDir.findFileByRelativePath("src/main.hgl")?.let { OpenFileDescriptor(project, it).navigate(true) }
     }
 }

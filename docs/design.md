@@ -143,9 +143,13 @@ are visible. Completion omits slots filled by positional or named arguments.
 
 The application gutter uses the same configuration and source roots for Run
 and Debug. The Debug runner asks `hgl run --debug-build DIR` for its version 1
-launch description. The IDE launches that executable under bundled LLDB via
+launch description. The IDE launches that executable under LLDB via
 the platform’s experimental Debug Adapter Protocol API, checked against
-both IDE versions. Native line tables map breakpoints and stack
+both IDE versions. macOS launches the active Apple toolchain adapter with
+`/usr/bin/xcrun lldb-dap`. Linux uses the adapter bundled with the IDE.
+The supported build range is limited to the verified
+platform branch. Before widening it, run Plugin Verifier and the native
+breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and stack
 frames to the HGL file. Each session owns its temporary build until it stops.
 
 ## Validation
