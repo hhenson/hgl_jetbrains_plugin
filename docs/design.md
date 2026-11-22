@@ -33,6 +33,19 @@ header. Any module can contribute overloads by selectively importing the operato
 in the file that declares them. Candidates also bind to operators in their own
 module or the core prelude. The chooser shows typed signatures and file paths.
 
+## Code documentation
+
+Editor offsets and PSI elements share one documentation target. Hover reads
+the written signature and summary. Quick Documentation groups SDOC-3 sections
+and preserves the reStructuredText inside them. Parameter help reads the
+matching entry from the owner's `Args:` or `Type Args:` section.
+
+A call to an operator shows the public declaration. An implementation shows
+its own documentation at its declaration. Other source overloads remain
+separate targets. The IDE handles unsaved edits directly. A future tooltip
+with inferred types or the selected overload would need a compiler query
+mapping a source position to its resolved declaration and instantiated type.
+
 ## Compiler diagnostics on save
 
 Saving a local HGL file in a trusted project starts `hgl check --json` on

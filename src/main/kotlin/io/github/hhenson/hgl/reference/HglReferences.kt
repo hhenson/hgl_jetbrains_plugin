@@ -23,14 +23,16 @@ import io.github.hhenson.hgl.structure.HglPresentation
 class HglQualifiedNameReference(element: HglQualifiedName) :
     PsiPolyVariantReferenceBase<HglQualifiedName>(element, lastNameRange(element)) {
 
-    override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> {
+    override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> =
+        PsiElementResolveResult.createResults(declarations(includeImplementations = true))
+
+    internal fun declarations(includeImplementations: Boolean): List<PsiElement> {
         val names = element.identList
-        val targets: List<PsiElement> = when (names.size) {
-            1 -> HglScope.resolve(element, names[0].text)
+        return when (names.size) {
+            1 -> HglScope.resolve(element, names[0].text, includeImplementations)
             2 -> resolveQualified(names[0].text, names[1].text)
             else -> emptyList()
         }
-        return PsiElementResolveResult.createResults(targets)
     }
 
     private fun resolveQualified(alias: String, name: String): List<PsiElement> {

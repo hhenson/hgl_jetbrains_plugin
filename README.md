@@ -31,6 +31,14 @@ Install `build/distributions/hgl-jetbrains-plugin-0.7.0.zip` through
 Settings → Plugins → Install Plugin from Disk in either IDE. The plugin
 requires platform build 262 or later.
 
+## Code documentation
+
+Hover over a declaration or a resolved name to see its written signature and
+the summary from its `/** ... */` comment. **View → Quick Documentation**
+shows the full comment, including HGL sections such as `Args:`, `Returns:`
+and `Examples:`. Hover over a parameter, a named call argument, or a generic
+to see its own entry from `Args:` or `Type Args:`. The IDE reads project source directly.
+
 ## Compiler diagnostics on save
 
 Save an HGL file to see compiler errors and warnings in the editor. Hover

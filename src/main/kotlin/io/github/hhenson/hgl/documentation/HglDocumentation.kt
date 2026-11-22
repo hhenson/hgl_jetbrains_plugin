@@ -4,38 +4,73 @@ import com.intellij.model.Pointer
 import com.intellij.platform.backend.documentation.DocumentationResult
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.DocumentationTargetProvider
+import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.SmartPointerManager
+import com.intellij.psi.util.parentOfType
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.psi.*
+import io.github.hhenson.hgl.reference.HglQualifiedNameReference
 
-class HglDocumentationTargetProvider : DocumentationTargetProvider {
+class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumentationTargetProvider {
+    override fun documentationTarget(element: PsiElement, originalElement: PsiElement?): DocumentationTarget? {
+        val declaration = if (element is HglFile) element.moduleDecl ?: element.applicationDecl else element
+        return declaration?.takeIf { HglDocumentation.signatureEnd(it) != null }?.let(::HglDocumentationTarget)
+    }
+
     override fun documentationTargets(file: PsiFile, offset: Int): List<DocumentationTarget> {
         if (file !is HglFile) return emptyList()
         val reference = file.findReferenceAt(offset)
         val resolved = when (reference) {
+            // SDOC-4: at a call the operator owns its public documentation.
+            is HglQualifiedNameReference -> reference.declarations(includeImplementations = false)
             is PsiPolyVariantReference -> reference.multiResolve(false).mapNotNull { it.element }
             null -> emptyList()
             else -> listOfNotNull(reference.resolve())
         }
-        val candidates = if (resolved.isNotEmpty()) resolved else {
-            val leaf = file.findElementAt(offset) ?: return emptyList()
-            val declaration = generateSequence(leaf) { it.parent }
-                .firstOrNull { it is HglNamedElement || it is HglModuleDecl || it is HglApplicationDecl }
-            // Only a declaration's own name supplies fallback documentation.
-            // Expressions, locals and parameters must not inherit an enclosing declaration's docs.
-            listOfNotNull(declaration?.takeIf {
-                it is HglModuleDecl || it is HglApplicationDecl ||
-                    (it as? HglNamedElement)?.nameIdentifier?.textRange?.containsOffset(offset) == true
-            })
+        if (resolved.isNotEmpty()) {
+            return resolved.distinct().mapNotNull { documentationTarget(it, null) }
         }
-        return candidates.mapNotNull {
-            if (it is HglFile) PsiTreeUtil.findChildOfType(it, HglModuleDecl::class.java) else it
-        }.filter { HglDocumentation.attached(it) != null }
-            .distinct().map { HglDocumentationTarget(it) }
+
+        val leaf = file.findElementAt(offset) ?: return emptyList()
+        val label = leaf.parentOfType<HglMemberName>()
+        if (label?.parent is HglNamedArgument) {
+            return argumentDeclarations(label).mapNotNull { documentationTarget(it, leaf) }
+        }
+        val declaration = generateSequence(leaf) { it.parent }.firstOrNull {
+            it is HglNamedElement || it is HglFunctionTypeParameter || it is HglModuleDecl || it is HglApplicationDecl
+        } ?: return emptyList()
+        val name = when (declaration) {
+            is HglNamedElement -> declaration.nameIdentifier
+            is HglFunctionTypeParameter -> declaration.ident
+            else -> declaration
+        }
+        if (name?.textRange?.containsOffset(offset) != true) return emptyList()
+        return listOfNotNull(documentationTarget(declaration, leaf))
+    }
+
+    private fun argumentDeclarations(label: HglMemberName): List<PsiElement> {
+        val argument = label.parent.parent as? HglArgument ?: return emptyList()
+        val arguments = argument.parent as? HglArguments ?: return emptyList()
+        val callee = when (val call = arguments.parent) {
+            is HglCallExpr -> (call.expr as? HglReferenceExpr)?.qualifiedName
+            is HglAppliedConstructorExpr -> call.qualifiedName
+            is HglHarnessTarget -> call.qualifiedName
+            else -> null
+        }
+        val reference = callee?.reference as? HglQualifiedNameReference ?: return emptyList()
+        val name = label.text
+        return reference.declarations(includeImplementations = false).flatMap { target ->
+            when (target) {
+                is HglParameter -> target.functionType?.functionTypeParameterList.orEmpty().filter { it.ident?.text == name }
+                is HglStructDecl -> target.structBody?.structMemberList.orEmpty().filter { it.name == name }
+                else -> PsiTreeUtil.getChildOfType(target, HglFunctionSignature::class.java)
+                    ?.parameterList.orEmpty().filter { it.name == name }
+            }
+        }.distinct()
     }
 }
 
@@ -45,12 +80,14 @@ private class HglDocumentationTarget(private val element: PsiElement) : Document
         return Pointer { pointer.element?.let { HglDocumentationTarget(it) } }
     }
     override fun computePresentation(): TargetPresentation =
-        TargetPresentation.builder((element as? HglNamedElement)?.name ?: "HGL module").presentation()
+        TargetPresentation.builder(HglDocumentation.signature(element).orEmpty())
+            .locationText(element.containingFile.name).presentation()
+    override fun computeDocumentationHint(): String? = HglDocumentation.html(element, brief = true)
     override fun computeDocumentation(): DocumentationResult? =
         HglDocumentation.html(element)?.let { DocumentationResult.documentation(it) }
 }
 
-/** reST stays literal in the editor; the compiler's reST export is the publication input. */
+/** Source documentation follows SDOC-1 through SDOC-4. reST content remains literal. */
 object HglDocumentation {
     fun attached(element: PsiElement): String? {
         if (element !is HglFunctionDecl && element !is HglNativeFunctionDecl &&
@@ -62,18 +99,70 @@ object HglDocumentation {
         while (leaf != null && leaf.text.isBlank()) leaf = PsiTreeUtil.prevLeaf(leaf)
         if (leaf?.node?.elementType != HglTypes.DOC_COMMENT) return null
         val raw = leaf.text
-        val lines = raw.substring(3, raw.length - 2).replace("\r\n", "\n").split('\n').toMutableList()
+        val lines = raw.substring(3, raw.length - 2).lines().toMutableList()
         if (lines.isNotEmpty()) lines[0] = lines[0].trim(' ', '\t')
         val indent = lines.drop(1).filter { it.trim(' ', '\t').isNotEmpty() }.minOfOrNull { it.length - it.trimStart(' ', '\t').length } ?: 0
         for (i in 1 until lines.size) lines[i] = lines[i].drop(indent)
         return lines.dropWhile { it.trim(' ', '\t').isEmpty() }.dropLastWhile { it.trim(' ', '\t').isEmpty() }.joinToString("\n")
     }
 
-    fun html(element: PsiElement): String? {
-        val text = attached(element) ?: return null
-        val name = (element as? HglNamedElement)?.name ?: "HGL module"
-        return "<div class='definition'><pre>${escape(name)}</pre></div>" +
-            "<div class='content'><pre>${escape(text)}</pre></div>"
+    /** End of the written declaration header. Initializers and implementation bodies can be arbitrarily large. */
+    internal fun signatureEnd(element: PsiElement): PsiElement? = when (element) {
+        is HglFunctionDecl -> element.requiresClause ?: element.functionSignature
+        is HglNativeFunctionDecl -> element.requiresClause ?: element.functionSignature
+        is HglOperatorDecl -> element.requiresClause ?: element.functionSignature
+        is HglStructDecl -> element.requiresClause ?: element.structParents ?: element.genericParameters ?: element.ident
+        is HglEnumDecl -> element.ident
+        is HglNativeTypeDecl -> element.ident
+        is HglTestDecl -> element.ident
+        is HglConstantDecl -> element.type
+        is HglStructMember -> element.type ?: element.memberName
+        is HglLocalDecl -> element.type ?: element.ident
+        is HglStateDecl -> element.type ?: element.ident
+        is HglCacheDecl -> element.type ?: element.ident
+        is HglModuleDecl, is HglApplicationDecl, is HglEnumMember, is HglNativeProperty,
+        is HglParameter, is HglConfigurationParameter, is HglGenericParameter,
+        is HglAnonymousParameter, is HglForBinding, is HglFunctionTypeParameter -> element
+        else -> null
+    }
+
+    internal fun signature(element: PsiElement): String? {
+        val end = signatureEnd(element) ?: return null
+        return element.containingFile.viewProvider.contents
+            .subSequence(element.textRange.startOffset, end.textRange.endOffset).toString()
+    }
+
+    private fun sections(element: PsiElement): List<HglDocSection> {
+        val heading = when (element) {
+            is HglParameter, is HglConfigurationParameter -> "Args:"
+            is HglGenericParameter -> "Type Args:"
+            else -> return attached(element)?.let(::docSections).orEmpty()
+        }
+        val owner = element.parent?.parent ?: return emptyList()
+        val name = element.name ?: return emptyList()
+        val entry = attached(owner)?.let(::docSections)?.asSequence()
+            ?.filter { it.heading == heading }?.firstNotNullOfOrNull { it.description(name) }
+        return listOfNotNull(entry)
+    }
+
+    fun html(element: PsiElement, brief: Boolean = false): String? {
+        val signature = signature(element) ?: return null
+        val sections = sections(element)
+        return buildString {
+            append("<div class='definition'><pre>").append(escape(signature)).append("</pre></div>")
+            if (brief) {
+                val summary = sections.firstOrNull()?.takeIf { it.heading == null }?.lines
+                    ?.takeWhile { it.isNotBlank() }?.joinToString("\n")
+                if (!summary.isNullOrEmpty()) append("<div class='content'><pre>").append(escape(summary)).append("</pre></div>")
+            } else if (sections.isNotEmpty()) {
+                append("<div class='content'>")
+                for ((heading, lines) in sections) {
+                    if (heading != null) append("<h4>").append(heading).append("</h4>")
+                    if (lines.isNotEmpty()) append("<pre>").append(escape(lines.joinToString("\n"))).append("</pre>")
+                }
+                append("</div>")
+            }
+        }
     }
 
     private fun escape(text: String): String = text.replace("&", "&amp;")

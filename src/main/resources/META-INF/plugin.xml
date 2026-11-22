@@ -42,6 +42,8 @@
                                 implementationClass="io.github.hhenson.hgl.completion.HglCompletionContributor"/>
         <platform.backend.documentation.targetProvider
             implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
+        <platform.backend.documentation.psiTargetProvider
+            implementation="io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglTestType"/>
         <configurationType implementation="io.github.hhenson.hgl.run.HglApplicationType"/>
         <runConfigurationProducer implementation="io.github.hhenson.hgl.run.HglTestProducer"/>

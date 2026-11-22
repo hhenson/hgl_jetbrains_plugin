@@ -82,11 +82,7 @@ class HglPlatformTest : HglEditorFixture() {
         for (declaration in listOf(
             "fn f() => mis<caret>sing()",
             "fn f() => <caret>42",
-            "fn f() {\nlet lo<caret>cal = 42\n}",
-            "fn f(value: i64) -> i64 => val<caret>ue",
-            "fn f() {\nlet local = 42\nreturn lo<caret>cal\n}",
             "test example {\nmis<caret>sing()\n}",
-            "struct Outer {\nfi<caret>eld: i64\n}",
         )) {
             myFixture.configureByText("docs.hgl", "module docs\n/** Enclosing declaration. */\n$declaration\n")
             val targets = io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider()
