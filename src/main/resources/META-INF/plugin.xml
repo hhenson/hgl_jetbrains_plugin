@@ -14,6 +14,7 @@
     <!-- Editing is available across IDEs. Native debugging is optional. -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
+    <depends>intellij.testRunner.plugin</depends>
 
     <depends optional="true" config-file="hgl-debug.xml">com.intellij.nativeDebug</depends>
 

@@ -39,6 +39,7 @@ dependencies {
         val localPath = providers.gradleProperty("platformLocalPath")
         if (localPath.isPresent) local(localPath) else clion(providers.gradleProperty("platformVersion"))
         bundledModule("intellij.platform.dap")
+        bundledPlugin("intellij.testRunner.plugin")
         testFramework(TestFrameworkType.Platform)
         pluginVerifier("1.411")
         zipSigner()

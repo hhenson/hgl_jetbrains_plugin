@@ -96,7 +96,9 @@ projects.
 Click the gutter triangle beside an `application` header, a named `test`,
 or an `integration_test`. For `application demo.backtest`, the IDE runs
 `hgl run --application demo.backtest` with the configured roots. The Run
-window shows the output and exit status. Rerun repeats the same selection.
+window shows the output and exit status. Tests open the JetBrains test results
+tree. Select a failed or skipped case for the compiler's reason. The root
+retains the full output. Rerun repeats the same selection.
 
 To debug, set a line breakpoint on an executable HGL statement and choose
 **Debug** from the application gutter. The Debug window opens the HGL source

@@ -113,6 +113,12 @@ Empty roots select the declaration's file. The IDE owns the Run console,
 stop and rerun actions. The compiler
 owns selection and outcomes.
 
+HGL tests use the platform test results tree. The converter reads the
+compiler's stdout case headers and indented details. Executable and rejection
+cases retain their compiler identities. A “not run” outcome appears as
+skipped. Compiler invocation failures appear as runner errors. Applications
+keep their ordinary Run console.
+
 ## Grammar and PSI
 
 Newlines are explicit tokens. Whitespace and comments stay in the PSI.
