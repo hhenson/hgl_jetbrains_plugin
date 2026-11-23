@@ -7,6 +7,7 @@ import com.intellij.psi.TokenType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
 import java.util.Map;
+import io.github.hhenson.hgl.psi.HglTokenSets;
 import io.github.hhenson.hgl.psi.HglTypes;
 
 /** Contextual names and generic look-ahead used by Hgl.bnf. */
@@ -48,8 +49,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
             Map.entry("INTEGRATION_TEST_KW", HglTypes.INTEGRATION_TEST_KW), Map.entry("TIMEOUT_KW", HglTypes.TIMEOUT_KW),
             Map.entry("SUPPRESS_WARNING_KW", HglTypes.SUPPRESS_WARNING_KW),
             Map.entry("CONST_KW", HglTypes.CONST_KW), Map.entry("TYPE_KW", HglTypes.TYPE_KW),
-            Map.entry("SWITCH_KW", HglTypes.SWITCH_KW), Map.entry("CASE_KW", HglTypes.CASE_KW),
-            Map.entry("DEFAULT_KW", HglTypes.DEFAULT_KW), Map.entry("RAISES_KW", HglTypes.RAISES_KW),
+            Map.entry("CASE_KW", HglTypes.CASE_KW), Map.entry("DEFAULT_KW", HglTypes.DEFAULT_KW),
             Map.entry("IN_KW", HglTypes.IN_KW), Map.entry("NATIVE_KW", HglTypes.NATIVE_KW), Map.entry("EACH_KW", HglTypes.EACH_KW),
             Map.entry("PROPERTIES_KW", HglTypes.PROPERTIES_KW), Map.entry("UNBOUNDED_KW", HglTypes.UNBOUNDED_KW),
             Map.entry("DELTA_KW", HglTypes.DELTA_KW), Map.entry("ATOMIC_KW", HglTypes.ATOMIC_KW),
@@ -106,6 +106,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
 
     /** LEX-27: an opening delimiter touches the name or expression before it. */
     public static boolean adjacent(PsiBuilder b, int level) {
+        b.getTokenType(); // Position the builder on the delimiter before inspecting the gap.
         IElementType previous = b.rawLookup(-1);
         return previous != null && previous != HglTypes.NEWLINE &&
                 !TRIVIA.contains(previous);
@@ -132,9 +133,9 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
         }
     }
 
-    public static boolean bodyBraceAhead(PsiBuilder b, int level) {
-        return b.getTokenType() == HglTypes.LBRACE &&
-                (Boolean.TRUE.equals(b.getUserData(GROUPED)) || precedingBreaks(b) < 2);
+    public static boolean continuesLine(PsiBuilder b, int level) {
+        b.getTokenType(); // Advance past whitespace and comments before counting breaks.
+        return Boolean.TRUE.equals(b.getUserData(GROUPED)) || precedingBreaks(b) < 2;
     }
 
     /** A multiline comment can separate statements even when the lexer has no NEWLINE token there. */
@@ -279,7 +280,8 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
                 if (next == HglTypes.GT || next == HglTypes.COMMA) continue;
                 return false;
             }
-            if (!GENERIC_ARGUMENT_TOKENS.contains(kind)) return false;
+            if (!GENERIC_ARGUMENT_TOKENS.contains(kind) &&
+                    !(previous == HglTypes.DOT && HglTokenSets.KEYWORDS.contains(kind))) return false;
             if (kind == HglTypes.LPAREN) {
                 parens++;
             } else if (kind == HglTypes.RPAREN) {

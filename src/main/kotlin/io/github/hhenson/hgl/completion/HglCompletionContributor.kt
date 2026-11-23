@@ -18,6 +18,7 @@ import com.intellij.util.ProcessingContext
 import io.github.hhenson.hgl.HglLanguage
 import io.github.hhenson.hgl.psi.HglArgument
 import io.github.hhenson.hgl.psi.HglArguments
+import io.github.hhenson.hgl.psi.HglAssertStmt
 import io.github.hhenson.hgl.psi.HglBlock
 import io.github.hhenson.hgl.psi.HglExpr
 import io.github.hhenson.hgl.psi.HglFile
@@ -146,7 +147,13 @@ class HglCompletionContributor : CompletionContributor() {
                         test.testKw != null -> listOf("eval")
                         else -> listOf("eval", "run")
                     }
-                    STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS + harness
+                    val expression = position.parentOfType<HglReferenceExpr>()
+                    val assertion = expression?.parent as? HglAssertStmt
+                    if (assertion != null && assertion.expr == expression) {
+                        ARROW_EXPRESSION_KEYWORDS + "const" + harness + "raises"
+                    } else {
+                        STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS + harness
+                    }
                 }
                 inStruct -> TYPE_KEYWORDS
                 (position.containingFile as? HglFile)?.applicationDecl != null -> listOf("use", "inject", "run", "eval")
@@ -163,7 +170,7 @@ class HglCompletionContributor : CompletionContributor() {
         )
         val STATEMENT_KEYWORDS = listOf(
             "let", "var", "state", "cache", "inject", "return", "if", "else", "start", "when", "stop",
-            "for", "while", "yield", "in", "assert", "switch", "case", "default", "raises",
+            "for", "while", "yield", "in", "assert", "switch", "case", "default",
         )
         private val PRIMARY_KEYWORDS = listOf("fn", "true", "false", "null", "delta")
         private val ARROW_EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + listOf("if", "str", "bytes", "any", "error")

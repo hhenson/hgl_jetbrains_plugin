@@ -8,6 +8,8 @@ import io.github.hhenson.hgl.psi.HglConstraintRelation
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglOperatorConfiguration
+import io.github.hhenson.hgl.psi.HglRaisesAssertion
+import io.github.hhenson.hgl.psi.HglSwitchStmt
 
 /** Regressions for current HGL forms absent from the original plugin. */
 class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinition()) {
@@ -201,38 +203,48 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         rejected("test sample\n# blank line\n{}")
     }
 
-    fun testSwitchCallEndsBeforeANextLineBlock() {
-        val file = accepted("""
-            module demo
-            fn f(x: i64) {
-                switch(x)
-                { step() }
-                switch (x)
-                { case 1: step() }
-                switch(x) { case 1: step() }
-                switch x
-                { case 1: step() }
+    fun testSwitchAndRaisesOwnTheirBodiesAcrossOneLineBreak() {
+        for (selector in listOf("(x)", " -x", " .buy", "(x).field", "(x, y)")) {
+            for (gap in listOf(" ", "\n", " /* one\nbreak */ ")) {
+                val body = "{ default: step() }"
+                val file = accepted("module demo\nfn f() { switch$selector$gap$body }")
+                val statement = PsiTreeUtil.findChildOfType(file, HglSwitchStmt::class.java)
+                assertEquals("switch$selector$gap$body", statement?.text)
             }
-        """)
-        val switches = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglSwitchStmt::class.java)
-        assertEquals(3, switches.size)
-        val calls = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglCallExpr::class.java)
-        assertEquals(1, calls.count { it.text == "switch(x)" })
-        rejected("fn f(x: i64) { switch x\n\n{ case 1: step() } }")
+        }
+        for (gap in listOf(" ", "\n", " /* one\nbreak */ ")) {
+            val text = """raises("value.missing_key")""" + gap + "{ work() }"
+            val file = accepted("module demo\ntest t { assert $text }")
+            val assertion = PsiTreeUtil.findChildOfType(file, HglRaisesAssertion::class.java)
+            assertEquals(text, assertion?.text)
+        }
+        accepted("module demo\nfn f() { switch\n(x) { default: step() } }")
+        accepted("module demo\ntest t { assert\nraises(\"error\") { work() } }")
+        rejected("fn f() { switch\n\n(x) { default: step() } }")
+        rejected("test t { assert\n\nraises(\"error\") { work() } }")
+        rejected("fn f() { switch(x)\n\n{ default: step() } }")
+        rejected("test t { assert raises(\"error\")\n\n{ work() } }")
+        rejected("fn f() { switch(x) }")
+        rejected("test t { assert raises(x) == 1 }")
+        for (call in listOf("raises (x)", "raises()", "raises(x, y)", "raises(code: x)")) {
+            rejected("test t { assert $call { work() } }")
+        }
     }
 
-    fun testRaisesCallAndContextualAssertion() {
-        val file = accepted("""
-            module demo
-            test t {
-                assert raises("error")
-                { work() }
-                assert raises(1) == 1
-                assert raises("error") { work() }
-            }
-        """)
-        val assertions = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglRaisesAssertion::class.java)
-        assertEquals(1, assertions.size)
+    fun testReservedSwitchAndRaisesAsMemberNamesAndLabels() {
+        for (word in listOf("switch", "raises")) {
+            accepted("""
+                module demo
+                struct Packet { $word: i64 }
+                enum Mode { $word }
+                fn f(p: Packet) => Packet($word: p.$word)
+                fn selected() => choose<.$word>()
+            """)
+            for (declaration in listOf(
+                "fn $word() {}", "struct $word {}", "fn f($word: i64) {}",
+                "fn f() { let $word = 1 }", "fn f() => $word()",
+            )) rejected(declaration)
+        }
     }
 
     private fun rejected(declaration: String) {

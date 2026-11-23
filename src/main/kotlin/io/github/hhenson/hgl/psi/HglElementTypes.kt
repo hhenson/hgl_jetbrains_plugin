@@ -21,9 +21,9 @@ object HglTokenSets {
         HglTypes.ABSTRACT_KW, HglTypes.IMPL_KW, HglTypes.INSTANTIATE_KW, HglTypes.OPERATOR_KW,
         HglTypes.ENUM_KW, HglTypes.FN_KW, HglTypes.STRUCT_KW, HglTypes.REQUIRES_KW,
         HglTypes.IS_KW, HglTypes.LET_KW, HglTypes.VAR_KW, HglTypes.STATE_KW, HglTypes.CACHE_KW,
-        HglTypes.INJECT_KW, HglTypes.RETURN_KW, HglTypes.IF_KW, HglTypes.ELSE_KW, HglTypes.START_KW,
+        HglTypes.INJECT_KW, HglTypes.RETURN_KW, HglTypes.IF_KW, HglTypes.ELSE_KW, HglTypes.SWITCH_KW, HglTypes.START_KW,
         HglTypes.WHEN_KW, HglTypes.STOP_KW, HglTypes.FOR_KW, HglTypes.WHILE_KW, HglTypes.YIELD_KW,
-        HglTypes.TEST_KW, HglTypes.ASSERT_KW, HglTypes.EVAL_KW, HglTypes.RUN_KW, HglTypes.REF_KW,
+        HglTypes.TEST_KW, HglTypes.ASSERT_KW, HglTypes.RAISES_KW, HglTypes.EVAL_KW, HglTypes.RUN_KW, HglTypes.REF_KW,
     )
 
     @JvmField
@@ -41,8 +41,8 @@ object HglTokenSets {
     /** Identifiers the parser remaps when the grammar demands the word. */
     @JvmField
     val CONTEXTUAL_KEYWORDS: TokenSet = TokenSet.create(
-        HglTypes.CONST_KW, HglTypes.TYPE_KW, HglTypes.SWITCH_KW, HglTypes.CASE_KW,
-        HglTypes.DEFAULT_KW, HglTypes.RAISES_KW, HglTypes.IN_KW, HglTypes.NATIVE_KW, HglTypes.EACH_KW, HglTypes.PROPERTIES_KW,
+        HglTypes.CONST_KW, HglTypes.TYPE_KW, HglTypes.CASE_KW,
+        HglTypes.DEFAULT_KW, HglTypes.IN_KW, HglTypes.NATIVE_KW, HglTypes.EACH_KW, HglTypes.PROPERTIES_KW,
         HglTypes.APPLICATION_KW, HglTypes.WITHOUT_KW, HglTypes.INTEGRATION_TEST_KW,
         HglTypes.TIMEOUT_KW, HglTypes.SUPPRESS_WARNING_KW, HglTypes.UNBOUNDED_KW,
     )

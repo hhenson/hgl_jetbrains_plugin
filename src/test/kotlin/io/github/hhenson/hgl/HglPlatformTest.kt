@@ -398,6 +398,14 @@ class HglPlatformTest : HglEditorFixture() {
         return myFixture.lookupElementStrings.orEmpty()
     }
 
+    fun testRaisesCompletionAtTheStartOfAnAssertion() {
+        assertContainsElements(completionsInModule("test t { assert /* check */ <caret> }"), "raises", "eval", "true")
+        val statement = completionsInModule("test t { <caret> }")
+        assertContainsElements(statement, "switch", "assert")
+        assertDoesntContain(statement, "raises")
+        assertDoesntContain(completionsInModule("test t { assert true == <caret> }"), "raises")
+    }
+
     fun testArrowExpressionStartersAndNames() {
         val names = completionsInModule("""
             fn helper(x: str) -> str => x
