@@ -5,6 +5,7 @@ import org.commonmark.node.AbstractVisitor
 import org.commonmark.node.Code
 import org.commonmark.node.FencedCodeBlock
 import org.commonmark.node.Image
+import org.commonmark.node.Paragraph
 import org.commonmark.node.Link
 import org.commonmark.node.Text
 import org.commonmark.parser.IncludeSourceSpans
@@ -27,9 +28,18 @@ internal const val SYMBOL_LINK = "hgl-doc:"
 internal val docName = Regex("""[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*""")
 
 /** CommonMark with tables. Display fenced math and Mermaid as source (SDOC-7). */
-private fun markdown(text: String, hasTarget: (String) -> Boolean): String {
+private fun markdown(text: String, inExamples: Boolean, hasTarget: (String) -> Boolean): String {
     val document = parser.parse(text)
     document.accept(object : AbstractVisitor() {
+        override fun visit(fence: FencedCodeBlock) {
+            val label = when (fence.info?.trim()) {
+                "hgl" -> if (inExamples) "Runnable example" else "Shown example"
+                "hgl no-run" -> "Shown example"
+                else -> return
+            }
+            fence.insertBefore(Paragraph().apply { appendChild(Text(label)) })
+        }
+
         override fun visit(code: Code) {
             val name = code.literal
             if (code.parent is Link || !docName.matches(name)) return
@@ -61,7 +71,7 @@ internal fun docHtml(signature: String, sections: List<HglDocSection>, brief: Bo
         if (brief) {
             val summary = sections.firstOrNull()?.takeIf { it.heading == null }?.lines
                 ?.takeWhile { it.isNotBlank() }?.joinToString("\n")
-            if (!summary.isNullOrEmpty()) append("<div class='content'>").append(markdown(summary, hasTarget)).append("</div>")
+            if (!summary.isNullOrEmpty()) append("<div class='content'>").append(markdown(summary, false, hasTarget)).append("</div>")
         } else if (sections.isNotEmpty()) {
             append("<div class='content'>")
             for ((heading, lines, recognized) in sections) {
@@ -69,7 +79,7 @@ internal fun docHtml(signature: String, sections: List<HglDocSection>, brief: Bo
                     val tag = if (recognized) "h4" else "p"
                     append("<$tag>").append(escapeDoc(heading)).append("</$tag>")
                 }
-                if (lines.isNotEmpty()) append(markdown(lines.joinToString("\n"), hasTarget))
+                if (lines.isNotEmpty()) append(markdown(lines.joinToString("\n"), heading == "Examples:", hasTarget))
             }
             append("</div>")
         }

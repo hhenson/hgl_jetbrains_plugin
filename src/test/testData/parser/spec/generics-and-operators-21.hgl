@@ -1,9 +1,5 @@
-export enum Zero { ieee, nan, error }
+operator applied<V>(f: fn(V) -> V, x: V) -> V
 
-operator ratio<L, R, O>(lhs: L, rhs: R) -> O
+impl const fn applied(f: const fn(i64) -> i64, x: i64) -> i64 => f(x)
 
-native impl fn ratio<const zero: Zero = .ieee>(lhs: f64, rhs: f64) -> f64
-    requires zero in {.ieee, .nan}
-
-native impl fn ratio<const zero: Zero>(lhs: f64, rhs: f64) -> result<f64, error>
-    requires zero == .error
+impl fn applied(f: fn(i64) -> i64, x: i64) -> i64 => f(x)

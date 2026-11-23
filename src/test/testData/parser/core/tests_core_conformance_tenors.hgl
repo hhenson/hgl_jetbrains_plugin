@@ -1,24 +1,4 @@
-module core_implementation part tenors
-
-# A calendar of a library's own: one day closed, beside the weekend.
-struct Closed {
-    day: date
-}
-
-impl const fn business_day(calendar: Closed, day: date) -> bool =>
-    day != calendar.day && business_day(Weekdays(), day)
-
-# A calendar with one business day.
-struct Only {
-    day: date
-}
-
-impl const fn business_day(calendar: Only, day: date) -> bool => day == calendar.day
-
-# A rolling rule of a library's own: the day as it is.
-struct Unrolled {}
-
-impl const fn roll<C>(rolling_rule: Unrolled, calendar: C, day: date) -> date => day
+module core_conformance part tenors
 
 const fn summed(lhs: tenor, rhs: tenor) -> tenor => lhs + rhs
 
@@ -104,6 +84,13 @@ test business_days_start_from_a_business_day {
 
 # TEN-5: a calendar is any value `business_day` has a candidate for.
 test a_calendar_says_what_a_business_day_is {
+    # A calendar of a library's own: one day closed, beside the weekend.
+    struct Closed {
+        day: date
+    }
+    impl const fn business_day(calendar: Closed, day: date) -> bool =>
+        day != calendar.day && business_day(Weekdays(), day)
+
     let closed = Closed(day: @2026-01-05)
     assert @2026-01-02 +{calendar: closed} 1B == @2026-01-06
     assert @2026-01-06 -{calendar: closed} 1B == @2026-01-02
@@ -114,6 +101,21 @@ test a_calendar_says_what_a_business_day_is {
 # TEN-7, TEN-8: a rolling rule gives the business day a moved date
 # becomes. 2026-01-31 is a Saturday and 2026-02-01 a Sunday.
 test a_rule_rolls_to_a_business_day {
+    # A calendar of a library's own: one day closed, beside the weekend.
+    struct Closed {
+        day: date
+    }
+    impl const fn business_day(calendar: Closed, day: date) -> bool =>
+        day != calendar.day && business_day(Weekdays(), day)
+    # A calendar with one business day.
+    struct Only {
+        day: date
+    }
+    impl const fn business_day(calendar: Only, day: date) -> bool => day == calendar.day
+    # A rolling rule of a library's own: the day as it is.
+    struct Unrolled {}
+    impl const fn roll<C>(rolling_rule: Unrolled, calendar: C, day: date) -> date => day
+
     assert @2026-01-31 +{rolling_rule: Rolling.following} 0D == @2026-02-02
     assert @2026-01-31 +{rolling_rule: Rolling.modified_following} 0D == @2026-01-30
     assert @2026-01-31 +{rolling_rule: Rolling.preceding} 0D == @2026-01-30

@@ -4,8 +4,10 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.ParsingTestCase
 import io.github.hhenson.hgl.parser.HglParserDefinition
+import io.github.hhenson.hgl.psi.HglConstraintRelation
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglOperatorConfiguration
 
 /** Regressions for current HGL forms absent from the original plugin. */
 class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinition()) {
@@ -49,6 +51,43 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
             test failure {
                 assert raises("numeric.division_by_zero") { eval ratio(value: [0.0]) }
             }
+        """)
+    }
+
+    fun testInequalityIsAConstraintRelation() {
+        val file = accepted("""
+            module demo.constraints
+            const fn distinct<T, U>(a: T, b: U) -> bool requires T != U => true
+            const fn nonzero<const n: i64>(x: i64) -> i64 requires n != 0 && n != 1 => x
+        """)
+        val relations = PsiTreeUtil.findChildrenOfType(file, HglConstraintRelation::class.java)
+        assertEquals(listOf("!= U", "!= 0", "!= 1"), relations.map { it.text })
+    }
+
+    fun testLoopMadeListInAConstantArgument() {
+        accepted("""
+            module demo.offsets
+            fn first(const values: list<i64>) -> i64 { yield 0s: values[0] }
+            fn wired() -> i64 => first([for i in 2..<4: i])
+        """)
+    }
+
+    fun testToleranceConfigurationInBothOperatorSpellings() {
+        val file = accepted("""
+            module demo.tolerance
+            const fn symbol(lhs: f64, rhs: f64) -> bool => lhs =={abs: 0.01} rhs
+            const fn named(lhs: f64, rhs: f64) -> bool => eq_{abs: 0.01}(lhs, rhs)
+        """)
+        val options = PsiTreeUtil.findChildrenOfType(file, HglOperatorConfiguration::class.java)
+        assertEquals(listOf("{abs: 0.01}", "{abs: 0.01}"), options.map { it.text })
+    }
+
+    fun testForwardedLawAndCapabilityMembership() {
+        accepted("""
+            module demo.laws
+            operator schedule<C, W>(capability: C, at: W) requires C in {Scheduler, Alarm}
+            const fn reduce<T, const associative: bool = associative(f)>(f: const fn(T, T) -> T, a: T, b: T) -> T
+                requires associative in {true, false} => fold{associative: associative}(f, a, b)
         """)
     }
 
@@ -138,6 +177,62 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
             }
         """)
         rejected("fn pick(x: i64) { if pred{limit: 2}(x) { return x } }")
+    }
+
+    fun testOneLineBreakBeforeBodies() {
+        for (source in listOf(
+            "struct S|{ value: i64 }", "enum E|{ a, b }",
+            "fn f<T>(x: T) -> T requires T in {i64, f64}|{ return x }",
+            "native fn f()|{ when; }", "native type S|{ value: i64 }",
+            "test t|{ assert true }", "integration_test t|{ assert true }",
+            "test|{ test nested|{ assert true } }",
+            "fn f() { start|{}\nwhen|{}\nwhen ready|{}\nstop|{} }",
+            "fn f() { for item in items|{}\nwhile ready|{}\nwhile|{} }",
+            "fn f() { if ready|{} else if again|{} else|{} }",
+            "fn f() { let g = fn(a: i64) -> i64|{ return a } }",
+        )) {
+            accepted("module demo\n" + source.replace("|", "\n"))
+            rejected(source.replace("|", "\n\n"))
+        }
+        accepted("module demo\nfn f() /* one\nlogical\nbreak */ {}")
+        accepted("module demo\nfn f() => apply(fn(x: i64)\n\n{ return x })")
+        rejected("fn f() => apply(fn() { if ready\n\n{ step() } })")
+        rejected("fn f() /* one\nbreak */\n{}")
+        rejected("test sample\n# blank line\n{}")
+    }
+
+    fun testSwitchCallEndsBeforeANextLineBlock() {
+        val file = accepted("""
+            module demo
+            fn f(x: i64) {
+                switch(x)
+                { step() }
+                switch (x)
+                { case 1: step() }
+                switch(x) { case 1: step() }
+                switch x
+                { case 1: step() }
+            }
+        """)
+        val switches = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglSwitchStmt::class.java)
+        assertEquals(3, switches.size)
+        val calls = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglCallExpr::class.java)
+        assertEquals(1, calls.count { it.text == "switch(x)" })
+        rejected("fn f(x: i64) { switch x\n\n{ case 1: step() } }")
+    }
+
+    fun testRaisesCallAndContextualAssertion() {
+        val file = accepted("""
+            module demo
+            test t {
+                assert raises("error")
+                { work() }
+                assert raises(1) == 1
+                assert raises("error") { work() }
+            }
+        """)
+        val assertions = PsiTreeUtil.findChildrenOfType(file, io.github.hhenson.hgl.psi.HglRaisesAssertion::class.java)
+        assertEquals(1, assertions.size)
     }
 
     private fun rejected(declaration: String) {

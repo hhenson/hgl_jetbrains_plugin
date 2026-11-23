@@ -153,8 +153,12 @@ What `schedule` takes for `at`:
 | A `duration` more than zero | A wake that long after the current evaluation time |
 | `0s`, asked in `start` | A wake at the start, the node's first evaluation |
 | Another `duration`: zero outside `start`, or one less than zero | Rejected with `schedule.duration_bounds` where the compiler sees its value, a literal or a constant; elsewhere the call fails with `schedule.non_positive_duration` |
-| A `datetime` at or after the current evaluation time | A wake then |
-| A `datetime` before the current evaluation time | Nothing: the wake is dropped, with no failure |
+| A `datetime` after the current evaluation time | A wake then |
+| A `datetime` at the current evaluation time, asked in `start` | A wake at the node's first evaluation |
+| A `datetime` before the current evaluation time, or at it outside `start` | A dropped wake and a run-log warning, with no failure |
+
+A node's first dropped wake logs a warning. If the node drops more wakes,
+it logs their count when it stops.
 
 `schedule` on a scheduler takes a `tag`, a `str?` that is null when
 none is given, and `on_wall_clock`, a `bool` that is false when none is
@@ -183,19 +187,39 @@ Examples:
     assert eval wake_at_start(value: [_, 7]) == ["scheduled", "input"]
     ~~~
 
-    A wake asked for at `never`, before every evaluation time, is dropped,
-    and the run does not fail.
+    An evaluation time asked for in `start` wakes the node's first evaluation.
+    A node inside a branch can start after the run has begun.
 
     ~~~hgl
-    fn wake_in_the_past(value: i64) -> str {
-        inject scheduler
+    fn wake_at_evaluation_time() -> bool {
+        inject scheduler, clock
+        start { schedule(scheduler, clock.evaluation_time) }
+        when scheduled() { return true }
+    }
+    fn gated_wake(enabled: bool) -> bool {
+        if enabled { wake_at_evaluation_time() }
+    }
+    assert eval wake_at_evaluation_time() == [true]
+    assert eval gated_wake(enabled: [false, true, false, true]) == [_, true, _, true]
+    ~~~
+
+    A wake asked for at the current evaluation time in `when`, or at
+    `never`, is dropped with a warning.
+
+    ~~~hgl
+    fn no_wake_now(value: i64) -> str {
+        inject scheduler, clock
         when scheduled() { return "woken" }
         when modified(value) {
-            schedule(scheduler, never)
+            if value == 7 {
+                schedule(scheduler, clock.evaluation_time)
+            } else {
+                schedule(scheduler, never)
+            }
             return "asked"
         }
     }
-    assert eval wake_in_the_past(value: [7, _, 9]) == ["asked", _, "asked"]
+    assert eval no_wake_now(value: [7, _, 9]) == ["asked", _, "asked"]
     ~~~
 
     A duration asks for a wake that long after the evaluation time, and
@@ -272,8 +296,10 @@ inputs or none, and not beside it.
 
 What may be asked of an alarm is what may be asked of a `Scheduler`: a
 `duration` more than zero, or `0s` in `start`, which asks for a wake at
-the start, the node's first evaluation. A `datetime` before the current
-evaluation time is dropped. In a node that injects an alarm `scheduled()`
+the start, the node's first evaluation. A `datetime` at the current
+evaluation time has the same effect in `start`. An earlier time, or the
+current time outside `start`, is dropped with the same run-log warning
+as a scheduler. In a node that injects an alarm `scheduled()`
 holds where the node is evaluated and no temporal input has ticked: where
 an input ticks it is false, whether or not the alarm is due.
 
@@ -322,10 +348,10 @@ key is fixed when the graph is built. The store has no property.
 - An application uses it only to set the run's store, with calls of
   `put` before its run statement.
 
-- A key that holds no value is a failure of `get`. The place the call is
-  given to takes the `result`, raises the failure where it needs the
-  value, or takes null in the nullable form. Where `V` is itself
-  nullable, a stored null is a success.
+- A key that holds no value gives `value.missing_key`. The place the call
+  is given to takes the `result`, raises the failure where it needs the
+  value, or takes null in the nullable form. Where `V` is itself nullable,
+  a stored null is a success.
 - A key keeps the type of its first value. A `put` of another type is
   rejected with `store.key_type` where the two are in one program, and
   fails otherwise.

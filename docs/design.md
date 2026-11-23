@@ -24,7 +24,10 @@ phase checking, overload resolution and runtime conformance belong to the
 compiler. The editor reads its structured diagnostics on save. Current
 navigation uses the plugin's syntax
 scopes and module index. Module parts share declarations and test helpers.
-Each named test has a private scope for its own declarations and operator candidates. Imports stay file-local. Other modules see exported declarations, including exported operators,
+Each named test owns its declared names. Within test code, navigation to an
+operator includes candidates contributed by any test in that module (TST-1).
+The compiler selects the overload, including inside functions called by a test.
+Imports stay file-local. Other modules see exported declarations, including exported operators,
 and the public `core` prelude. Applications have their own file scope.
 
 Operator gutters link a declaration to its HGL and native candidates in both
@@ -38,6 +41,9 @@ module or the core prelude. The chooser shows typed signatures and file paths.
 Editor offsets and PSI elements share one documentation target. Hover reads
 the written signature and summary. Quick Documentation groups SDOC-3 sections
 and renders CommonMark with tables (SDOC-7). Raw HTML is displayed as text.
+An `hgl` fence under `Examples:` is labeled as runnable (SDOC-9). An
+`hgl no-run` fence or an HGL fence outside that section is labeled as shown.
+The same Markdown renderer handles source and exported documentation.
 Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
@@ -54,9 +60,11 @@ Canonical names group overloads. Kind and source location distinguish them.
 A bundled `<core>/` location is a display name. Exported comments use their
 own module for links. The model does not record imports or call-site bindings.
 
-CI regenerates the JSON fixture from a real export of the pinned compiler's
-documentation test program. Named constructor arguments select the struct's
-field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
+CI regenerates the JSON fixture from the pinned compiler’s documentation and
+test-local declarations and runnable examples. A private export qualifies a test-local name
+with its owning test. An operator’s candidate list includes implementations
+declared at module scope, including those in importing modules. Named
+constructor arguments select the struct's field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
 both source comments and exported documentation.
 
 ## Compiler diagnostics on save
@@ -88,7 +96,10 @@ keeps compiler and documentation overrides and the check-on-save switch.
 Run and Test pass `buildDir` to the compiler's `--keep` option. The current
 compiler places executables in that workspace. `binDir` records the intended
 standalone binary destination. Generate HGL Documentation invokes `hgl doc`
-for HTML and JSON under `docsDir`. The editor reads the generated JSON model.
+for HTML first, then JSON under `docsDir`. The compiler claims an empty
+directory for the site and manages subsequent HTML updates, including sites
+created with its original marker. If HTML generation
+fails, the action stops before writing the IDE’s JSON model.
 
 ## Building and indexing generated C++
 
@@ -109,6 +120,10 @@ in an IDE Run configuration.
 | --- | --- |
 | `application demo.backtest` | `hgl run --application demo.backtest --target cpp` |
 | `test prices` or `integration_test prices` in module `demo.feed` | `hgl test --test demo.feed::prices --target cpp` |
+
+The HGL Test configuration accepts the CLI’s documentation example identities,
+including module and part headers, members and numbered overloads. Each
+selector is passed to `--test` as one argument.
 
 The Project and editor-tab menus offer separate ordinary and integration test
 actions. Each saves the selected file or recursive folder and its test kind
@@ -179,7 +194,10 @@ both IDE versions. macOS launches the active Apple toolchain adapter with
 The supported build range is limited to the verified
 platform branch. Before widening it, run Plugin Verifier and the native
 breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and stack
-frames to the HGL file.
+frames to the HGL file. The compiler writes bundled Core sources under
+`debug-sources/`. Their `*.hgl.source` file type shares the HGL language
+and line breakpoints. Module indexing, test discovery and on-save checks
+use the primary `.hgl` file type.
 
 A test configuration passes its Run selectors to `hgl test --debug-build DIR`.
 Exit 0 returns the module launches in execution order and lists skipped cases.

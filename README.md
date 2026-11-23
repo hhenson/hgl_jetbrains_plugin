@@ -65,6 +65,8 @@ HGL sources to refresh the C++ model. RustRover reports the location of
 
 Click **Generate HGL Documentation** on the main toolbar or in **Build**.
 Choose **Open documentation** in the completion notification to read the site.
+For an older, unmarked site, set **Documentation directory** to a fresh
+directory before generating. Subsequent runs update that site in place.
 The equivalent compiler commands for the starter are:
 
 ```sh
@@ -79,7 +81,13 @@ the summary from its `/** ... */` comment. **View → Quick Documentation**
 shows the full comment, including HGL sections such as `Args:`, `Returns:`
 and `Examples:`. Hover over a parameter, a named call argument, or a generic
 to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
-and tables. Fenced formulas and diagrams display their source.
+and tables. Quick Documentation labels HGL fences under `Examples:` as
+**Runnable example**. It labels `hgl no-run` fences and HGL fences elsewhere
+as **Shown example**. Fenced formulas and diagrams display their source.
+
+To run one documentation example, paste its printed name, such as
+`demo::Box.value#example-1`, into an **HGL Test** run configuration with
+the project’s source roots.
 
 For modules outside the project, use a version 1 `documentation.json` export.
 New projects read it from the configured documentation directory. Use **Documentation model override** in the HGL build settings for another file. Generate it with the compiler’s JSON format:
@@ -136,8 +144,11 @@ configuration. A selection spanning modules opens one LLDB session per module,
 in order. Continue after a breakpoint to proceed. Stop cancels the remaining
 modules. Integration test timeouts are suspended while debugging. A failed
 compiler-checked rejection appears with its diagnostic. Other executable tests
-still run. Step Over follows HGL assertions. Step Into can show generated C++
-at a function’s closing brace or inside `eval` wiring. [Compiler issue #611](https://github.com/hhenson/hgl-compiler/issues/611)
+still run.
+
+Step Over follows HGL assertions. Step Into can open bundled Core HGL from the
+debug build. The IDE highlights its `*.hgl.source` files. Breakpoints in those
+copies apply to that debug session. Function ends map to their HGL closing lines.
 
 On macOS the plugin
 uses Apple's LLDB adapter from the active developer tools. Run

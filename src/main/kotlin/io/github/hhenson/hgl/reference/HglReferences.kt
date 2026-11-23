@@ -30,7 +30,11 @@ class HglQualifiedNameReference(element: HglQualifiedName) :
         val names = element.identList
         return when (names.size) {
             1 -> HglScope.resolve(element, names[0].text, includeImplementations)
-            2 -> resolveQualified(names[0].text, names[1].text)
+            2 -> {
+                val name = names[1].text
+                val exported = resolveQualified(names[0].text, name)
+                if (includeImplementations && HglScope.isTestCode(element)) HglScope.withTestCandidates(element, name, exported) else exported
+            }
             else -> emptyList()
         }
     }

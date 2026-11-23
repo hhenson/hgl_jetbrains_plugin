@@ -23,6 +23,10 @@ import javax.swing.JTextField
 private const val IDENTIFIER = "[A-Za-z_][A-Za-z_0-9]*"
 private const val DOTTED_PATH = "$IDENTIFIER(?:\\.$IDENTIFIER)*"
 
+// The CLI prints these identities for examples owned by declarations, members and unit headers.
+private const val EXAMPLE_OWNER = "(?:$DOTTED_PATH|\\[(?:module|declaration|part $IDENTIFIER)\\])"
+private const val EXAMPLE = "$EXAMPLE_OWNER(?:~[1-9][0-9]*)?#example-[1-9][0-9]*"
+
 abstract class HglRunType(
     id: String, name: String, description: String,
     val selectorLabel: String, val selectorPattern: Regex, val command: List<String>,
@@ -33,7 +37,7 @@ abstract class HglRunType(
 
 class HglTestType : HglRunType(
     "HglSingleTest", "HGL Test", "Run one named HGL test",
-    "Module-qualified test (module.path::name)", Regex("$DOTTED_PATH::$IDENTIFIER"), listOf("test", "--test"),
+    "Module-qualified test or documentation example", Regex("$DOTTED_PATH::(?:$IDENTIFIER|$EXAMPLE)"), listOf("test", "--test"),
 )
 
 class HglApplicationType : HglRunType(

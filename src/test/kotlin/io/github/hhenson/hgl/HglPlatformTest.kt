@@ -299,6 +299,46 @@ class HglPlatformTest : HglEditorFixture() {
         assertEmpty(resolveAtCaret())
     }
 
+    fun testOperatorCandidatesFollowTheirBindingAcrossTestModuleParts() {
+        myFixture.addFileToProject("api.hgl", """
+            module api
+            export operator score<T>(x: T) -> i64
+            impl const fn score(x: i64) -> i64 => x
+        """.trimIndent())
+        myFixture.addFileToProject("other.hgl", "module other\nexport operator score<T>(x: T) -> i64")
+        myFixture.addFileToProject("scores.hgl", """
+            module suite part scores
+            use api::{score}
+            test {
+                test contribute {
+                    struct Ticket { paid: bool }
+                    impl const fn score(x: bool) -> i64 => if x { 7 } else { 0 }
+                    assert score(Ticket(paid: true).paid) == 7
+                }
+            }
+        """.trimIndent())
+        myFixture.addFileToProject("other_scores.hgl", """
+            module suite part other_scores
+            use other::{score}
+            test contribute_other {
+                impl const fn score(x: str) -> i64 => 1
+                assert score("one") == 1
+            }
+        """.trimIndent())
+        fun targets(module: String, use: String, source: String): List<String> {
+            myFixture.configureByText("checks.hgl", "module $module\nuse $use\n$source")
+            return resolveAtCaret().map { it.containingFile.name }.sorted()
+        }
+        val shared = listOf("api.hgl", "scores.hgl")
+        assertEquals(shared, targets("suite", "api::{score}", "test sibling { assert sc<caret>ore(true) == 7 }"))
+        assertEquals(shared, targets("suite", "api as a", "test { fn helper() => a::sc<caret>ore(true) }"))
+        assertEquals(listOf("other.hgl", "other_scores.hgl"),
+            targets("suite", "other::{score}", "integration_test t { assert sc<caret>ore(\"one\") == 1 }"))
+        assertEquals(listOf("api.hgl"), targets("suite", "api::{score}", "fn published() => sc<caret>ore(1)"))
+        assertEquals(listOf("api.hgl"), targets("consumer", "api::{score}", "test t { assert sc<caret>ore(1) == 1 }"))
+        assertEmpty(targets("suite", "api::{score}", "test t { let x = Tic<caret>ket(paid: true) }"))
+    }
+
     fun testAnApplicationIsNotAnImportableModule() {
         myFixture.addFileToProject("app.hgl", "/*\nmodule phantom\n*/\napplication demo.app\nrun work()\n")
         myFixture.configureByText("consumer.hgl", "module client\nuse demo.a<caret>pp as app\n")

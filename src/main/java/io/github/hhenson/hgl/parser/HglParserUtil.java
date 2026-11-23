@@ -111,6 +111,61 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
                 !TRIVIA.contains(previous);
     }
 
+    private static final Key<Boolean> GROUPED = Key.create("hgl.layout.grouped");
+
+    public static boolean inGroup(PsiBuilder b, int level, Parser parser) {
+        return withLayout(b, level, parser, true);
+    }
+
+    public static boolean inBlock(PsiBuilder b, int level, Parser parser) {
+        return withLayout(b, level, parser, false);
+    }
+
+    private static boolean withLayout(PsiBuilder b, int level, Parser parser, boolean grouped) {
+        Boolean previous = b.getUserData(GROUPED);
+        if (Boolean.TRUE.equals(previous) == grouped) return parser.parse(b, level);
+        b.putUserData(GROUPED, grouped);
+        try {
+            return parser.parse(b, level);
+        } finally {
+            b.putUserData(GROUPED, previous);
+        }
+    }
+
+    public static boolean bodyBraceAhead(PsiBuilder b, int level) {
+        return b.getTokenType() == HglTypes.LBRACE &&
+                (Boolean.TRUE.equals(b.getUserData(GROUPED)) || precedingBreaks(b) < 2);
+    }
+
+    /** A multiline comment can separate statements even when the lexer has no NEWLINE token there. */
+    public static boolean afterCommentBreak(PsiBuilder b, int level) {
+        b.getTokenType(); // Skip leading whitespace and comments before examining them.
+        return precedingBreaks(b) > 0;
+    }
+
+    /** LEX-5/21: count up to two logical breaks. One multiline comment contributes one. */
+    private static int precedingBreaks(PsiBuilder b) {
+        int breaks = 0;
+        for (int i = -1; breaks < 2; i--) {
+            IElementType token = b.rawLookup(i);
+            if (token == HglTypes.NEWLINE) {
+                breaks++;
+            } else if (token == HglTypes.BLOCK_COMMENT || token == HglTypes.DOC_COMMENT) {
+                CharSequence source = b.getOriginalText();
+                int end = b.rawTokenTypeStart(i + 1);
+                for (int j = b.rawTokenTypeStart(i); j < end; j++) {
+                    if (source.charAt(j) == '\n' || source.charAt(j) == '\r') {
+                        breaks++;
+                        break;
+                    }
+                }
+            } else if (token == null || !TRIVIA.contains(token)) {
+                break;
+            }
+        }
+        return breaks;
+    }
+
     private static final Key<Integer> HEADER_START = Key.create("hgl.header.start");
 
     public static boolean header(PsiBuilder b, int level, Parser parser) {

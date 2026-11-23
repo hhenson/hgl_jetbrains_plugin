@@ -1,6 +1,9 @@
-operator scaled<L, R, O>(lhs: L, rhs: R) -> O
+const fn less<T>(a: T, b: T) -> bool requires T in {i64, f64} => a < b
 
-impl const fn scaled(lhs: f64, rhs: f64, exact: bool = false) -> f64 =>
-    lhs * rhs
+operator kind_of<V>(value: V) -> i64
 
-impl const fn scaled(lhs: str, rhs: i64) -> str => lhs * rhs
+impl const fn kind_of(value: i64) -> i64 => 1
+
+impl const fn kind_of<T>(value: T) -> i64 requires !(T == i64) => 2
+
+const fn wrap<U>(value: U) -> i64 requires kind_of(U) -> i64 => kind_of(value)

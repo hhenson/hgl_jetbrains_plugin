@@ -1,13 +1,9 @@
-operator tick<V>(value: V) -> V
+operator each_slot<R, ...Ps, ...As, const key: str = "key", const index: str = "index">(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without key, index},
+) -> list<R>
 
-impl fn tick(value: i64) -> i64 {
-    when { return value }
-}
-
-impl const fn tick(value: f64) -> f64 => value
-
-operator pass<T>(a: T) -> T
-
-impl fn pass<T>(a: T) -> T requires tick(T) -> T => tick(a)
-
-fn reals(x: f64) -> f64 => pass(x)
+operator each_given<R, ...Ps, ...As, const given: set<str> = ["key", "index"]>(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without given},
+) -> list<R>

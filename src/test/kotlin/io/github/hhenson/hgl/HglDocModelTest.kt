@@ -13,7 +13,7 @@ import java.io.File
 import java.nio.file.Files
 
 class HglDocModelTest : HglEditorFixture() {
-    // Subset of the pinned compiler's export of crates/hgl_cli/tests/fixtures/doc with --private.
+    // Generated from the pinned compiler's documentation and test-local declaration fixtures with --private.
     private val model get() = File("src/test/testData/documentation/model-v1.json").readText()
     private val provider = HglDocumentationTargetProvider()
     private fun targets(code: String) = run {
@@ -91,6 +91,24 @@ class HglDocModelTest : HglEditorFixture() {
         assertEquals("A heading that stays prose.", custom.lines.single())
     }
 
+    fun testPrivateExportKeepsDeclarationsWithTheirOwningTest() {
+        myFixture.addFileToProject("documentation.json", model)
+        val docs = HglDocModel.read(model)
+        val module = "demo.test_local_declarations"
+        val operator = docs.declarations("$module::classify").single()
+        assertEquals("operator", operator.kind)
+        assertEquals("$module::classify", operator.candidates.single().canonicalName)
+        assertEquals("candidate", docs.declarations("$module::local_candidate::classify").single().kind)
+        assertEmpty(docs.declarations("$module::Closed"))
+        for (test in listOf("with_a_type", "independent_types_and_operator")) {
+            assertEquals("struct", docs.declarations("$module::$test::Closed").single().kind)
+        }
+
+        val consumer = "module consumer\nuse $module as lib\n"
+        assertSize(1, targets(consumer + "const fn show() => lib::class<caret>ify(1)"))
+        assertEmpty(targets(consumer + "const fn show() => lib::Clo<caret>sed()"))
+    }
+
     fun testModelChangesInvalidateOldTargetsAndUnknownVersionsAreIgnored() {
         val json = myFixture.addFileToProject("documentation.json", model)
         val code = "module consumer\nuse examples.apidoc as api\nfn g() => api::shif<caret>ted(2)"
@@ -130,6 +148,36 @@ class HglDocModelTest : HglEditorFixture() {
         val handler = DocumentationLinkHandler.EP_NAME.extensionList.filterIsInstance<HglDocLinkHandler>().single()
         assertNotNull(handler.resolveLink(target, "hgl-doc:sample.triple"))
         assertNull(handler.resolveLink(target, "hgl-doc:missing"))
+    }
+
+    fun testSourceAndExportLabelExecutableDocumentationExamples() {
+        val exported = HglDocModel.read(model).declarations("demo.documentation_examples::twice").single()
+        val html = docHtml("twice", exported.sections, false) { false }
+        assertEquals(2, "Runnable example".toRegex().findAll(html).count())
+        assertTrue(html, html.contains("Shown example</p>\n<pre><code class=\"language-hgl\">This displayed fragment"))
+
+        val sections = docSections("""
+            ~~~hgl
+            shown
+            ~~~
+
+            Examples:
+                > ~~~hgl
+                > assert true
+                > ~~~
+
+                ~~~hgl no-run
+                shown only
+                ~~~
+
+                ~~~rust
+                other language
+                ~~~
+        """.trimIndent())
+        val source = docHtml("sample", sections, false) { false }
+        assertEquals(1, "Runnable example".toRegex().findAll(source).count())
+        assertEquals(2, "Shown example".toRegex().findAll(source).count())
+        assertTrue(source, source.contains("<blockquote>"))
     }
 
     fun testOptionsRulesAndStatusAreRecognized() {

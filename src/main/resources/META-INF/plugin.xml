@@ -25,6 +25,10 @@
                   fieldName="INSTANCE"
                   language="HGL"
                   extensions="hgl"/>
+        <fileType name="HGL Debug Source"
+                  implementationClass="io.github.hhenson.hgl.HglDebugSourceFileType"
+                  fieldName="INSTANCE"
+                  patterns="*.hgl.source"/>
         <lang.parserDefinition language="HGL"
                                implementationClass="io.github.hhenson.hgl.parser.HglParserDefinition"/>
         <lang.syntaxHighlighterFactory language="HGL"

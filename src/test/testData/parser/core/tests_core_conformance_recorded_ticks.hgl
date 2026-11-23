@@ -1,4 +1,4 @@
-module core_implementation part recorded_ticks
+module core_conformance part recorded_ticks
 
 fn forward_nullable(value: i64?) -> i64? {
     when { return value }

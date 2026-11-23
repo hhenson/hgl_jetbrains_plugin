@@ -11,49 +11,632 @@ module core
 # and a tenor's in hgl/native/tenors.hgl. The calendar, the rolling rule
 # and the candidates that move a date are in hgl/core/calendar.hgl.
 
-# The outcome of a full comparison, `<=>` (OPS-3, NUM-6).
-export enum CmpResult { less, equivalent, greater, unordered }
+/**
+The outcome of a full comparison, `a <=> b`: less, equivalent, greater or unordered.
 
-# What a division does with a zero divisor (NUM-3, NUM-9, NUM-12).
-export enum ZeroPolicy { ieee, nan, error, fail }
+`compare_`, which `<=>` stands for, returns one; `<`, `<=`, `>`, `>=`,
+`==` and `!=` return a bool. Only a numeric comparison and a tenor's give
+`unordered`. An outcome converts to no bool and no number: it is compared
+with a member, `(a <=> b) == CmpResult.less`.
 
-# How an `f64` is rounded to an `i64` (OPS-8).
-export enum Rounding { truncate, floor, ceiling, half_even, half_up, half_down }
+Of two numbers, each comparison that gives a bool is true for these
+outcomes:
 
-# What a conversion does when it fails (OPS-8).
-export enum InvalidPolicy { error, fail }
+| Expression | True for |
+| --- | --- |
+| `a == b` | `equivalent` |
+| `a != b` | `less`, `greater`, `unordered` |
+| `a < b` | `less` |
+| `a <= b` | `less`, `equivalent` |
+| `a > b` | `greater` |
+| `a >= b` | `greater`, `equivalent` |
 
-# Admission for same-type temporal addition/subtraction (OPS-9).
-export enum InvalidInputPolicy { identity }
+Examples:
+    ~~~hgl
+    assert (1.0 <=> 2.0) == CmpResult.less
+    assert ("b" <=> "a") == CmpResult.greater
+    assert (0.0 <=> -0.0) == CmpResult.equivalent
+    ~~~
 
-# The level of a log record (CAP-2).
-export enum LogLevel { debug, info, warning, error }
+    A NaN has no order, and nor have two tenors of different forms.
 
-# The named times of a run (CRUN-3). `smallest_step` is the least by which
-# one cycle's evaluation time follows another's. `never` is before every
-# evaluation time and `forever` after every one: no cycle runs at either.
-# `earliest_start` is the first instant a run may start at, and
-# `latest_end` the last it may end at.
+    ~~~hgl
+    assert (0.0 / 0.0 <=> 1.0) == CmpResult.unordered
+    assert (1D <=> 1M) == CmpResult.unordered
+    ~~~
+
+Rules:
+    OPS-2, OPS-3, NUM-6, TEN-3
+*/
+export enum CmpResult {
+    /**
+    The left operand orders before the right.
+
+    Rules:
+        OPS-3, NUM-6
+    */
+    less,
+    /**
+    The operands are equivalent: of two numbers, equal values, two zeros of opposite sign among them.
+
+    Rules:
+        OPS-3, NUM-6
+    */
+    equivalent,
+    /**
+    The left operand orders after the right.
+
+    Rules:
+        OPS-3, NUM-6
+    */
+    greater,
+    /**
+    The operands have no order: a number compared with a NaN, or two tenors of which neither is less than or equal to the other.
+
+    Rules:
+        OPS-3, NUM-6, TEN-3
+    */
+    unordered,
+}
+
+/**
+What a division does with a zero divisor: the `zero` option of `/`, `//` and `%`.
+
+The option is written in braces after the symbol, `a /{zero: .error} b`.
+It is a constant, fixed where the call is checked, since it decides the
+result's type. It applies to a zero divisor of either sign, and to
+nothing else: an error in evaluating an operand is not caught.
+
+Which policies a division admits, and its default, follow from what its
+result can hold:
+
+| A division whose result is | Namely | Admits | Default |
+| --- | --- | --- | --- |
+| An `f64` | `/` of numbers; `//` and `%` with an `f64` operand; a `duration` by a `duration` | `.ieee`, `.nan`, `.error`, `.fail` | `.ieee` |
+| An `i64` or a `duration` | `//` and `%` of two `i64`; a `duration` by a number; `//` of two durations | `.error`, `.fail` | `.fail` |
+
+A policy a division does not admit is rejected with
+`operator.no_candidate`. Under `.error` the quotient is a `result`, which
+takes its form from its place: where a nullable number is expected, a
+failure is null.
+
+Examples:
+    ~~~hgl
+    assert 1.0 / 0.0 > 1e308
+    assert 1.0 / -0.0 < -1e308
+    assert (1.0 /{zero: .nan} 0.0 <=> 0.0) == CmpResult.unordered
+    assert 7.0 // 0.0 > 1e308
+    assert (7.0 % 0.0 <=> 0.0) == CmpResult.unordered
+    ~~~
+
+    Under `.error` a zero divisor is a failure of the result, and any
+    other a success.
+
+    ~~~hgl
+    let quotient: result<f64, error> = 6.0 /{zero: .error} 2.0
+    assert is_ok(quotient) && quotient.value == 3.0
+    let whole: i64? = 7 //{zero: .error} 0
+    assert whole == null
+    ~~~
+
+    An integer division fails by default.
+
+    ~~~hgl
+    assert raises("numeric.division_by_zero") { 7 // 0 }
+    assert raises("numeric.division_by_zero") { 1.0 /{zero: .fail} 0.0 }
+    ~~~
+
+Rules:
+    NUM-3, NUM-9, NUM-10, NUM-12, OPS-1, ERR-15
+*/
+export enum ZeroPolicy {
+    /**
+    A zero divisor gives what IEEE arithmetic does: for `/`, an infinity for a finite nonzero numerator, its sign the combined signs of the operands, and a NaN for a zero one; for `//` and `%` with an `f64` operand, what IEEE floor division and remainder give, an infinity for `7.0 // 0.0` and a NaN for `7.0 % 0.0`.
+
+    Rules:
+        NUM-3, NUM-12
+    */
+    ieee,
+    /**
+    Every zero divisor gives a NaN.
+
+    Rules:
+        NUM-3
+    */
+    nan,
+    /**
+    The division returns a `result`: a failure with code `numeric.division_by_zero` for a zero divisor, and the quotient as a success for any other.
+
+    Rules:
+        NUM-9, NUM-10
+    */
+    error,
+    /**
+    A zero divisor is an HGL error with code `numeric.division_by_zero`, which escapes.
+
+    Rules:
+        NUM-3, NUM-12
+    */
+    fail,
+}
+
+/**
+How `convert` rounds an `f64` to an `i64`: its `rounding` option.
+
+It is given as a named argument,
+`convert<i64>(price, rounding: .half_even)`, and applies to that
+conversion alone. With none given it is `.truncate`. An `f64` that is a
+NaN, an infinity, or outside `i64` once rounded, has no `i64`: the
+conversion's `nan` and `invalid` options say what it becomes.
+
+Examples:
+    ~~~hgl
+    assert convert<i64>(-2.5) == -2
+    assert convert<i64>(-2.5, rounding: .floor) == -3
+    assert convert<i64>(-2.5, rounding: .ceiling) == -2
+    assert convert<i64>(2.5, rounding: .half_even) == 2
+    assert convert<i64>(3.5, rounding: .half_even) == 4
+    assert convert<i64>(2.5, rounding: .half_up) == 3
+    assert convert<i64>(-2.5, rounding: .half_up) == -3
+    assert convert<i64>(2.5, rounding: .half_down) == 2
+    ~~~
+
+Rules:
+    OPS-6, OPS-7, OPS-8
+*/
+export enum Rounding {
+    /**
+    Rounds toward zero; it is the default.
+
+    Rules:
+        OPS-8
+    */
+    truncate,
+    /**
+    Rounds toward negative infinity.
+
+    Rules:
+        OPS-8
+    */
+    floor,
+    /**
+    Rounds toward positive infinity.
+
+    Rules:
+        OPS-8
+    */
+    ceiling,
+    /**
+    Rounds to the nearest integer, and a tie to the even one.
+
+    Rules:
+        OPS-8
+    */
+    half_even,
+    /**
+    Rounds to the nearest integer, and a tie away from zero.
+
+    Rules:
+        OPS-8
+    */
+    half_up,
+    /**
+    Rounds to the nearest integer, and a tie toward zero.
+
+    Rules:
+        OPS-8
+    */
+    half_down,
+}
+
+/**
+What a conversion that can fail does with a failure: the `invalid` option of `convert`.
+
+A conversion fails where its value has no `T`: an `f64` that is a NaN,
+unless the `nan` option gives it an `i64`, an infinity, or outside `i64`
+once rounded; text that writes no value of
+the type asked for; bytes that are not well-formed UTF-8. The option is
+given as a named argument, `convert<i64>(text, invalid: .fail)`. It is a
+constant, fixed where the call is checked, since it decides the result's
+type. With none given it is `.error`. A conversion that cannot fail
+returns `T` and takes no `invalid`.
+
+Examples:
+    ~~~hgl
+    let parsed: result<i64, error> = convert<i64>("12x")
+    assert is_err(parsed)
+    assert convert<i64>("42", invalid: .fail) == 42
+    assert raises("convert.invalid") { convert<i64>("12x", invalid: .fail) }
+    ~~~
+
+Rules:
+    OPS-7, OPS-8
+*/
+export enum InvalidPolicy {
+    /**
+    The conversion returns a `result<T, error>`, and a failure is an Err with code `convert.invalid`.
+
+    Rules:
+        OPS-8
+    */
+    error,
+    /**
+    The conversion returns the `T`, and a failure is an HGL error with code `convert.invalid`, which escapes.
+
+    Rules:
+        OPS-8
+    */
+    fail,
+}
+
+/**
+The option of `+` and binary `-` between two connections of one type that gives a result while only one of them has a value.
+
+It is written `left +{invalid: .identity} right`, and `identity` is its
+only member. Without it a sum or a difference is lifted as any value
+operation is, and needs both operands valid. It takes two operands and a
+result of one type `T`, which has a value `add_(T, T) -> T`, or for `-` a
+value `sub_(T, T) -> T` and `neg_(T) -> T`; it converts nothing and
+invents no identity value. A call with the option whose operands and
+result are not all of one type is admitted by no candidate, and is
+rejected with `operator.no_candidate`.
+
+| Valid operands | `+` | `-` |
+| --- | --- | --- |
+| Both | `lhs + rhs` | `lhs - rhs` |
+| The left only | `lhs` | `lhs` |
+| The right only | `rhs` | `-rhs` |
+| Neither | The output is invalidated | The output is invalidated |
+
+An operand that is invalidated wakes the node; one that is silent keeps
+its value and wakes nothing. A valid zero, empty text, null or NaN is a
+value, not an invalid operand.
+
+Examples:
+    With one operand valid the sum is that operand; without the option it
+    waits for both.
+
+    ~~~hgl
+    fn sum(left: i64, right: i64) -> i64 => left +{invalid: .identity} right
+    fn plain_sum(left: i64, right: i64) -> i64 => left + right
+    fn difference(left: i64, right: i64) -> i64 => left -{invalid: .identity} right
+
+    assert eval sum(left: [7, _, 9], right: [_, 2, _]) == [7, 9, 11]
+    assert eval plain_sum(left: [7, _, 9], right: [_, 2, _]) == [_, 9, 11]
+    assert eval difference(left: [_, 7], right: [2, _]) == [-2, 5]
+    ~~~
+
+    A null command invalidates a producer's output. Where neither operand
+    is valid, the sum is invalidated too, which `watch` sees.
+
+    ~~~hgl
+    fn produce(command: i64?) -> i64 {
+        inject out
+        when valid(command) {
+            if command != null { return command }
+            invalidate(out)
+        }
+    }
+
+    fn watch(value: i64) -> bool {
+        when valid([]) { return valid(value) }
+    }
+
+    fn sum_validity(left: i64?, right: i64?) -> bool =>
+        watch(produce(left) +{invalid: .identity} produce(right))
+
+    assert eval sum_validity(left: [7, _, null, _], right: [_, 2, _, null]) ==
+        [true, true, true, false]
+    ~~~
+
+Rules:
+    OPS-9, END-4, FN-6, FN-11
+*/
+export enum InvalidInputPolicy {
+    /**
+    With one operand valid the result is that operand, negated where it is the right of a `-`, and with neither the output is invalidated.
+
+    Rules:
+        OPS-9
+    */
+    identity,
+}
+
+/**
+The level of a log record: what `log` takes, and what a logger's `level` drops records below.
+
+`log_debug`, `log_info`, `log_warning` and `log_error` each write a
+record at their level. `logger.level` is the logger's current level: a
+record below it is dropped.
+
+Examples:
+    A node logs each tick at the level its `const` parameter gives.
+
+    ~~~hgl
+    fn noted(value: i64, const level: LogLevel) -> i64 {
+        inject logger
+        when {
+            log(logger, level, "seen")
+            return value
+        }
+    }
+    assert eval noted(value: [1, _, 2], level: .debug) == [1, _, 2]
+    assert eval noted(value: [1], level: LogLevel.error) == [1]
+    ~~~
+
+Rules:
+    CAP-2, CAP-8
+*/
+export enum LogLevel {
+    /**
+    The level of a debug record, which `log_debug` writes.
+
+    Rules:
+        CAP-2
+    */
+    debug,
+    /**
+    The level of an informational record, which `log_info` writes.
+
+    Rules:
+        CAP-2
+    */
+    info,
+    /**
+    The level of a warning, which `log_warning` writes.
+
+    Rules:
+        CAP-2
+    */
+    warning,
+    /**
+    The level of an error record, which `log_error` writes.
+
+    Rules:
+        CAP-2
+    */
+    error,
+}
+
+/**
+The least by which one cycle's evaluation time follows another's: a microsecond.
+
+`earliest_start` is this much after `never`, and `latest_end` this much
+before `forever`.
+
+Examples:
+    ~~~hgl
+    assert smallest_step == 1us
+    assert earliest_start - never == smallest_step
+    ~~~
+
+Rules:
+    CRUN-3
+*/
 export const smallest_step: duration = 1us
+
+/**
+An instant before every evaluation time, at which no cycle runs: 1970-01-01T00:00:00Z.
+
+`earliest_start` is `smallest_step` after it. A wake asked of a scheduler
+at `never` is dropped, as one at any time before the evaluation time is,
+but for one asked with `on_wall_clock: true` in a run in real time,
+which is already due and comes in the next cycle.
+
+Examples:
+    ~~~hgl
+    assert never == @1970-01-01T00:00:00Z
+    ~~~
+
+    Each cycle's evaluation time is after `never` and before `forever`.
+
+    ~~~hgl
+    fn within_run(value: i64) -> bool {
+        inject clock
+        when { return clock.evaluation_time > never && clock.evaluation_time < forever }
+    }
+    assert eval within_run(value: [1, _, 2]) == [true, _, true]
+    ~~~
+
+Rules:
+    CRUN-3, CAP-4
+*/
 export const never: datetime = @1970-01-01T00:00:00Z
+
+/**
+The earliest instant a run may start at: one `smallest_step` after `never`.
+
+A run's start is no earlier: a start before it is a failure with code
+`run.bounds`. A simulation given no start starts at it;
+a run in real time given none starts at the host clock's present time.
+
+Examples:
+    An `eval` given no start has its first cycle at `earliest_start`.
+
+    ~~~hgl
+    fn time_of(value: i64) -> datetime {
+        inject clock
+        when { return clock.evaluation_time }
+    }
+    assert eval time_of(value: [1, _, 2]) == [earliest_start, _, earliest_start + 2us]
+    ~~~
+
+Rules:
+    CRUN-2, CRUN-3
+*/
 export const earliest_start: datetime = never + smallest_step
+
+/**
+An instant after every evaluation time, at which no cycle runs: 2262-04-11T00:00:00Z.
+
+`latest_end` is `smallest_step` before it.
+
+Examples:
+    ~~~hgl
+    assert forever == @2262-04-11T00:00:00Z
+    assert forever - latest_end == smallest_step
+    ~~~
+
+Rules:
+    CRUN-3
+*/
 export const forever: datetime = @2262-04-11T00:00:00Z
+
+/**
+The latest instant a run may end at: one `smallest_step` before `forever`.
+
+A run's end is no later: an end after it is a failure with code
+`run.bounds`. An end is exclusive, so no cycle runs at
+`latest_end` or after it.
+
+Examples:
+    A run that starts two steps before `latest_end` has two cycles, and
+    the input's later ticks are not evaluated.
+
+    ~~~hgl
+    fn time_of(value: i64) -> datetime {
+        inject clock
+        when { return clock.evaluation_time }
+    }
+    let t = latest_end - 2us
+    assert eval{start: t} time_of(value: [1, 2, 3, 4]) == [t, t + 1us]
+    ~~~
+
+Rules:
+    CRUN-2, CRUN-3
+*/
 export const latest_end: datetime = forever - smallest_step
 
-# `log` at each level (CAP-2). The native `log` and the capability types
-# are in hgl/native/capabilities.hgl.
+/**
+Write a record of `message` at the debug level.
+
+It is `log(logger, .debug, message)`. The record is dropped where
+`.debug` is below the logger's `level`. A node calls it in its hooks,
+and a source in its body, with the logger it injects, and so does a
+`const fn` given that logger; a graph and a value function inject no
+logger.
+
+Args:
+    logger: The logger the record is written to.
+    message: The record's text.
+
+Examples:
+    ~~~hgl
+    fn traced(value: i64) -> i64 {
+        inject logger
+        when {
+            log_debug(logger, "value seen")
+            return value
+        }
+    }
+    assert eval traced(value: [1, _, 2]) == [1, _, 2]
+    ~~~
+
+Rules:
+    CAP-2, CAP-8, TIME-8, FN-9
+*/
 export const fn log_debug(logger: Logger, message: str) {
     log(logger, .debug, message)
 }
 
+/**
+Write a record of `message` at the info level.
+
+It is `log(logger, .info, message)`. The record is dropped where `.info`
+is below the logger's `level`. A node calls it in its hooks, and a
+source in its body, with the logger it injects, and so does a `const fn`
+given that logger; a graph and a value function inject no logger.
+
+Args:
+    logger: The logger the record is written to.
+    message: The record's text.
+
+Examples:
+    A node notes its start in `start`, a hook as `when` is.
+
+    ~~~hgl
+    fn opened(value: i64) -> i64 {
+        inject logger
+        start { log_info(logger, "opened") }
+        when { return value }
+    }
+    assert eval opened(value: [4, 5]) == [4, 5]
+    ~~~
+
+Rules:
+    CAP-2, CAP-8, TIME-8, FN-9
+*/
 export const fn log_info(logger: Logger, message: str) {
     log(logger, .info, message)
 }
 
+/**
+Write a record of `message` at the warning level.
+
+It is `log(logger, .warning, message)`. The record is dropped where
+`.warning` is below the logger's `level`. A node calls it in its hooks,
+and a source in its body, with the logger it injects, and so does a
+`const fn` given that logger; a graph and a value function inject no
+logger.
+
+Args:
+    logger: The logger the record is written to.
+    message: The record's text.
+
+Examples:
+    The node gives its logger to a `const fn`, which warns of a value
+    below zero.
+
+    ~~~hgl
+    const fn warn_if_negative(logger: Logger, value: i64) {
+        if value < 0 { log_warning(logger, "below zero") }
+    }
+
+    fn checked(value: i64) -> i64 {
+        inject logger
+        when {
+            warn_if_negative(logger, value)
+            return value
+        }
+    }
+    assert eval checked(value: [3, -1]) == [3, -1]
+    ~~~
+
+Rules:
+    CAP-2, CAP-8, TIME-8, FN-9
+*/
 export const fn log_warning(logger: Logger, message: str) {
     log(logger, .warning, message)
 }
 
+/**
+Write a record of `message` at the error level.
+
+It is `log(logger, .error, message)`. The record is dropped where
+`.error` is below the logger's `level`. A node calls it in its hooks,
+and a source in its body, with the logger it injects, and so does a
+`const fn` given that logger; a graph and a value function inject no
+logger.
+
+Args:
+    logger: The logger the record is written to.
+    message: The record's text.
+
+Examples:
+    ~~~hgl
+    fn reported(value: i64) -> i64 {
+        inject logger
+        when {
+            if value == 0 { log_error(logger, "zero seen") }
+            return value
+        }
+    }
+    assert eval reported(value: [0, 1]) == [0, 1]
+    ~~~
+
+Rules:
+    CAP-2, CAP-8, TIME-8, FN-9
+*/
 export const fn log_error(logger: Logger, message: str) {
     log(logger, .error, message)
 }
@@ -87,56 +670,2241 @@ fn record<T>(input: T, const key: str) {
     stop { put(global_state, key, entries) }
 }
 
-# Ask for a wake on a scheduler or an alarm (CAP-4, CAP-5). `at` is a
-# `duration` from the current evaluation time, or a `datetime`.
-export operator schedule<C, W>(capability: C, at: W)
+/**
+Ask the node's scheduler or alarm for a wake, after a duration or at a datetime.
 
-# The global store (CAP-6): the value under a key, whether a key holds
-# one, and a value put under a key. A call of `get` writes `V` and leaves
-# the store and the key to be inferred, as `convert<T>(value)` does. `get`
-# can fail, a dictionary's (the language's ERR-6) and the store's: it gives
-# a `result<V, error>`, which takes its form from its place (ERR-15).
+When the wake comes the node is evaluated, and `scheduled()` holds there:
+with a scheduler whether or not an input ticks then, and with an alarm
+only where no input does. A node calls it in its hooks, and a source in
+its body, with the capability it injects, and so does a `const fn` given
+that capability; a graph and a value function inject neither.
+
+| `at` | What results |
+| --- | --- |
+| A `duration` more than zero | A wake that long after the current evaluation time |
+| `0s`, in `start` | A wake at the start, the node's first evaluation |
+| Another `duration`: zero outside `start`, or one below zero | Rejected with `schedule.duration_bounds` where the compiler sees its value, a literal or a constant; otherwise the call fails with `schedule.non_positive_duration` |
+| A `datetime` after the current evaluation time | A wake then |
+| A `datetime` before the current evaluation time | Nothing: the wake is dropped, and nothing fails; but asked with `on_wall_clock: true` in a run in real time it is already due, and comes in the next cycle |
+
+A scheduler keeps its wakes: `next_scheduled_time` and `is_scheduled`
+read them, and `un_schedule` and `reset` cancel them. An alarm is
+cheaper and keeps no record: asking again keeps the earliest wake, and
+it takes no option.
+
+Type Args:
+    C: The capability's type: `Scheduler` or `Alarm`.
+    W: The type of `at`: `duration` or `datetime`.
+
+Args:
+    capability: The scheduler or the alarm of the node that injects it.
+    at: When the wake is asked for: a `duration` from the current
+        evaluation time, or a `datetime`.
+
+Options:
+    - `tag`: a `str?`, null when none is given. A wake asked for under a
+      tag replaces the pending wake of that tag, and
+      `un_schedule(scheduler, tag: name)` cancels it. A scheduler takes
+      it, and an alarm does not. Written
+      `schedule(scheduler, 5s, tag: "poll")`.
+    - `on_wall_clock`: a `bool`, false when none is given. In a run in
+      real time `true` times the wake on the wall clock, `clock.now`. The
+      request is then measured from the later of the evaluation time and
+      `clock.now`. A `duration` asks for a wake that long after it, and a
+      `datetime` is a time on the wall clock. A wake that is then already
+      due, at or before that time, is not dropped: it comes in the next cycle, at the later of that time and
+      the evaluation time plus `smallest_step`, and in `start` at that
+      time. In simulation it changes nothing. A scheduler takes it, and
+      an alarm does not. Written
+      `schedule(scheduler, 5s, on_wall_clock: true)`.
+
+Raises:
+    - `schedule.non_positive_duration`: a `duration` that is not
+      admitted, where the compiler does not see its value.
+
+Examples:
+    A `duration` asks for a wake that long after the evaluation time,
+    and a `datetime` for one then. Each column of the trace is one
+    microsecond.
+
+    ~~~hgl
+    fn later(value: i64) -> str {
+        inject scheduler, clock
+        when scheduled() { return "woken" }
+        when modified(value) {
+            if value == 1 {
+                schedule(scheduler, 2us)
+            } else {
+                schedule(scheduler, clock.evaluation_time + 1us)
+            }
+            return "asked"
+        }
+    }
+    assert eval later(value: [1]) == ["asked", _, "woken"]
+    assert eval later(value: [2]) == ["asked", "woken"]
+    ~~~
+
+    `0s` in `start` wakes the node's first evaluation, before its input
+    ticks.
+
+    ~~~hgl
+    fn wake_at_start(value: i64) -> str {
+        inject scheduler
+        start { schedule(scheduler, 0s) }
+        when scheduled() && valid([]) { return "scheduled" }
+        when modified(value) { return "input" }
+    }
+    assert eval wake_at_start(value: [_, 7]) == ["scheduled", "input"]
+    ~~~
+
+    A duration of zero outside `start`, known only as the node runs,
+    fails the call.
+
+    ~~~hgl
+    fn delayed(steps: i64) -> str {
+        inject scheduler
+        when scheduled() { return "woken" }
+        when modified(steps) {
+            schedule(scheduler, steps * 1us)
+            return "asked"
+        }
+    }
+    assert eval delayed(steps: [1]) == ["asked", "woken"]
+    assert raises("schedule.non_positive_duration") { eval delayed(steps: [0]) }
+    ~~~
+
+    A wake asked for before the evaluation time is dropped.
+
+    ~~~hgl
+    fn in_the_past(value: i64) -> str {
+        inject scheduler
+        when scheduled() { return "woken" }
+        when modified(value) {
+            schedule(scheduler, never)
+            return "asked"
+        }
+    }
+    assert eval in_the_past(value: [7, _, 9]) == ["asked", _, "asked"]
+    ~~~
+
+    In simulation `on_wall_clock` changes nothing: the wake comes as it
+    does without it.
+
+    ~~~hgl
+    fn woken_after(const wall: bool) -> bool {
+        inject scheduler
+        start { schedule(scheduler, 2us, on_wall_clock: wall) }
+        when scheduled() { return true }
+    }
+    assert eval woken_after(wall: true) == [_, _, true]
+    assert eval woken_after(wall: false) == [_, _, true]
+    ~~~
+
+    A second wake under the same tag replaces the first.
+
+    ~~~hgl
+    fn replaced() -> bool {
+        inject scheduler
+        start {
+            schedule(scheduler, 1us, tag: "poll")
+            schedule(scheduler, 3us, tag: "poll")
+        }
+        when scheduled() { return true }
+    }
+    assert eval replaced() == [_, _, _, true]
+    ~~~
+
+    An alarm takes the same `at`.
+
+    ~~~hgl
+    fn alarmed(value: i64) -> str {
+        inject alarm
+        when scheduled() { return "woken" }
+        when modified(value) {
+            schedule(alarm, 2us)
+            return "asked"
+        }
+    }
+    assert eval alarmed(value: [1]) == ["asked", _, "woken"]
+    ~~~
+
+Rules:
+    CAP-4, CAP-5, CAP-8, TIME-8, TIME-9, FN-9, GEN-3
+*/
+export operator schedule<C, W>(capability: C, at: W)
+    requires C in {Scheduler, Alarm} && W in {duration, datetime}
+
+/**
+Read the value under a key, of the run's store or of a dictionary, as a read that fails where the key holds none.
+
+| `store` | `key` | Result |
+| --- | --- | --- |
+| `GlobalState`, the run's store | A `str` fixed when the graph is built | `result<V, error>`, a failure with code `value.missing_key` where the key holds no value |
+| `dict<K, V>` | A `K` | `result<V, error>`, a failure with code `value.missing_key` where the dictionary has no such key |
+
+The `result` takes its form from its place. Where a `result<V, error>`
+is expected it is given itself; where a `V`, the value, and a failure is
+raised; where a `V?`, the value, or null for a failure. A `let` that
+writes no type holds the result. Where `V` is itself nullable, a stored
+null is a success, told apart from an absent key. The strict read of a
+dictionary is `dictionary[key]`, which gives the value and fails with
+`value.missing_key` where the key is absent.
+
+A key of the store keeps the type of its first use: a `get` of another
+type than an earlier use of the key is rejected with `store.key_type`
+where the two are in one program, and fails with that code otherwise.
+
+The store is read where `inject global_state` is: in a node's hooks and
+a source's body, and in a graph where it is built, evaluated once then, in the order written,
+before any node of that graph starts. The key is fixed when the graph is
+built: in a hook or a value function it is a constant expression, of
+literals, enum members, constants, generic value parameters and the
+enclosing function's own `const` parameters. Reading the store wakes no node and is no temporal input: a node reads
+what was put before it is evaluated, and what it reads of a `put` by
+another node of the same rank in the same cycle is undefined. The key
+`"run.output"` is the run's: a program that names it is rejected when
+its graph is built, with `store.reserved_key`.
+
+Type Args:
+    V: The value's type. A call of the store's may write it,
+        `get<i64>(global_state, "count")`, or leave it to its place. Of a
+        dictionary it is the dictionary's value type.
+    S: The type of `store`. It is inferred.
+    K: The type of `key`. It is inferred.
+
+Args:
+    store: The run's store, `global_state`, or a dictionary.
+    key: The key read.
+
+Returns:
+    The value under the key as a success, or a failure where the key
+    holds none.
+
+Raises:
+    - `value.missing_key`: where a `V` is taken of a read whose key is absent
+      from the store or dictionary.
+    - `store.key_type`: a `get` of the store of another type than an
+      earlier use of the key, where the two are not in one program.
+
+Ticks:
+    A dictionary's read, given connections in a graph, is lifted: its
+    result ticks each time the dictionary or the key ticks with both
+    valid, the same value again included. The store's read in a graph
+    is made once, where the graph is built, and is given no connection
+    (`connection.as_constant`): the value it reads is a constant, which
+    ticks once, when the graph starts, and the read is not made again.
+
+Validity:
+    A lifted dictionary's read needs the dictionary and the key valid.
+
+Examples:
+    A graph puts a limit in the store as it is built, and its node reads it.
+
+    ~~~hgl
+    fn limited(value: i64) -> bool {
+        inject global_state
+        when { return value <= get<i64>(global_state, "limit") }
+    }
+
+    fn with_limit(value: i64) -> bool {
+        inject global_state
+        put(global_state, "limit", 5)
+        return limited(value)
+    }
+    assert eval with_limit(value: [3, 7]) == [true, false]
+    ~~~
+
+    Read in a graph, the value is a constant: it ticks once, when the
+    graph starts, however often the input ticks.
+
+    ~~~hgl
+    fn seeded(value: i64) -> i64 {
+        inject global_state
+        put(global_state, "seed", 5)
+        let seed: i64 = get(global_state, "seed")
+        return seed
+    }
+    assert eval seeded(value: [1, 2, 3]) == [5]
+    ~~~
+
+    A key that holds nothing is a failure: null where an `i64?` is taken,
+    and the result itself in a `let` that writes no type.
+
+    ~~~hgl
+    fn absent(value: i64) -> bool {
+        inject global_state
+        when {
+            let held: i64? = get<i64>(global_state, "absent")
+            let read = get<i64>(global_state, "absent")
+            return held == null && is_err(read)
+        }
+    }
+    assert eval absent(value: [1]) == [true]
+    ~~~
+
+    Taking the value of a missing store entry raises its failure.
+
+    ~~~hgl
+    fn read_absent(value: i64) -> i64 {
+        inject global_state
+        when { return get<i64>(global_state, "absent") }
+    }
+    assert raises("value.missing_key") { eval read_absent(value: [1]) }
+    ~~~
+
+    A dictionary's read, in value code.
+
+    ~~~hgl
+    let prices: dict<str, f64> = ["a": 1.5, "b": 2.0]
+    let found: f64 = get(prices, "a")
+    assert found == 1.5
+    let missing: f64? = get(prices, "z")
+    assert missing == null
+    assert raises("value.missing_key") { let price: f64 = get(prices, "z") }
+    ~~~
+
+    A dictionary's read in a graph ticks with the dictionary.
+
+    ~~~hgl
+    fn price_of(book: dict<str, f64>) -> f64 => get(book, "a")
+    assert eval price_of(book: [["a": 1.0], _, ["a": 2.0, "b": 3.0]]) == [1.0, _, 2.0]
+    ~~~
+
+Rules:
+    CAP-6, CRUN-7, CRUN-8, TIME-2, TIME-8, FN-1, FN-6, FN-9, FN-11,
+    FN-12, ERR-6, ERR-15
+*/
 export operator get<V, S, K>(store: S, key: K) -> result<V, error>
+
+/**
+Whether a key of the run's store holds a value.
+
+A stored null is a value: `has` is true of a key that holds one. The
+store is asked where `inject global_state` is: in a node's hooks and a
+source's body, and in a graph where it is built, evaluated once then, in the order written,
+before any node of that graph starts. The key is fixed when the graph is
+built: in a hook or a value function it is a constant expression, of
+literals, enum members, constants, generic value parameters and the
+enclosing function's own `const` parameters. Asking wakes no node and is no temporal input. The key `"run.output"` is
+the run's: a program that names it is rejected when its graph is built,
+with `store.reserved_key`.
+
+Type Args:
+    S: The type of `store`. It is inferred.
+    K: The type of `key`. It is inferred.
+
+Args:
+    store: The run's store, `global_state`.
+    key: The key asked about.
+
+Returns:
+    True where the key holds a value, a null included.
+
+Ticks:
+    In a graph a call is made once, where the graph is built, and is
+    given no connection (`connection.as_constant`): the answer is a
+    constant, which ticks once, when the graph starts, and the store is
+    not asked again.
+
+Validity:
+    It reads no connection.
+
+Examples:
+    The node asks before each `put`.
+
+    ~~~hgl
+    fn held_before(value: i64) -> bool {
+        inject global_state
+        when {
+            let before = has(global_state, "last")
+            put(global_state, "last", value)
+            return before
+        }
+    }
+    assert eval held_before(value: [3, 7]) == [false, true]
+    ~~~
+
+Rules:
+    CAP-6, CRUN-7, CRUN-8, TIME-8, FN-1, FN-9
+*/
 export operator has<S, K>(store: S, key: K) -> bool
+
+/**
+Put a value under a key of the run's store, for what is evaluated after it to read.
+
+A key keeps the type of its first use: a `put` of another type than an
+earlier use of the key is rejected with `store.key_type` where the two
+are in one program, and fails with that code otherwise. A node puts in
+its hooks, and a source in its body; a graph as it is built, each call
+evaluated once then, in the order written, before any node of that graph
+starts; and an application before its run statement, which is the only
+use it has of the store. The key is fixed when the graph is built: in a
+hook or a value function it is a constant expression, of literals, enum
+members, constants, generic value parameters and the enclosing
+function's own `const` parameters. A `put` wakes no node and is no
+temporal input: what another node of the same rank
+reads of it in the same cycle is undefined. The key `"run.output"` is the
+run's: a program that names it is rejected when its graph is built, with
+`store.reserved_key`.
+
+Type Args:
+    S: The type of `store`. It is inferred.
+    K: The type of `key`. It is inferred.
+    V: The type of `value`. It is inferred.
+
+Args:
+    store: The run's store, `global_state`.
+    key: The key the value is put under.
+    value: The value put there.
+
+Raises:
+    - `store.key_type`: a `put` of another type than an earlier use of
+      the key, where the two are not in one program.
+
+Ticks:
+    Nothing ticks: in a graph a call is evaluated once, where the graph
+    is built, and is given no connection (`connection.as_constant`).
+
+Validity:
+    It reads no connection.
+
+Examples:
+    `start` gives the count a value where it has none, and each input
+    tick adds one.
+
+    ~~~hgl
+    fn counted(value: i64) -> i64 {
+        inject global_state
+        start {
+            if !has(global_state, "count") { put(global_state, "count", 0) }
+        }
+        when {
+            put(global_state, "count", get<i64>(global_state, "count") + 1)
+            return get<i64>(global_state, "count")
+        }
+    }
+    assert eval counted(value: [5, _, 5]) == [1, _, 2]
+    ~~~
+
+    A graph puts a value as it is built, before its node starts.
+
+    ~~~hgl
+    fn read_label(value: i64) -> str {
+        inject global_state
+        when { return get<str>(global_state, "label") }
+    }
+
+    fn labelled(value: i64) -> str {
+        inject global_state
+        put(global_state, "label", "bid")
+        return read_label(value)
+    }
+    assert eval labelled(value: [1, _, 2]) == ["bid", _, "bid"]
+    ~~~
+
+Rules:
+    CAP-6, CRUN-7, CRUN-8, TIME-2, TIME-8, FN-1, FN-9, UNIT-14
+*/
 export operator put<S, K, V>(store: S, key: K, value: V)
 
 # The symbol operators. Syntax binds each identity (the language's generics
 # chapter): `a + b` is `add_(a, b)`. An operator is neither value nor
 # temporal; the candidate a call selects is.
 
-# `+`, binary `-`, `*`, `/`, `//`, `%`.
+/**
+Add with `+`: two numbers, texts, durations or tenors, a duration to an
+instant or a date, a time to a date, or a tenor to a date.
+
+Floating sums round to binary64 and keep IEEE special values. An `i64`,
+a duration or an instant outside its type's range is an error; it never
+wraps. A date and a duration give the `civil_datetime` that far from the
+start of the date. A zoned instant moved by a duration keeps its zone,
+with the zone's wall clock and offset at the new instant.
+
+| Left | Right | Result |
+| --- | --- | --- |
+| `i64` | `i64` | `i64` |
+| `i64` or `f64` | `i64` or `f64`, one of them `f64` | `f64` |
+| `str` | `str` | `str`: the right text after the left |
+| `duration` | `duration` | `duration` |
+| `datetime`, `civil_datetime` or `zoned_datetime` | `duration`, in either order | The moved instant, of the same type |
+| `date` | `duration`, in either order | `civil_datetime` |
+| `date` | `time`, in either order | `civil_datetime`: that time on that date |
+| `tenor` | `tenor` of the same form | `tenor`, count by count |
+| `date` | `tenor` | `date` |
+
+A tenor of months and days moves a date by its months first, to the same
+day of the month or the last day of a shorter month, and then by its days.
+Only the result is held to the `date` range: the months alone may pass
+its end where the days bring the result back. A tenor of n business
+days, n not below zero, starts from the business day on or after the
+date and counts n business days on, so `day + 0B` is the business day on
+or after `day`. A count below zero moves the other way: `day + (-tenor)`
+is `day - tenor`. The date is always on the left of a tenor.
+
+Over `i64` and `f64`, this operator declares associativity, commutativity
+and an identity of `0` and `0.0`, respectively. These are contracts
+(GEN-9, RED-7): grouping floating operations can change the last digits
+of a result. A caller that needs one grouping asks for an ordered reduction.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+    O: The sum's type, as the table gives it.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Options:
+    - `calendar`: for a date and a tenor, which days are business days:
+      any value for which a value `business_day(calendar, day)` exists.
+      `Weekdays()`, every day but Saturday and Sunday, when none is given.
+      Written `day +{calendar: market} 2B`, or by name
+      `add_(day, 2B, calendar: market)`. A graph can give it a
+      connection, and the date is worked out again when the calendar
+      ticks. It changes nothing for a tenor of months and days given no
+      `rolling_rule`.
+    - `rolling_rule`: for a date and a tenor, which business day the moved
+      date becomes: the result is `roll(rolling_rule, calendar, moved)`. A
+      `Rolling` member, or any value for which a value `roll` exists. With
+      none given the result is the moved date. Written
+      `day +{rolling_rule: Rolling.modified_following} 3M`.
+    - `invalid`: an `InvalidInputPolicy`, whose one member `.identity`
+      lets the sum tick while only one operand has a value: that value
+      is the sum, and the sum is invalidated when neither has one. With
+      none given both need a value. It takes two operands of one type
+      `T` for which a value `T + T` gives a `T`. Written
+      `left +{invalid: .identity} right`. Only temporal candidates
+      declare it: a value function, a node's body and value code reject
+      it.
+
+Returns:
+    The sum, of the type the table gives. For a difference, use `sub_`.
+
+Raises:
+    - `numeric.out_of_range`: an `i64`, a duration, an instant or a date
+      outside its type's range, or a tenor's count outside the `i64` range.
+    - `tenor.mixed_units`: a tenor of business days added to one of months
+      and days.
+
+Ticks:
+    In a graph the sum ticks each time an operand ticks while both have a
+    value, even when the sum is unchanged. When an operand is invalidated
+    the sum does not tick, and keeps its last value. With `.identity` the
+    sum ticks each time an operand ticks or is invalidated while at least
+    one has a value: the sum of both, or the one value there is. When
+    neither has a value any more, the sum is invalidated. A connection
+    given to `calendar` ticks the sum as an operand does.
+
+Validity:
+    Each operand that is a connection needs a value; with `.identity` one
+    is enough. A `calendar` given a connection needs a value too: there is
+    no tick until it has one. An operand that is silent in a cycle gives
+    its last value.
+    A zero, an empty text, a null or a NaN is a value.
+
+Examples:
+    ~~~hgl
+    assert 8 + 3 == 11
+    assert 1.5 + 0.5 == 2.0
+    let count: i64 = 2
+    let fraction: f64 = 0.5
+    assert count + fraction == 2.5
+    assert fraction + count == 2.5
+    assert "bid" + " price" == "bid price"
+    assert 1h + 30m == 90m
+    assert @2026-09-03T09:30Z + 5m == @2026-09-03T09:35Z
+    assert 5m + @2026-09-03T09:30 == @2026-09-03T09:35
+    assert @2026-03-29T00:30+00:00[Europe/London] + 1h ==
+        @2026-03-29T02:30+01:00[Europe/London]
+    assert @2026-09-03 + 36h == @2026-09-04T12:00
+    assert 36h + @2026-09-03 == @2026-09-04T12:00
+    assert @2026-09-03 + @09:30 == @2026-09-03T09:30
+    assert @09:30 + @2026-09-03 == @2026-09-03T09:30
+    assert 6M + 6M == 1Y
+    assert 2B + 1B == 3B
+    ~~~
+
+    A tenor moves a date: months then days, and business days from a
+    business day. 2026-01-02 is a Friday and 2026-01-03 a Saturday.
+
+    ~~~hgl
+    assert @2026-01-31 + 1M1D == @2026-03-01
+    assert @9999-12-15 + (1M - 30D) == @9999-12-16
+    assert @2026-01-03 + 0B == @2026-01-05
+    assert @2026-01-03 + (-1B) == @2026-01-01
+    assert @2026-01-31 +{rolling_rule: Rolling.following} 1M == @2026-03-02
+    ~~~
+
+    A calendar of the caller's own, closed on one day, then in a graph
+    given a connection: nothing until the calendar has a value, then a
+    new date each time it ticks.
+
+    ~~~hgl
+    struct Closed {
+        day: date
+    }
+
+    impl const fn business_day(calendar: Closed, day: date) -> bool =>
+        day != calendar.day && business_day(Weekdays(), day)
+
+    const fn closing(day: date) -> Closed => Closed(day: day)
+
+    fn settles(trade: date, closed: date) -> date =>
+        add_(trade, 2B, calendar: closing(closed))
+
+    assert @2026-01-02 + 2B == @2026-01-06
+    assert @2026-01-02 +{calendar: Closed(day: @2026-01-05)} 2B == @2026-01-07
+    assert eval settles(
+        trade: [@2026-01-02, _, _],
+        closed: [_, @2026-01-05, @2026-01-08]) == [_, @2026-01-07, @2026-01-06]
+    ~~~
+
+    In a graph, where a `null` command invalidates its producer's output.
+    The plain sum waits for both and keeps its value through an
+    invalidation; with `.identity` one value is enough, and the sum is
+    invalidated with the last one. `held` shows whether each sum has a
+    value.
+
+    ~~~hgl
+    fn produce(command: i64?) -> i64 {
+        inject out
+        when valid(command) {
+            if command != null { return command }
+            invalidate(out)
+        }
+    }
+
+    fn held(plain: i64, identity: i64, probe: bool) -> list<bool> {
+        when valid([]) { return [valid(plain), valid(identity)] }
+    }
+
+    fn sum(left: i64?, right: i64?) -> i64 => produce(left) + produce(right)
+
+    fn identity_sum(left: i64?, right: i64?) -> i64 =>
+        produce(left) +{invalid: .identity} produce(right)
+
+    fn sums_held(probe: bool, left: i64?, right: i64?) -> list<bool> =>
+        held(sum(left, right), identity_sum(left, right), probe)
+
+    assert eval sum(left: [7, _, null, 9], right: [_, 2, _, _]) == [_, 9, _, 11]
+    assert eval identity_sum(left: [7, _, null, _], right: [_, 2, _, null]) ==
+        [7, 9, 2, _]
+    assert eval sums_held(
+        probe: [true, true, true, true],
+        left: [7, _, null, _], right: [_, 2, _, null]) ==
+        [[false, true], [true, true], [true, true], [true, false]]
+    ~~~
+
+    Out of range, and mixed tenors:
+
+    ~~~hgl
+    let largest: i64 = 9223372036854775807
+    assert raises("numeric.out_of_range") { largest + 1 }
+    assert raises("tenor.mixed_units") { 2B + 1M }
+    ~~~
+
+Rules:
+    RED-7, GEN-9, NUM-1, NUM-2, NUM-8, OPS-1, OPS-9, OPS-10, TEN-1, TEN-2, TEN-4, TEN-5,
+    TEN-6, TEN-7, END-1, END-4, EXPR-10, FN-3, FN-6, FN-11, GEN-5, GEN-6
+*/
 export operator add_<L, R, O>(lhs: L, rhs: R) -> O
+    properties<i64> { associative, commutative, identity = 0 }
+    properties<f64> { associative, commutative, identity = 0.0 }
+
+/**
+Subtract with binary `-`: two numbers, durations or tenors, a duration
+from an instant or a date, a tenor from a date, or one instant from
+another for the time between.
+
+Floating differences round to binary64 and keep IEEE special values. An
+`i64`, a duration or an instant outside its type's range is an error; it
+never wraps. A date less a duration is the `civil_datetime` that far
+before the start of the date. A zoned instant moved back by a duration
+keeps its zone, with the zone's wall clock and offset at the new instant.
+To negate one operand, use `neg_`.
+
+| Left | Right | Result |
+| --- | --- | --- |
+| `i64` | `i64` | `i64` |
+| `i64` or `f64` | `i64` or `f64`, one of them `f64` | `f64` |
+| `duration` | `duration` | `duration` |
+| `datetime`, `civil_datetime` or `zoned_datetime` | `duration` | The moved instant, of the same type |
+| `date` | `duration` | `civil_datetime` |
+| `datetime`, `date` or `civil_datetime` | One of the same type | `duration` from the right to the left |
+| `tenor` | `tenor` of the same form | `tenor`, count by count |
+| `date` | `tenor` | `date` |
+
+A date less a tenor of months and days is the date plus its negation:
+back by the months first, to the same day of the month or the last day
+of a shorter month, and then by the days. A date less n business days,
+n not below zero, starts from the business day on or before the date and
+counts n business days back, so `day - 0B` is the business day on or
+before `day`, which is not `day + 0B`. A count below zero moves the other
+way: `day - (-tenor)` is `day + tenor`.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+    O: The difference's type, as the table gives it.
+
+Args:
+    lhs: The value to subtract from.
+    rhs: The value to subtract.
+
+Options:
+    - `calendar`: for a date and a tenor, which days are business days:
+      any value for which a value `business_day(calendar, day)` exists.
+      `Weekdays()`, every day but Saturday and Sunday, when none is given.
+      Written `day -{calendar: market} 2B`, or by name
+      `sub_(day, 2B, calendar: market)`. A graph can give it a
+      connection, and the date is worked out again when the calendar
+      ticks. It changes nothing for a tenor of months and days given no
+      `rolling_rule`.
+    - `rolling_rule`: for a date and a tenor, which business day the moved
+      date becomes: the result is `roll(rolling_rule, calendar, moved)`. A
+      `Rolling` member, or any value for which a value `roll` exists. With
+      none given the result is the moved date. Written
+      `day -{rolling_rule: Rolling.preceding} 1M`.
+    - `invalid`: an `InvalidInputPolicy`, whose one member `.identity`
+      lets the difference tick while only one operand has a value: the
+      left value as it is, or the right value negated; the difference is
+      invalidated when neither has one. With none given both need a
+      value. It takes two operands of one type `T` for which a value
+      `T - T` and a value `-T` give a `T`. Written
+      `left -{invalid: .identity} right`. Only temporal candidates
+      declare it: a value function, a node's body and value code reject
+      it.
+
+Returns:
+    The difference, of the type the table gives.
+
+Raises:
+    - `numeric.out_of_range`: an `i64`, a duration, an instant or a date
+      outside its type's range, or a tenor's count outside the `i64` range.
+    - `tenor.mixed_units`: a tenor of business days and one of months and
+      days.
+
+Ticks:
+    In a graph the difference ticks each time an operand ticks while both
+    have a value, even when the difference is unchanged. When an operand
+    is invalidated the difference does not tick, and keeps its last value.
+    With `.identity` the difference ticks each time an operand ticks or is
+    invalidated while at least one has a value: the difference of both,
+    the left value, or the right value negated. When neither has a value
+    any more, the difference is invalidated. A connection given to
+    `calendar` ticks the difference as an operand does.
+
+Validity:
+    Each operand that is a connection needs a value; with `.identity` one
+    is enough. A `calendar` given a connection needs a value too: there is
+    no tick until it has one. An operand that is silent in a cycle gives
+    its last value.
+    A zero, an empty text, a null or a NaN is a value.
+
+Examples:
+    ~~~hgl
+    assert 8 - 3 == 5
+    assert 1.5 - 0.5 == 1.0
+    let count: i64 = 2
+    let fraction: f64 = 0.5
+    assert count - fraction == 1.5
+    assert fraction - count == -1.5
+    assert 90m - 30m == 1h
+    assert @2026-09-03T09:30Z - 5m == @2026-09-03T09:25Z
+    assert @2026-09-03T09:30 - 5m == @2026-09-03T09:25
+    assert @2026-03-29T02:30+01:00[Europe/London] - 1h ==
+        @2026-03-29T00:30+00:00[Europe/London]
+    assert @2026-09-03 - 1h == @2026-09-02T23:00
+    assert @2026-09-03T09:30Z - @2026-09-03T09:00Z == 30m
+    assert @2026-09-03 - @2026-09-02 == 24h
+    assert @2026-09-03T09:30 - @2026-09-03T09:00 == 30m
+    assert 1Y - 6M == 6M
+    assert 3B - 1B == 2B
+    ~~~
+
+    A tenor moves a date back. 2026-01-03 and 2026-02-28 are Saturdays.
+
+    ~~~hgl
+    assert @2026-03-31 - 1M == @2026-02-28
+    assert @2026-01-31 - 2W == @2026-01-17
+    assert @2026-01-03 - 0B == @2026-01-02
+    assert @2026-01-03 - (-1B) == @2026-01-06
+    assert @2026-03-31 -{rolling_rule: Rolling.preceding} 1M == @2026-02-27
+    ~~~
+
+    A calendar of the caller's own, closed on one day, then in a graph
+    given a connection: nothing until the calendar has a value, then a
+    new date each time it ticks.
+
+    ~~~hgl
+    struct Closed {
+        day: date
+    }
+
+    impl const fn business_day(calendar: Closed, day: date) -> bool =>
+        day != calendar.day && business_day(Weekdays(), day)
+
+    const fn closing(day: date) -> Closed => Closed(day: day)
+
+    fn settled_from(due: date, closed: date) -> date =>
+        sub_(due, 2B, calendar: closing(closed))
+
+    assert @2026-01-07 - 2B == @2026-01-05
+    assert @2026-01-07 -{calendar: Closed(day: @2026-01-05)} 2B == @2026-01-02
+    assert eval settled_from(
+        due: [@2026-01-07, _, _],
+        closed: [_, @2026-01-05, @2026-01-02]) == [_, @2026-01-02, @2026-01-05]
+    ~~~
+
+    In a graph, where a `null` command invalidates its producer's output.
+    The plain difference waits for both and keeps its value through an
+    invalidation; with `.identity` one value is enough, and the difference
+    is invalidated with the last one. `held` shows whether each difference
+    has a value.
+
+    ~~~hgl
+    fn produce(command: i64?) -> i64 {
+        inject out
+        when valid(command) {
+            if command != null { return command }
+            invalidate(out)
+        }
+    }
+
+    fn held(plain: i64, identity: i64, probe: bool) -> list<bool> {
+        when valid([]) { return [valid(plain), valid(identity)] }
+    }
+
+    fn difference(left: i64?, right: i64?) -> i64 =>
+        produce(left) - produce(right)
+
+    fn identity_difference(left: i64?, right: i64?) -> i64 =>
+        produce(left) -{invalid: .identity} produce(right)
+
+    fn differences_held(probe: bool, left: i64?, right: i64?) -> list<bool> =>
+        held(difference(left, right), identity_difference(left, right), probe)
+
+    assert eval difference(left: [7, _, null, 9], right: [_, 2, _, _]) ==
+        [_, 5, _, 7]
+    assert eval identity_difference(left: [7, _, null, _], right: [_, 2, _, null]) ==
+        [7, 5, -2, _]
+    assert eval differences_held(
+        probe: [true, true, true, true],
+        left: [7, _, null, _], right: [_, 2, _, null]) ==
+        [[false, true], [true, true], [true, true], [true, false]]
+    ~~~
+
+    Out of range, and mixed tenors:
+
+    ~~~hgl
+    let smallest: i64 = -9223372036854775808
+    assert raises("numeric.out_of_range") { 0 - smallest }
+    assert raises("tenor.mixed_units") { 2B - 1M }
+    ~~~
+
+Rules:
+    NUM-1, NUM-2, NUM-8, OPS-1, OPS-9, OPS-10, TEN-1, TEN-2, TEN-4, TEN-5,
+    TEN-6, TEN-7, END-1, END-4, EXPR-10, FN-3, FN-6, FN-11, GEN-5, GEN-6
+*/
 export operator sub_<L, R, O>(lhs: L, rhs: R) -> O
+
+/**
+Multiply with `*`: two numbers, or a duration, a tenor or a text scaled by
+a count.
+
+Floating products round to binary64 and keep IEEE special values. An
+`i64` or a duration outside its type's range is an error; it never
+wraps. A scaled duration rounds to the nearest microsecond, a tie to the
+even one, and one scaled by a NaN or an infinity is an error. A tenor has
+each of its counts scaled. A text times a count is the text repeated that many
+times, the empty text for zero; a count below zero is an error. For a
+quotient, use `div_`.
+
+| Left | Right | Result |
+| --- | --- | --- |
+| `i64` | `i64` | `i64` |
+| `i64` or `f64` | `i64` or `f64`, one of them `f64` | `f64` |
+| `duration` | `i64` or `f64`, in either order | `duration` |
+| `tenor` | `i64`, in either order | `tenor` |
+| `str` | `i64`, in either order | `str` |
+
+Over `i64` and `f64`, this operator declares associativity, commutativity
+and an identity of `1` and `1.0`, respectively. These are contracts
+(GEN-9, RED-7): grouping floating operations can change the last digits
+of a result. A caller that needs one grouping asks for an ordered reduction.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+    O: The product's type, as the table gives it.
+
+Args:
+    lhs: The left factor.
+    rhs: The right factor.
+
+Returns:
+    The product, of the type the table gives.
+
+Raises:
+    - `numeric.out_of_range`: an `i64` or a duration outside its type's
+      range, or a tenor's count outside the `i64` range; a duration scaled
+      by a NaN or an infinity; a text repeated a count below zero.
+
+Ticks:
+    In a graph the product ticks each time an operand ticks while both
+    have a value, even when the product is unchanged. When an operand is
+    invalidated the product does not tick, and keeps its last value.
+
+Validity:
+    Each operand that is a connection needs a value. An operand that is
+    silent in a cycle gives its last value.
+
+Examples:
+    ~~~hgl
+    assert 4 * 3 == 12
+    assert 1.5 * 2.0 == 3.0
+    let count: i64 = 3
+    let fraction: f64 = 0.5
+    assert count * fraction == 1.5
+    assert fraction * count == 1.5
+    assert 1s * count == 3s
+    assert count * 1s == 3s
+    assert 1us * fraction == 0us
+    assert fraction * 3us == 2us
+    assert 1M2D * count == 3M6D
+    assert count * 2B == 6B
+    assert "ab" * count == "ababab"
+    assert count * "ab" == "ababab"
+    assert "ab" * 0 == ""
+    ~~~
+
+    The errors:
+
+    ~~~hgl
+    let largest: i64 = 9223372036854775807
+    let below: i64 = -1
+    let not_a_number: f64 = 0.0 / 0.0
+    assert raises("numeric.out_of_range") { largest * 2 }
+    assert raises("numeric.out_of_range") { 1s * not_a_number }
+    assert raises("numeric.out_of_range") { "ab" * below }
+    ~~~
+
+    In a graph:
+
+    ~~~hgl
+    fn product(left: i64, right: i64) -> i64 => left * right
+
+    assert eval product(left: [3, _, 4, _], right: [_, 2, _, 2]) == [_, 6, 8, 8]
+    ~~~
+
+Rules:
+    RED-7, GEN-9, NUM-1, NUM-2, NUM-8, OPS-1, OPS-10, TEN-1, TEN-2, END-1, END-4, FN-3,
+    FN-6, FN-11, GEN-5
+*/
 export operator mul_<L, R, O>(lhs: L, rhs: R) -> O
+    properties<i64> { associative, commutative, identity = 1 }
+    properties<f64> { associative, commutative, identity = 1.0 }
+
+/**
+Divide with `/`, keeping the fraction: two numbers give an `f64`, and a
+duration divides by a number or by a duration.
+
+A zero divisor gives what the `zero` option says: with numbers
+`1.0 / 0.0` is infinity, while a duration divided by a zero number raises
+`numeric.division_by_zero`. A duration quotient rounds to the nearest
+microsecond, a tie to the even one; a duration divided by a NaN or an
+infinity is an error. For a quotient rounded down, use `floordiv_`.
+
+| Left | Right | Result |
+| --- | --- | --- |
+| `i64` or `f64` | `i64` or `f64` | `f64` |
+| `duration` | `duration` | `f64` |
+| `duration` | `i64` or `f64` | `duration` |
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+    O: The quotient's type, as the table gives it, or `result` of it under
+        `zero: .error`.
+
+Args:
+    lhs: The value to divide.
+    rhs: The divisor.
+
+Options:
+    - `zero`: what a zero divisor gives, a `ZeroPolicy`, written
+      `price /{zero: .error} count`. It is a constant: it settles the result's
+      type, so a connection or a value known only when the program runs
+      is rejected. Only the divisor is checked.
+
+      | Policy | A zero divisor gives |
+      | --- | --- |
+      | `.ieee` | What IEEE arithmetic makes of it: a finite nonzero numerator gives an infinity, its sign the two operands' signs combined, and zero gives NaN |
+      | `.nan` | NaN |
+      | `.error` | An `err` with `numeric.division_by_zero`, for either signed zero; another divisor gives `ok` of the result |
+      | `.fail` | The error `numeric.division_by_zero`, raised |
+
+      | Result | Namely | Admits | Default |
+      | --- | --- | --- | --- |
+      | `f64` | Two numbers; a duration by a duration | `.ieee`, `.nan`, `.error`, `.fail` | `.ieee` |
+      | `duration` | A duration by a number | `.error`, `.fail` | `.fail` |
+
+      Another policy is rejected (`operator.no_candidate`):
+      `5m /{zero: .ieee} 2`.
+
+Returns:
+    The quotient, of the type the table gives, or under `.error` a
+    `result` of it: `ok` even where the quotient is a NaN or an infinity.
+    `?` on an `err` returns it from the enclosing value function, or fails
+    the node in a `when`.
+
+Raises:
+    - `numeric.division_by_zero`: a zero divisor under `.fail`.
+    - `numeric.out_of_range`: a duration quotient outside its type's
+      range, or a duration divided by a NaN or an infinity.
+
+Ticks:
+    In a graph the quotient ticks each time an operand ticks while both
+    have a value, even when the quotient is unchanged. When an operand is
+    invalidated the quotient does not tick, and keeps its last value.
+    Under `.error` an `err` ticks as an `ok` does: it is a value, it does
+    not fail the node, and a later tick can be `ok` again.
+
+Validity:
+    Each operand that is a connection needs a value. An operand that is
+    silent in a cycle gives its last value.
+
+Examples:
+    ~~~hgl
+    assert 7 / 2 == 3.5
+    assert 7.0 / 2.0 == 3.5
+    let count: i64 = 3
+    let real: f64 = 1.5
+    assert count / real == 2.0
+    assert real / count == 0.5
+    assert 90m / 1h == 1.5
+    assert 1s / 2 == 500ms
+    assert 3us / 2.0 == 2us
+    ~~~
+
+    A zero divisor, under each policy, and an infinity:
+
+    ~~~hgl
+    let zero_count: i64 = 0
+    let zero_real: f64 = 0.0
+    assert convert<str>(1.0 / zero_real) == "inf"
+    assert convert<str>(1.0 / -zero_real) == "-inf"
+    assert convert<str>(zero_real / zero_real) == "nan"
+    assert convert<str>(5m / 0s) == "inf"
+    assert raises("numeric.division_by_zero") { 5m / zero_count }
+    assert convert<str>(-1.0 /{zero: .nan} zero_real) == "nan"
+    assert raises("numeric.division_by_zero") { 1.0 /{zero: .fail} zero_real }
+    let divided: result<f64, error> = 1.0 /{zero: .error} zero_real
+    assert is_err(divided)
+    if is_err(divided) {
+        assert divided.error.code == "numeric.division_by_zero"
+    }
+    let infinity: f64 = 1.0 / zero_real
+    assert raises("numeric.out_of_range") { 1s / infinity }
+    let ratio: result<f64, error> = 6.0 /{zero: .error} 2.0
+    assert is_ok(ratio)
+    if is_ok(ratio) {
+        assert ratio.value == 3.0
+    }
+    ~~~
+
+    In a graph:
+
+    ~~~hgl
+    fn quotient(left: i64, right: i64) -> f64 => left / right
+
+    assert eval quotient(left: [7, _, 9], right: [_, 2, _]) == [_, 3.5, 4.5]
+    ~~~
+
+Rules:
+    NUM-1, NUM-2, NUM-3, NUM-8, NUM-9, NUM-10, NUM-12, OPS-1, OPS-10,
+    END-1, END-4, EXPR-10, EXPR-12, FN-3, FN-6, FN-11, GEN-5, GEN-6
+*/
 export operator div_<L, R, O>(lhs: L, rhs: R) -> O
+
+/**
+Divide with `//`, rounding the quotient down, toward negative infinity.
+
+A zero divisor gives what the `zero` option says: with an `f64` operand
+`7.0 // 0.0` is infinity, while two `i64` or two durations raise
+`numeric.division_by_zero`. Where an `f64` operand is an infinity or
+NaN and the divisor is not zero, the quotient is the floor of the IEEE
+quotient. To keep the fraction, use `div_`; for the remainder, `mod_`.
+
+| Left | Right | Result |
+| --- | --- | --- |
+| `i64` | `i64` | `i64` |
+| `i64` or `f64` | `i64` or `f64`, one of them `f64` | `f64` |
+| `duration` | `duration` | `i64` |
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+    O: The quotient's type, as the table gives it, or `result` of it under
+        `zero: .error`.
+
+Args:
+    lhs: The value to divide.
+    rhs: The divisor.
+
+Options:
+    - `zero`: what a zero divisor gives, a `ZeroPolicy`, written
+      `total //{zero: .error} count`. It is a constant: it settles the
+      result's type, so a connection or a value known only when the
+      program runs is rejected. Only the divisor is checked.
+
+      | Policy | A zero divisor gives |
+      | --- | --- |
+      | `.ieee` | What IEEE arithmetic makes of it: `7.0 // 0.0` is infinity |
+      | `.nan` | NaN |
+      | `.error` | An `err` with `numeric.division_by_zero`, for either signed zero; another divisor gives `ok` of the result |
+      | `.fail` | The error `numeric.division_by_zero`, raised |
+
+      | Result | Namely | Admits | Default |
+      | --- | --- | --- | --- |
+      | `f64` | An `f64` operand | `.ieee`, `.nan`, `.error`, `.fail` | `.ieee` |
+      | `i64` | Two `i64`; two durations | `.error`, `.fail` | `.fail` |
+
+      Another policy is rejected (`operator.no_candidate`):
+      `7 //{zero: .nan} 2`.
+
+Returns:
+    The floored quotient, of the type the table gives, or under `.error` a
+    `result` of it. `?` on an `err` returns it from the enclosing value
+    function, or fails the node in a `when`.
+
+Raises:
+    - `numeric.division_by_zero`: a zero divisor under `.fail`.
+    - `numeric.out_of_range`: an `i64` quotient outside the `i64` range.
+
+Ticks:
+    In a graph the quotient ticks each time an operand ticks while both
+    have a value, even when the quotient is unchanged. When an operand is
+    invalidated the quotient does not tick, and keeps its last value.
+    Under `.error` an `err` ticks as an `ok` does: it is a value, it does
+    not fail the node, and a later tick can be `ok` again.
+
+Validity:
+    Each operand that is a connection needs a value. An operand that is
+    silent in a cycle gives its last value.
+
+Examples:
+    ~~~hgl
+    assert 7 // 3 == 2
+    assert -7 // 3 == -3
+    assert -7.0 // 3.0 == -3.0
+    let count: i64 = 2
+    let real: f64 = 7.0
+    assert count // real == 0.0
+    assert real // count == 3.0
+    assert 7s // 3s == 2
+    ~~~
+
+    A zero divisor, under each policy, and an infinity:
+
+    ~~~hgl
+    let zero_count: i64 = 0
+    let zero_real: f64 = 0.0
+    assert raises("numeric.division_by_zero") { 7 // zero_count }
+    assert raises("numeric.division_by_zero") { 5m // 0s }
+    assert convert<str>(7.0 // zero_real) == "inf"
+    assert convert<str>(7.0 //{zero: .nan} zero_real) == "nan"
+    let divided: result<i64, error> = 7 //{zero: .error} zero_count
+    assert is_err(divided)
+    if is_err(divided) {
+        assert divided.error.code == "numeric.division_by_zero"
+    }
+    let infinity: f64 = 1.0 / zero_real
+    assert convert<str>(infinity // 2.0) == "inf"
+    assert convert<str>(-1.0 // infinity) == "-0.0"
+    ~~~
+
+    Out of range:
+
+    ~~~hgl
+    let smallest: i64 = -9223372036854775808
+    assert raises("numeric.out_of_range") { smallest // -1 }
+    ~~~
+
+    In a graph:
+
+    ~~~hgl
+    fn whole_quotient(left: i64, right: i64) -> i64 => left // right
+
+    assert eval whole_quotient(left: [7, _, -7], right: [_, 3, _]) == [_, 2, -3]
+    ~~~
+
+Rules:
+    NUM-1, NUM-2, NUM-3, NUM-8, NUM-9, NUM-10, NUM-12, OPS-1, END-1,
+    END-4, EXPR-10, EXPR-12, FN-3, FN-6, FN-11, GEN-5, GEN-6
+*/
 export operator floordiv_<L, R, O>(lhs: L, rhs: R) -> O
+
+/**
+The remainder of a division, with `%`.
+
+For integers and finite `f64` operands a remainder that is not zero has
+the divisor's sign, so `-7 % 3` is `2`. Where an `f64` operand is an
+infinity or NaN and the divisor is not zero, the remainder is IEEE
+`fmod`'s: a remainder by an infinity is the numerator as it is, whatever
+its sign. A zero divisor gives what the `zero` option says: with an
+`f64` operand `7.0 % 0.0` is NaN, while two `i64` raise
+`numeric.division_by_zero`. For the floored quotient, use `floordiv_`.
+
+| Left | Right | Result |
+| --- | --- | --- |
+| `i64` | `i64` | `i64` |
+| `i64` or `f64` | `i64` or `f64`, one of them `f64` | `f64` |
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+    O: The remainder's type, as the table gives it, or `result` of it
+        under `zero: .error`.
+
+Args:
+    lhs: The value to divide.
+    rhs: The divisor.
+
+Options:
+    - `zero`: what a zero divisor gives, a `ZeroPolicy`, written
+      `total %{zero: .error} count`. It is a constant: it settles the result's
+      type, so a connection or a value known only when the program runs
+      is rejected. Only the divisor is checked.
+
+      | Policy | A zero divisor gives |
+      | --- | --- |
+      | `.ieee` | What IEEE arithmetic makes of it: `7.0 % 0.0` is NaN |
+      | `.nan` | NaN |
+      | `.error` | An `err` with `numeric.division_by_zero`, for either signed zero; another divisor gives `ok` of the result |
+      | `.fail` | The error `numeric.division_by_zero`, raised |
+
+      | Result | Namely | Admits | Default |
+      | --- | --- | --- | --- |
+      | `f64` | An `f64` operand | `.ieee`, `.nan`, `.error`, `.fail` | `.ieee` |
+      | `i64` | Two `i64` | `.error`, `.fail` | `.fail` |
+
+      Another policy is rejected (`operator.no_candidate`):
+      `7 %{zero: .nan} 2`.
+
+Returns:
+    The remainder, of the type the table gives, or under `.error` a
+    `result` of it. `?` on an `err` returns it from the enclosing value
+    function, or fails the node in a `when`.
+
+Raises:
+    - `numeric.division_by_zero`: a zero divisor under `.fail`.
+
+Ticks:
+    In a graph the remainder ticks each time an operand ticks while both
+    have a value, even when the remainder is unchanged. When an operand
+    is invalidated the remainder does not tick, and keeps its last value.
+    Under `.error` an `err` ticks as an `ok` does: it is a value, it does
+    not fail the node, and a later tick can be `ok` again.
+
+Validity:
+    Each operand that is a connection needs a value. An operand that is
+    silent in a cycle gives its last value.
+
+Examples:
+    ~~~hgl
+    assert 7 % 3 == 1
+    assert -7 % 3 == 2
+    assert 7 % -3 == -2
+    assert -7.0 % 3.0 == 2.0
+    let count: i64 = 3
+    let real: f64 = 7.0
+    assert count % real == 3.0
+    assert real % count == 1.0
+    ~~~
+
+    A zero divisor, under each policy, and an infinity:
+
+    ~~~hgl
+    let zero_count: i64 = 0
+    let zero_real: f64 = 0.0
+    assert raises("numeric.division_by_zero") { 7 % zero_count }
+    assert convert<str>(7.0 % zero_real) == "nan"
+    let divided: result<i64, error> = 7 %{zero: .error} zero_count
+    assert is_err(divided)
+    if is_err(divided) {
+        assert divided.error.code == "numeric.division_by_zero"
+    }
+    assert raises("numeric.division_by_zero") { 7.0 %{zero: .fail} zero_real }
+    let infinity: f64 = 1.0 / zero_real
+    assert -3.0 % infinity == -3.0
+    assert convert<str>(infinity % 2.0) == "nan"
+    ~~~
+
+    In a graph:
+
+    ~~~hgl
+    fn remainder(left: i64, right: i64) -> i64 => left % right
+
+    assert eval remainder(left: [7, _, -7], right: [_, 3, _]) == [_, 1, 2]
+    ~~~
+
+Rules:
+    NUM-1, NUM-2, NUM-3, NUM-8, NUM-9, NUM-10, NUM-12, END-1, END-4,
+    EXPR-10, EXPR-12, FN-3, FN-6, FN-11, GEN-5, GEN-6
+*/
 export operator mod_<L, R, O>(lhs: L, rhs: R) -> O
 
-# Unary `-`.
+/**
+Negate with unary `-`: a number, a duration, or each count of a tenor.
+
+The least `i64` has no negation in range, so negating it is an error; it
+never wraps. Floating negation keeps IEEE special values. For the
+difference of two operands, use `sub_`.
+
+| Operand | Result |
+| --- | --- |
+| `i64` | `i64` |
+| `f64` | `f64` |
+| `duration` | `duration` |
+| `tenor` | `tenor`, each count negated |
+
+Type Args:
+    T: The operand's type.
+    O: The negation's type, as the table gives it.
+
+Args:
+    value: The value to negate.
+
+Returns:
+    The negation, of the operand's type.
+
+Raises:
+    - `numeric.out_of_range`: an `i64` or a duration outside its type's
+      range, or a tenor's count outside the `i64` range: the negation of
+      the least `i64` among them.
+
+Ticks:
+    In a graph the negation ticks each time the operand ticks, even when
+    the negation is unchanged. When the operand is invalidated the
+    negation does not tick, and keeps its last value.
+
+Validity:
+    The operand, where it is a connection, needs a value. Silent in a
+    cycle, it gives its last value.
+
+Examples:
+    ~~~hgl
+    let change: i64 = 3
+    assert -change == -3
+    let fraction: f64 = 0.5
+    assert -fraction == -0.5
+    let elapsed = 3s
+    assert -elapsed == -3s
+    assert convert<str>(-(1M2D)) == "-1M-2D"
+    assert convert<str>(-(2B)) == "-2B"
+    ~~~
+
+    Out of range:
+
+    ~~~hgl
+    let smallest: i64 = -9223372036854775808
+    assert raises("numeric.out_of_range") { -smallest }
+    ~~~
+
+    In a graph:
+
+    ~~~hgl
+    fn opposite(value: i64) -> i64 => -value
+
+    assert eval opposite(value: [_, 3, _, 3, -2]) == [_, -3, _, -3, 2]
+    ~~~
+
+Rules:
+    NUM-1, NUM-2, NUM-8, OPS-1, OPS-10, TEN-1, TEN-2, TEN-9, END-1, END-4,
+    FN-3, FN-6, FN-11, GEN-5
+*/
 export operator neg_<T, O>(value: T) -> O
 
-# `==`, `!=`, `<`, `<=`, `>`, `>=`.
+/**
+Whether two values are equal: `a == b` is `eq_(a, b)`.
+
+Two values of one type compare, and an `i64` with an `f64` in either
+order; any other pair is rejected where it is written
+(`operator.no_candidate`). A number compares exactly unless a tolerance
+is given. A NaN is equal to nothing, itself included, and so a struct, a
+list, a tuple or a dictionary that holds one is not equal to itself.
+`ne_` is the complement; `compare_` gives the full outcome, and a
+tolerance does not configure it.
+
+| Operands | Equal where |
+| --- | --- |
+| Two `i64`, two `f64`, or an `i64` and an `f64` | They are the same number. The `i64` is not rounded to an `f64` first. `0.0` and `-0.0` are equal, an infinity is equal only to the infinity of its sign, and a NaN to nothing |
+| Two of one type among `str`, `bool`, `bytes`, `date`, `time`, `datetime`, `civil_datetime` and `duration` | They are the same value |
+| Two `tenor` | They are of one form and their counts are equal, however each is written: `1Y` is `12M`, `1M` is not `30D`, `0B` is not `0D` |
+| Two `zoned_datetime` | Their instants and their zone names both are; with `utc: true`, their instants are |
+| Two structs | They are of one struct with the same generic arguments, and each field is equal as `==` of its type has it |
+| Two lists, or two tuples | They are of one length and each position is equal |
+| Two dictionaries | They have the same keys and each value is equal |
+| Two sets | They have the same members |
+| Two `result<T, error>` | Their tags are equal, and then their payloads; neither is raised |
+| Two values of any other one type: an enum's, a `timezone`, a `zoned_time`, a `T?` and null | They compare as `==` compares two values of one type |
+
+With a tolerance, two finite numbers are equal where
+
+~~~math
+|a - b| \le \max(\mathit{abs},\ \mathit{rel} \cdot \max(|a|, |b|))
+~~~
+
+computed without the overflow a plain difference could give. The NaN,
+infinity and signed-zero cases above hold first. Closeness is not
+transitive: it grants no order, no dictionary-key identity and no
+permission to an optimizer.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Options:
+    - `abs`: an `f64`, the absolute tolerance of a comparison of two
+      numbers. 0.0 when none is given. Written `a =={abs: 0.01} b`, or
+      `eq_{abs: 0.01}(a, b)`.
+    - `rel`: an `f64`, the tolerance relative to the larger size of the
+      two numbers. 0.0 when none is given. Written `a =={rel: 1e-9} b`,
+      or `eq_{rel: 1e-9}(a, b)`.
+    - `utc`: a `bool` for two `zoned_datetime` values: true compares
+      their instants alone. False when none is given. Written
+      `a =={utc: true} b`, or `eq_(a, b, utc: true)`.
+
+    Both tolerances are configuration parameters. A graph binds them
+    when it is built and rejects a connection given to either one. In
+    value code and runtime hooks, they are values for the current call.
+    `utc` is an ordinary parameter and can receive a lifted input.
+
+Returns:
+    True where the two are equal.
+
+Raises:
+    - `numeric.invalid_tolerance`: `abs` or `rel` is negative or non-finite.
+
+Ticks:
+    - With values, the call is evaluated directly, with no timing of its
+      own.
+    - Where a graph gives it a connection, the call is lifted: each
+      connection is an input, and an operand or an option that is no
+      connection binds when the graph is built. The result ticks in each
+      cycle in which an input ticks and the call is admitted, an equal
+      result included.
+
+Validity:
+    - Each connection given to it is valid before the call is admitted;
+      one that is silent gives the value it holds.
+    - A struct, a tuple or a fixed-size list is given only where it is
+      all valid as well.
+
+Examples:
+    ~~~hgl
+    struct Point {
+        x: f64
+        y: f64
+    }
+
+    fn same(left: i64, right: i64) -> bool => left == right
+
+    assert 2 == 2 && 2.5 == 2.5
+    let count: i64 = 3
+    let price: f64 = 3.0
+    assert count == price && price == count
+    assert 9007199254740993 != 9007199254740992.0
+    assert 0.0 == -0.0
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert nan != nan
+    assert 1.0 != 1.005 && 1.0 =={abs: 0.01} 1.005
+    assert eq_{rel: 0.01}(1.0, 1.005)
+
+    assert "bid" == "bid" && true == true && 60s == 1m
+    assert @2026-09-03T09:30Z == @2026-09-03T09:30Z
+    assert 1Y == 12M && 1M != 30D && 0B != 0D
+
+    let london = @2026-09-03T09:30+01:00[Europe/London]
+    let utc = @2026-09-03T08:30+00:00[UTC]
+    assert london != utc
+    assert london =={utc: true} utc
+
+    assert Point(x: 1.0, y: 2.0) == Point(x: 1.0, y: 2.0)
+    let odd = Point(x: nan, y: 0.0)
+    assert odd != odd
+    assert [1, 2] == [1, 2] && [1, 2] != [1, 2, 3]
+    assert (1, "a") == (1, "a")
+    let book: dict<str, i64> = ["a": 1, "b": 2]
+    let again: dict<str, i64> = ["b": 2, "a": 1]
+    assert book == again
+    let members: set<i64> = [1, 2]
+    let reordered: set<i64> = [2, 1]
+    assert members == reordered
+    assert convert<i64>("4") == convert<i64>("4")
+    assert (1 <=> 2) == CmpResult.less && (1 <=> 2) != .greater
+    let missing: i64? = null
+    assert missing == null
+
+    assert eval same(left: [1, _, 5], right: [1, 3, _]) == [true, false, false]
+    ~~~
+
+    ~~~hgl
+    const fn equal_with_tolerance(tolerance: f64) -> bool => 1.0 =={abs: tolerance} 1.0
+    assert raises("numeric.invalid_tolerance") { equal_with_tolerance(-0.5) }
+    ~~~
+
+Rules:
+    OPS-1, OPS-2, NUM-2, NUM-4, NUM-5, NUM-7, NUM-8, NUM-11, EXPR-10,
+    EXPR-14, TYPE-2, TYPE-3, TYPE-17, ERR-15, FN-6, FN-11, FN-12
+*/
 export operator eq_<L, R>(lhs: L, rhs: R) -> bool
+
+/**
+Whether two values differ: `a != b` is `ne_(a, b)`.
+
+It compares two values of one type, or an `i64` and an `f64` in either
+order; any other pair is rejected where it is written
+(`operator.no_candidate`). It is the complement of `eq_`, with the same
+options, `abs`, `rel` and `utc`: true exactly where `eq_` is false. So a
+NaN is unequal to everything, itself included.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Options:
+    - `abs`, `rel`: the tolerances of two numbers, as for `eq_`. Written
+      `a !={abs: 0.01} b`, or `ne_{abs: 0.01}(a, b)`.
+    - `utc`: for two `zoned_datetime` values, as for `eq_`. Written
+      `a !={utc: true} b`, or `ne_(a, b, utc: true)`.
+
+    Both tolerances are configuration parameters. A graph binds them
+    when it is built and rejects a connection given to either one. In
+    value code and runtime hooks, they are values for the current call.
+    `utc` is an ordinary parameter and can receive a lifted input.
+
+Returns:
+    True where the two are not equal.
+
+Raises:
+    - `numeric.invalid_tolerance`: `abs` or `rel` is negative or non-finite.
+
+Ticks:
+    As for `eq_`: lifted where a graph gives it a connection, the result
+    ticks in each cycle in which an input ticks and the call is admitted,
+    an equal result included.
+
+Validity:
+    As for `eq_`: each connection given to it is valid before the call is
+    admitted.
+
+Examples:
+    ~~~hgl
+    fn differ(left: i64, right: i64) -> bool => left != right
+
+    assert 2 != 3
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert nan != nan
+    assert 1.0 != 1.005 && !(1.0 !={abs: 0.01} 1.005)
+    let london = @2026-09-03T09:30+01:00[Europe/London]
+    let utc = @2026-09-03T08:30+00:00[UTC]
+    assert london != utc && !(london !={utc: true} utc)
+    assert eval differ(left: [1, _, 5], right: [1, 3, _]) == [false, true, true]
+    ~~~
+
+    ~~~hgl
+    const fn differ_with_tolerance(tolerance: f64) -> bool => 1.0 !={rel: tolerance} 1.0
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert raises("numeric.invalid_tolerance") { differ_with_tolerance(nan) }
+    ~~~
+
+Rules:
+    OPS-2, NUM-4, NUM-5, NUM-6, NUM-11, EXPR-14, TYPE-2, FN-6, FN-11
+*/
 export operator ne_<L, R>(lhs: L, rhs: R) -> bool
+
+/**
+Whether the left operand is below the right: `a < b` is `lt_(a, b)`.
+
+Two values of one ordered type compare, and an `i64` with an `f64` in
+either order. Any other pair is rejected where it is written
+(`operator.no_candidate`): the zoned types, a collection and a struct
+have no order. Of numbers and of tenors, `<`, `<=`, `>` and `>=` each
+give `true` for the outcomes of `compare_` that its table shows, so a
+NaN, or two tenors that are not ordered, make all four false.
+`a < b < c` is no range test: it compares the `bool` of `a < b` with
+`c`.
+
+| Operands | Order |
+| --- | --- |
+| Two `i64`, two `f64`, or an `i64` and an `f64` | By number. The `i64` is not rounded to an `f64` first. `0.0` and `-0.0` are neither below the other; a NaN is unordered with everything |
+| Two of one type among `date`, `time`, `datetime`, `civil_datetime` and `duration`, two `str`, or two `bool` | Their type's order |
+| Two `tenor` | Count by count: one is below another of its form where no count of it is greater and one is less. Two of different forms, or where one count is less and another greater, are unordered |
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Returns:
+    True where `lhs` is below `rhs`: of numbers and of tenors, where
+    `compare_(lhs, rhs)` is `CmpResult.less`.
+
+Ticks:
+    - With values, the call is evaluated directly, with no timing of its
+      own.
+    - Where a graph gives it a connection, the call is lifted: each
+      connection is an input. The result ticks in each cycle in which an
+      input ticks and the call is admitted, an equal result included.
+
+Validity:
+    Each connection given to it is valid before the call is admitted; one
+    that is silent gives the value it holds.
+
+Examples:
+    ~~~hgl
+    fn below(left: i64, right: i64) -> bool => left < right
+
+    assert 1 < 2 && 1.5 < 2.5
+    let count: i64 = 2
+    let price: f64 = 2.5
+    assert count < price && !(price < count)
+    assert 9007199254740992.0 < 9007199254740993
+    assert !(-0.0 < 0.0)
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert !(nan < 1.0) && !(1.0 < nan)
+
+    assert 1M < 2M1D && !(1M < 1B) && !(1M3D < 2M)
+
+    assert eval below(left: [1, _, 5], right: [2, _, _]) == [true, _, false]
+    ~~~
+
+Rules:
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, EXPR-1, TYPE-2, FN-6, FN-11
+*/
 export operator lt_<L, R>(lhs: L, rhs: R) -> bool
+
+/**
+Whether the left operand is below or equal to the right: `a <= b` is
+`le_(a, b)`.
+
+It compares two values of one ordered type, `i64`, `f64`, `str`,
+`bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
+`tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
+table says; tenors are only partly ordered. Any other
+pair is rejected where it is written (`operator.no_candidate`). Of
+numbers and of tenors it is true for the outcomes `less` and
+`equivalent` of `compare_`, so a NaN makes it false, and `a <= b` is not
+`!(a > b)` where the two are unordered.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Returns:
+    True where `lhs` is below or equal to `rhs`: of numbers and of
+    tenors, where `compare_(lhs, rhs)` is `CmpResult.less` or
+    `CmpResult.equivalent`.
+
+Ticks:
+    As for `lt_`: lifted where a graph gives it a connection, the result
+    ticks in each cycle in which an input ticks and the call is admitted,
+    an equal result included.
+
+Validity:
+    As for `lt_`: each connection given to it is valid before the call is
+    admitted.
+
+Examples:
+    ~~~hgl
+    fn at_most(left: i64, right: i64) -> bool => left <= right
+
+    assert 2 <= 2 && 1 <= 2
+    let count: i64 = 2
+    let price: f64 = 2.0
+    assert count <= price && price <= count
+    assert -0.0 <= 0.0
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert !(nan <= nan) && !(nan > nan)
+    assert 1M <= 1M1D && !(1M <= 1B)
+    assert eval at_most(left: [2, 3], right: [2, _]) == [true, false]
+    ~~~
+
+Rules:
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+*/
 export operator le_<L, R>(lhs: L, rhs: R) -> bool
+
+/**
+Whether the left operand is above the right: `a > b` is `gt_(a, b)`.
+
+It compares two values of one ordered type, `i64`, `f64`, `str`,
+`bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
+`tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
+table says; tenors are only partly ordered. Any other
+pair is rejected where it is written (`operator.no_candidate`). Of
+numbers and of tenors it is true for the outcome `greater` of
+`compare_`, so a NaN makes it false.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Returns:
+    True where `lhs` is above `rhs`: of numbers and of tenors, where
+    `compare_(lhs, rhs)` is `CmpResult.greater`.
+
+Ticks:
+    As for `lt_`: lifted where a graph gives it a connection, the result
+    ticks in each cycle in which an input ticks and the call is admitted,
+    an equal result included.
+
+Validity:
+    As for `lt_`: each connection given to it is valid before the call is
+    admitted.
+
+Examples:
+    ~~~hgl
+    fn above(left: f64, right: f64) -> bool => left > right
+
+    assert 3 > 2
+    let count: i64 = 3
+    let price: f64 = 2.5
+    assert count > price && !(price > count)
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert !(nan > 1.0) && !(1.0 > nan)
+    assert 2M > 1M && !(1M > 1B)
+    assert eval above(left: [3.0, 1.0], right: [2.0, _]) == [true, false]
+    ~~~
+
+Rules:
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+*/
 export operator gt_<L, R>(lhs: L, rhs: R) -> bool
+
+/**
+Whether the left operand is above or equal to the right: `a >= b` is
+`ge_(a, b)`.
+
+It compares two values of one ordered type, `i64`, `f64`, `str`,
+`bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
+`tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
+table says; tenors are only partly ordered. Any other
+pair is rejected where it is written (`operator.no_candidate`). Of
+numbers and of tenors it is true for the outcomes `greater` and
+`equivalent` of `compare_`, so a NaN makes it false, and `a >= b` is not
+`!(a < b)` where the two are unordered.
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Returns:
+    True where `lhs` is above or equal to `rhs`: of numbers and of
+    tenors, where `compare_(lhs, rhs)` is `CmpResult.greater` or
+    `CmpResult.equivalent`.
+
+Ticks:
+    As for `lt_`: lifted where a graph gives it a connection, the result
+    ticks in each cycle in which an input ticks and the call is admitted,
+    an equal result included.
+
+Validity:
+    As for `lt_`: each connection given to it is valid before the call is
+    admitted.
+
+Examples:
+    ~~~hgl
+    fn at_least(left: i64, right: i64) -> bool => left >= right
+
+    assert 2 >= 2 && 3 >= 2
+    let count: i64 = 2
+    let price: f64 = 2.5
+    assert price >= count && !(count >= price)
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert !(nan >= 1.0) && !(nan < 1.0)
+    assert 2M1D >= 1M && !(1M3D >= 2M)
+    assert eval at_least(left: [2, 1], right: [2, _]) == [true, false]
+    ~~~
+
+Rules:
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+*/
 export operator ge_<L, R>(lhs: L, rhs: R) -> bool
 
-# `<=>`.
+/**
+The full outcome of comparing two values, a `CmpResult`: `a <=> b` is
+`compare_(a, b)`.
+
+It compares two values of one ordered type, `i64`, `f64`, `str`,
+`bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
+`tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
+table says; tenors are only partly ordered. Any other
+pair is rejected where it is written (`operator.no_candidate`). A NaN on
+either side gives `unordered`, and so do two tenors that are not
+ordered; nothing else does. `0.0` and `-0.0` are `equivalent`. The
+outcome is an enum, not a `bool` or a number: it is compared with a
+member, `(a <=> b) == .less`, and is no condition of an `if`. A tolerance
+does not configure it.
+
+Of numbers and of tenors, each Boolean comparison is true for the
+outcomes this table shows:
+
+| Expression | True for |
+| --- | --- |
+| `a == b` | `equivalent` |
+| `a != b` | `less`, `greater`, `unordered` |
+| `a < b` | `less` |
+| `a <= b` | `less`, `equivalent` |
+| `a > b` | `greater` |
+| `a >= b` | `greater`, `equivalent` |
+
+Type Args:
+    L: The left operand's type.
+    R: The right operand's type.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand.
+
+Returns:
+    `CmpResult.less`, `CmpResult.equivalent` or `CmpResult.greater` as
+    `lhs` is below, equal to or above `rhs`, and `CmpResult.unordered`
+    where they have no order.
+
+Ticks:
+    As for `lt_`: lifted where a graph gives it a connection, the result
+    ticks in each cycle in which an input ticks and the call is admitted,
+    an equal result included.
+
+Validity:
+    As for `lt_`: each connection given to it is valid before the call is
+    admitted.
+
+Examples:
+    ~~~hgl
+    fn order(left: f64, right: f64) -> CmpResult => left <=> right
+
+    assert (1 <=> 2) == .less
+    let count: i64 = 2
+    let price: f64 = 2.0
+    assert (count <=> price) == .equivalent
+    assert (0.0 <=> -0.0) == .equivalent
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert (nan <=> nan) == .unordered
+    assert (1M <=> 2M1D) == .less
+    assert (1M <=> 1B) == .unordered
+    assert eval order(left: [1.0, 3.0], right: [2.0, _]) == [CmpResult.less, .greater]
+    ~~~
+
+Rules:
+    OPS-1, OPS-2, OPS-3, NUM-5, NUM-6, NUM-7, TEN-3, EXPR-11, FN-6, FN-11
+*/
 export operator compare_<L, R>(lhs: L, rhs: R) -> CmpResult
 
-# `convert<T>(value)`: the value as a T (OPS-4). A call gives T and leaves V
-# to be inferred from the value. The result O is T, or `result<T, error>`
-# for a conversion that can fail and returns its failure (OPS-8).
+/**
+Convert a value to another type: `convert<f64>(count)`.
+
+Nothing changes a value's type without it, but an integer literal
+written where an `f64` is expected. A conversion that cannot fail gives
+the new value. One that can fail, as reading a number or a `bool` from
+a `str` can, gives a `result<T, error>`, or with `invalid: .fail` the
+value itself and an error that escapes where it fails. A `result` takes
+its form from its place: where an `i64` is expected, `convert<i64>(text)`
+gives the value or raises its error, and where an `i64?` is, null for a
+failure. Any conversion this table does not show is rejected where it
+is written.
+
+| From | To |
+| --- | --- |
+| `i64` | `f64`, `bool`, `str` |
+| `f64` | `i64`, `bool`, `str` |
+| `bool` | `i64`, `f64`, `str` |
+| `str` | `i64`, `f64`, `bool`, `bytes` |
+| `bytes` | `str` |
+| `date` | `datetime` |
+| `datetime` | `date` |
+| `tenor` | `str` |
+| A list, a set, a dictionary, a tuple, a struct | `str` |
+| `list<A>`, of a struct `A` that inherits from the abstract struct `B` | `list<B>` |
+
+A conversion can fail where its value has no `T`: an `f64` that is a
+NaN, an infinity, or outside `i64` once rounded; a text that is not what
+the table under `Returns:` reads as the type asked for; bytes that are
+not well-formed UTF-8.
+
+Type Args:
+    T: The type to convert to. The call writes it.
+    V: The type of the value given. It is inferred.
+    O: The result's type: `T`, or `result<T, error>` where the conversion
+        can fail and `invalid` is `.error`.
+
+Args:
+    value: The value to convert.
+
+Options:
+    - `rounding`: a `Rounding`, how an `f64` becomes an `i64`:
+      `.truncate`, toward zero, when none is given; `.floor`, toward
+      negative infinity; `.ceiling`, toward positive infinity; or to the
+      nearest, with a tie to the even integer, `.half_even`, away from
+      zero, `.half_up`, or toward zero, `.half_down`. Written
+      `convert<i64>(price, rounding: .half_even)`.
+    - `nan`: an `i64?`, the value a NaN becomes in an `f64` to an `i64`.
+      Null when none is given, which leaves a NaN to `invalid`. Written
+      `convert<i64>(price, nan: 0)`; an infinity still fails.
+    - `invalid`: an `InvalidPolicy`, what a failure is, for each
+      conversion that can fail: `.error` when none is given, which makes
+      the result a `result<T, error>` and a failure an Err; or `.fail`,
+      which makes the result a `T` and a failure an error that escapes.
+      It selects the result's type, so it is a constant:
+      `convert<i64>(price, invalid: policy)` of a `policy` that is no
+      constant is rejected. Written `convert<i64>(price, invalid: .fail)`.
+
+Returns:
+    The value as a `T`:
+
+    | Conversion | Gives |
+    | --- | --- |
+    | `i64` to `f64` | The nearest `f64` |
+    | `f64` to `i64` | The integer `rounding` selects |
+    | `i64` or `f64` to `bool` | False for zero, true otherwise; a NaN is true |
+    | `bool` to `i64` or `f64` | 0 or 1 |
+    | `i64` to `str` | Its decimal digits, after a `-` where it is below zero: `42`, `-3` |
+    | `f64` to `str` | The shortest decimal text that reads back as the same `f64`, always with a `.` or an exponent, after a `-` where its sign is negative: `3.0`, `-0.0`. An exponent where its size is 1e16 or more, or below 1e-4 and not zero: `1e21`, `1.5e-7`. A NaN is `nan`, the infinities `inf` and `-inf` |
+    | `bool` to `str` | `true` or `false` |
+    | `str` to `i64` | The number the text writes: an integer literal after one optional `-`, `"42"`, `"-3"`, `"0x1F"`, `"1_000"`. A number outside `i64` fails |
+    | `str` to `f64` | The `f64` nearest the number the text writes, a tie to the even one: a float or an integer literal after one optional `-`, `"2.5"`, `"-1e5"`, `"3"`. One that rounds to an infinity fails. `"nan"` is a NaN, `"inf"` and `"-inf"` the infinities |
+    | `str` to `bool` | True for `"true"`, false for `"false"` |
+    | `str` to `bytes`, `bytes` to `str` | UTF-8 |
+    | `date` to `datetime` | The start of that date, in UTC |
+    | `datetime` to `date` | The date of the instant, in UTC |
+    | `tenor` to `str` | Its text, in its largest units, a unit whose count is zero not written, and `-` before the units of a count below zero: `1Y6M`, `2W`, `0D`, `1M-1D` |
+    | A list, a set, a dictionary, a tuple or a struct to `str` | The value as a program writes it, a `str` among its parts in quotes: `[1, 2]`, `["a": 1]`, `(1, "a")`, `Point(x: 1.0, y: 2.0)` |
+    | `list<A>` to `list<B>` | The same elements |
+
+    A number's text is all of the text: nothing stands before or after
+    it, a space among them. The text a number converts to converts back
+    to that number, a NaN to a NaN.
+
+Raises:
+    - `convert.invalid`: under `invalid: .fail`, or where a `result`'s
+      place expects a `T`, a value that has no `T`. Under `.error` the
+      Err carries this code and nothing is raised.
+
+Ticks:
+    - With a value, the call is evaluated directly, with no timing of its
+      own.
+    - Where a graph gives it a connection, the call is lifted: the value
+      is an input, and the options bind when the graph is built. The
+      result ticks in each cycle in which the value ticks, an equal
+      result included. Under `.error` an Err is a tick of ordinary data,
+      and a later success ticks in its turn.
+
+Validity:
+    The value is valid before the call is admitted; a silent one gives
+    the value it holds.
+
+Examples:
+    ~~~hgl
+    abstract struct Shape {}
+
+    struct Circle : Shape {
+        radius: f64
+    }
+
+    fn whole(value: f64) -> i64 => convert<i64>(value, invalid: .fail)
+
+    assert convert<f64>(3) == 3.0
+    assert convert<bool>(7) && !convert<bool>(0)
+    assert convert<str>(-3) == "-3"
+
+    assert convert<i64>(2.9, invalid: .fail) == 2
+    assert convert<i64>(-2.9, invalid: .fail) == -2
+    assert convert<i64>(2.5, rounding: .half_even, invalid: .fail) == 2
+    assert convert<i64>(2.5, rounding: .half_up, invalid: .fail) == 3
+    assert convert<i64>(-2.5, rounding: .floor, invalid: .fail) == -3
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert is_err(convert<i64>(nan))
+    assert convert<i64>(nan, nan: 0, invalid: .fail) == 0
+    assert is_err(convert<i64>(1.0 / 0.0, nan: 0))
+    assert raises("convert.invalid") { convert<i64>(1e19, invalid: .fail) }
+    assert convert<bool>(nan) && !convert<bool>(0.0)
+    assert convert<str>(0.1) == "0.1" && convert<str>(1e21) == "1e21"
+
+    assert convert<i64>(true) == 1 && convert<f64>(false) == 0.0
+    assert convert<str>(true) == "true"
+
+    assert convert<i64>("0x1F", invalid: .fail) == 31
+    assert is_err(convert<i64>(" 3")) && is_err(convert<i64>("three"))
+    assert convert<f64>("-1e5", invalid: .fail) == -100000.0
+    assert convert<bool>("false", invalid: .fail) == false
+    assert is_err(convert<bool>("True"))
+    assert convert<str>(convert<bytes>("h\u{e9}llo"), invalid: .fail) == "h\u{e9}llo"
+    assert convert<i64>("41") + 1 == 42
+    let missing: i64? = convert<i64>("x")
+    assert missing == null
+    assert raises("convert.invalid") { convert<i64>("three", invalid: .fail) }
+
+    assert convert<datetime>(@2026-03-01) == @2026-03-01T00:00:00Z
+    assert convert<date>(@2026-03-01T23:59:59Z) == @2026-03-01
+    assert convert<str>(18M) == "1Y6M"
+    assert convert<str>(1M - 1D) == "1M-1D"
+
+    let circles: list<Circle> = [Circle(radius: 1.0)]
+    let shapes: list<Shape> = convert<list<Shape>>(circles)
+    assert shapes == [Circle(radius: 1.0)]
+
+    assert eval whole(value: [2.9, -2.9]) == [2, -2]
+    ~~~
+
+Rules:
+    OPS-4, OPS-6, OPS-7, OPS-8, NUM-10, TEN-9, FMT-5, EXPR-5, EXPR-12, ERR-11,
+    ERR-15, TYPE-3, FN-6, FN-11
+*/
 export operator convert<T, V, O>(value: V) -> O
     requires O in {T, result<T, error>}
 
-# `&&`, `||`, `!`, and a chain of three or more `&&` or `||` (OPS-5).
+/**
+Whether both of two bools are true: the operator that `a && b` selects.
+
+The operands are bools: a number or a text has no truth value, and
+`1 && true` is rejected where it is written. Written `a && b`, in value
+and runtime contexts the left operand is evaluated first and the right
+only where the left is true, so `items != [] && items[0] > 0` reads no
+element of an empty list. Called by name, `and_(a, b)` evaluates both
+arguments, once each, in written order, as any call does: it
+short-circuits nothing. Where a graph gives it connections, both are
+inputs and both must be valid. A chain of three or more joined by `&&`
+alone is `all_`.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand: under `&&`, evaluated only where `lhs` is
+        true.
+
+Returns:
+    True where both are true.
+
+Ticks:
+    - In value and runtime contexts, the result is a value, with no
+      timing of its own.
+    - Where a graph gives it a connection, the call is lifted: each
+      connection is an input. The result ticks in each cycle in which an
+      input ticks and the call is admitted, an equal result included.
+
+Validity:
+    Each connection given to it is valid before the call is admitted; one
+    that is silent gives the value it holds.
+
+Examples:
+    ~~~hgl
+    fn both(left: bool, right: bool) -> bool => and_(left, right)
+
+    assert true && true
+    assert !(true && false) && !and_(true, false)
+    let items: list<i64> = []
+    assert !(items != [] && items[0] > 0)
+    assert eval both(left: [true, _, false], right: [_, true, _]) == [_, true, false]
+    ~~~
+
+Rules:
+    OPS-5, EXPR-2, EXPR-6, EXPR-13, FN-6, FN-11
+*/
 export operator and_(lhs: bool, rhs: bool) -> bool
+
+/**
+Whether either of two bools is true: the operator that `a || b` selects.
+
+The operands are bools, as for `and_`. Written `a || b`, in value and
+runtime contexts the left operand is evaluated first and the right only
+where the left is false, so `items == [] || items[0] > 0` reads no
+element of an empty list. Called by name, `or_(a, b)` evaluates both
+arguments, once each, in written order, as any call does: it
+short-circuits nothing. Where a graph gives it connections, both are
+inputs and both must be valid. A chain of three or more joined by `||`
+alone is `any_`.
+
+Args:
+    lhs: The left operand.
+    rhs: The right operand: under `||`, evaluated only where `lhs` is
+        false.
+
+Returns:
+    True where either is true.
+
+Ticks:
+    - In value and runtime contexts, the result is a value, with no
+      timing of its own.
+    - Where a graph gives it a connection, the call is lifted: each
+      connection is an input. The result ticks in each cycle in which an
+      input ticks and the call is admitted, an equal result included.
+
+Validity:
+    Each connection given to it is valid before the call is admitted; one
+    that is silent gives the value it holds.
+
+Examples:
+    ~~~hgl
+    fn either(left: bool, right: bool) -> bool => or_(left, right)
+
+    assert false || true
+    assert !(false || false) && or_(false, true)
+    let items: list<i64> = []
+    assert items == [] || items[0] > 0
+    assert eval either(left: [false, _, true], right: [_, false, _]) == [_, false, true]
+    ~~~
+
+Rules:
+    OPS-5, EXPR-2, EXPR-6, EXPR-13, FN-6, FN-11
+*/
 export operator or_(lhs: bool, rhs: bool) -> bool
+
+/**
+The opposite of a bool: `!a` is `not_(a)`.
+
+The operand is a bool: `!0` is rejected where it is written.
+
+Args:
+    value: The bool to negate.
+
+Returns:
+    True where `value` is false.
+
+Ticks:
+    - In value and runtime contexts, the result is a value, with no
+      timing of its own.
+    - Where a graph gives it a connection, the call is lifted: the result
+      ticks in each cycle in which `value` ticks, an equal result
+      included.
+
+Validity:
+    `value` is valid before the call is admitted.
+
+Examples:
+    ~~~hgl
+    fn opposite(value: bool) -> bool => not_(value)
+
+    assert !false
+    assert !(1 > 2)
+    assert eval opposite(value: [true, false]) == [false, true]
+    ~~~
+
+Rules:
+    OPS-5, EXPR-6, FN-6, FN-11
+*/
 export operator not_(value: bool) -> bool
+
+/**
+Whether every one of a number of bools is true: a chain of three or
+more joined by `&&` alone, `a && b && c`, is `all_(a, b, c)`.
+
+A chain that mixes `&&` and `||` is not. Core's candidate for bools is
+`and_` applied left to right. Written as the chain, in value and runtime
+contexts it short-circuits as its links do: an operand after a false one
+is not evaluated. Called by name, `all_(a, b, c)` evaluates every
+argument, once each, in written order, as any call does.
+
+Args:
+    values: The bools, in written order.
+
+Returns:
+    True where each of `values` is true.
+
+Ticks:
+    - In value and runtime contexts, the result is a value, with no
+      timing of its own.
+    - Where a graph gives it a connection, the call is lifted: each
+      connection is an input. The result ticks in each cycle in which an
+      input ticks and the call is admitted, an equal result included.
+
+Validity:
+    Each connection given to it is valid before the call is admitted; one
+    that is silent gives the value it holds.
+
+Examples:
+    ~~~hgl
+    let open = true
+    let liquid = true
+    let quoted = false
+    assert !(open && liquid && quoted)
+    assert open && liquid && !quoted
+    let items: list<i64> = []
+    assert !(open && items != [] && items[0] > 0)
+    ~~~
+
+Rules:
+    OPS-5, EXPR-2, EXPR-6, FN-6, FN-11
+*/
 export operator all_(values: ...bool) -> bool
+
+/**
+Whether any one of a number of bools is true: a chain of three or more
+joined by `||` alone, `a || b || c`, is `any_(a, b, c)`.
+
+A chain that mixes `||` and `&&` is not. Core's candidate for bools is
+`or_` applied left to right. Written as the chain, in value and runtime
+contexts it short-circuits as its links do: an operand after a true one
+is not evaluated. Called by name, `any_(a, b, c)` evaluates every
+argument, once each, in written order, as any call does.
+
+Args:
+    values: The bools, in written order.
+
+Returns:
+    True where one or more of `values` is true.
+
+Ticks:
+    - In value and runtime contexts, the result is a value, with no
+      timing of its own.
+    - Where a graph gives it a connection, the call is lifted: each
+      connection is an input. The result ticks in each cycle in which an
+      input ticks and the call is admitted, an equal result included.
+
+Validity:
+    Each connection given to it is valid before the call is admitted; one
+    that is silent gives the value it holds.
+
+Examples:
+    ~~~hgl
+    let halted = false
+    let stale = false
+    let crossed = true
+    assert halted || stale || crossed
+    assert !(halted || stale || !crossed)
+    let items: list<i64> = []
+    assert halted || items == [] || items[0] > 0
+    ~~~
+
+Rules:
+    OPS-5, EXPR-2, EXPR-6, FN-6, FN-11
+*/
 export operator any_(values: ...bool) -> bool
 
 # Reverse-order candidates reuse one native body for each commutative pair.
@@ -156,11 +2924,11 @@ impl const fn mul_(lhs: i64, rhs: duration) -> duration => mul_(rhs, lhs)
 impl const fn mul_(lhs: f64, rhs: duration) -> duration => mul_(rhs, lhs)
 impl const fn mul_(lhs: i64, rhs: str) -> str => mul_(rhs, lhs)
 
-# NUM-2, NUM-4, NUM-5: preserve the integer's type and both tolerances.
-impl const fn eq_(lhs: f64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool =>
-    eq_(rhs, lhs, abs: abs, rel: rel)
-impl const fn ne_(lhs: f64, rhs: i64, abs: f64 = 0.0, rel: f64 = 0.0) -> bool =>
-    ne_(rhs, lhs, abs: abs, rel: rel)
+# NUM-2, NUM-4, NUM-5, NUM-11: preserve the integer's type and tolerances.
+impl const fn eq_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: f64, rhs: i64) -> bool =>
+    eq_{abs: abs, rel: rel}(rhs, lhs)
+impl const fn ne_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: f64, rhs: i64) -> bool =>
+    ne_{abs: abs, rel: rel}(rhs, lhs)
 
 # OPS-9: the required option keeps these candidates out of unconfigured calls.
 # The requirements name value operations; a runtime body calls those candidates.

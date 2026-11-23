@@ -89,24 +89,51 @@ object HglScope {
     fun resolve(from: PsiElement, name: String): List<PsiElement> = resolve(from, name, includeImplementations = true)
 
     internal fun resolve(from: PsiElement, name: String, includeImplementations: Boolean): List<PsiElement> {
+        val testCandidates = includeImplementations && isTestCode(from)
+        val includeLocalImpls = includeImplementations && !testCandidates
         val direct = scopes(from)
-            .map { scope -> scope.filter { it.name == name && (includeImplementations || !it.isOperatorImplementation) } }
+            .map { scope -> scope.filter { it.name == name && (includeLocalImpls || !it.isOperatorImplementation) } }
             .firstOrNull { it.isNotEmpty() }
             ?: return emptyList()
         val declarations = direct.flatMap { declaration ->
             if (declaration is HglImportItem) declaration.importedDeclarations().ifEmpty { listOf(declaration) }
             else listOf(declaration)
         }.distinct()
-        if (!includeImplementations || declarations.none { it is HglOperatorDecl }) return declarations
-        val test = from.parentOfType<HglTestDecl>() ?: return declarations
-        return declarations + test.helperDeclarations.filter { it.name == name && it.isOperatorImplementation }
+        return if (testCandidates) withTestCandidates(from, name, declarations) else declarations
     }
+
+    internal fun isTestCode(from: PsiElement): Boolean =
+        from.parentOfType<HglTestDecl>() != null || from.parentOfType<HglTestContext>() != null
+
+    /** GEN-4/TST-1: resolve the operator in the candidate's own scope, including its file-local imports. */
+    internal fun withTestCandidates(from: PsiElement, name: String, declarations: List<PsiElement>): List<PsiElement> {
+        val operators = declarations.filterIsInstance<HglOperatorDecl>()
+        if (operators.isEmpty()) return declarations
+        val file = from.containingFile as? HglFile ?: return declarations
+        val candidates = moduleParts(file).flatMap { part ->
+            operatorCandidates(part)[name].orEmpty().groupBy { it.parent }.values.filter { overloads ->
+                resolve(overloads.first(), name, includeImplementations = false).any { it in operators }
+            }.flatten()
+        }
+        return declarations + candidates
+    }
+
+    internal fun operatorCandidates(file: HglFile): Map<String?, List<HglNamedElement>> =
+        CachedValuesManager.getCachedValue(file) {
+            val topLevel = file.children.filterIsInstance<HglNamedElement>()
+            val tests = topLevel.filterIsInstance<HglTestDecl>() +
+                file.children.filterIsInstance<HglTestContext>().flatMap { it.testDeclList }
+            val candidates = (topLevel + tests.flatMap { it.helperDeclarations })
+                .filter { it.isOperatorImplementation }.groupBy { it.name }
+            CachedValueProvider.Result.create(candidates, file)
+        }
+
+    private fun moduleParts(file: HglFile): List<HglFile> =
+        (listOf(file) + file.modulePath?.let { HglModuleIndex.findFiles(file.project, it) }.orEmpty()).distinct()
 
     /** Parts share declarations and test helpers. Imports and application bindings belong to their file. */
     private fun fileScopes(file: HglFile, useOffset: Int, inTests: Boolean): Sequence<List<HglNamedElement>> = sequence {
-        val module = file.modulePath
-        val siblings = module?.let { HglModuleIndex.findFiles(file.project, it) }.orEmpty()
-        val parts = (listOf(file) + siblings).distinct()
+        val parts = moduleParts(file)
         if (inTests) {
             yield(parts.flatMap { part ->
                 PsiTreeUtil.getChildrenOfTypeAsList(part, HglTestContext::class.java).flatMap { context ->
@@ -120,7 +147,7 @@ object HglScope {
                 .filter { it.textOffset < useOffset }.flatMap { it.injectItemList })
         }
         yield(file.useDecls.flatMap { it.importSet?.importItemList.orEmpty() + listOfNotNull(it.useAlias) })
-        if (module != "core") yield(HglModuleIndex.findFiles(file.project, "core").flatMap(::publicDeclarations))
+        if (file.modulePath != "core") yield(HglModuleIndex.findFiles(file.project, "core").flatMap(::publicDeclarations))
     }
 
     private fun declarations(file: HglFile): List<HglNamedElement> =

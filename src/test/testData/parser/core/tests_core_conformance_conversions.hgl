@@ -1,4 +1,4 @@
-module core_implementation part conversions
+module core_conformance part conversions
 
 const fn whole(value: f64, rounding: Rounding) -> i64 =>
     convert<i64>(value, rounding: rounding, invalid: .fail)

@@ -1,0 +1,6 @@
+const fn climb<const N: i64>(x: i64) -> i64 {
+    if x <= 0 { return N }
+    return climb<N + 1>(x - 1)
+}
+
+const fn climbed() -> i64 => climb<0>(3)

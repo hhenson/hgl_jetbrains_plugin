@@ -1,4 +1,4 @@
-module core_implementation part lists
+module core_conformance part lists
 
 # LIST-1: an item goes after the last entry, one at a time.
 test append_adds_one_entry_after_the_last {

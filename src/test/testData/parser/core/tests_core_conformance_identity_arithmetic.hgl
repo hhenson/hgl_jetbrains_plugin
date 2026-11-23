@@ -1,4 +1,4 @@
-module core_implementation part identity_arithmetic
+module core_conformance part identity_arithmetic
 
 # OPS-9: one template per operator, over closed value operations on T.
 fn identity_sum<T>(lhs: T, rhs: T) -> T

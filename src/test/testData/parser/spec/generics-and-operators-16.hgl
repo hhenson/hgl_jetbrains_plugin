@@ -1,10 +1,16 @@
-operator each_wanted<K, R, ...Ps, ...As, const key: str = "key">{
-    const strict: bool = true,
-    keys: set<K>? = null,
-}(
+operator keyed<K, R, ...Ps, ...As>(
     f: fn(...{Ps}) -> R,
-    args: ...{As for f without key},
+    args: ...{As for f},
 ) -> dict<K, R>
-    requires each arg in arg_keys(As) {
-        As[arg] == Ps[arg] || As[arg] == dict<K, Ps[arg]>
-    }
+    requires any arg in arg_keys(As) { As[arg] == dict<K, Ps[arg]> }
+          && each arg in arg_keys(As) { As[arg] in {Ps[arg], dict<K, Ps[arg]>} }
+
+operator fold<V, const associative: bool = associative(f)>(
+    f: fn(V, V) -> V,
+    items: list<V>,
+) -> V
+
+impl const fn fold<V, const associative: bool = associative(f)>(
+    f: const fn(V, V) -> V,
+    items: list<V>,
+) -> V requires associative { return items[0] }
