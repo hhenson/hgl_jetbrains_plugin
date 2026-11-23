@@ -20,3 +20,11 @@ object HglFileType : LanguageFileType(HglLanguage) {
 
     override fun getIcon(): Icon = HglIcons.FILE
 }
+
+/** The compiler materializes bundled sources with this suffix in a debug build. */
+object HglDebugSourceFileType : LanguageFileType(HglLanguage, true) {
+    override fun getName() = "HGL Debug Source"
+    override fun getDescription() = "HGL debugger source copy"
+    override fun getDefaultExtension() = "hgl.source"
+    override fun getIcon(): Icon = HglIcons.FILE
+}

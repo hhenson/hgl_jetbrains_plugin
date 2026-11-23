@@ -11,6 +11,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.dap.*
 import com.intellij.platform.dap.connection.CommandLineDebugAdapterHandle
 import com.intellij.xdebugger.breakpoints.*
+import io.github.hhenson.hgl.HglDebugSourceFileType
 import io.github.hhenson.hgl.HglFileType
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,7 +19,7 @@ import java.nio.file.Path
 object HglAdapterId : DebugAdapterId("hgl-lldb", "HGL (LLDB)")
 
 class HglLineBreakpoint : XLineBreakpointType<XBreakpointProperties<*>>("hgl-line", "HGL Line Breakpoints") {
-    override fun canPutAt(file: VirtualFile, line: Int, project: Project) = file.fileType == HglFileType
+    override fun canPutAt(file: VirtualFile, line: Int, project: Project) = file.fileType.let { it == HglFileType || it == HglDebugSourceFileType }
     override fun createBreakpointProperties(file: VirtualFile, line: Int): XBreakpointProperties<*>? = null
 }
 

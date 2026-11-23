@@ -10,6 +10,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
@@ -19,6 +20,8 @@ import com.intellij.testFramework.PsiTestUtil
 import com.intellij.xdebugger.XDebuggerManager
 import com.intellij.xdebugger.XDebuggerUtil
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint
+import com.intellij.xdebugger.impl.XDebugSessionImpl
+import com.intellij.xdebugger.impl.XDebuggerUtilImpl
 import io.github.hhenson.hgl.debug.HglLineBreakpoint
 import io.github.hhenson.hgl.project.HglBuild
 import io.github.hhenson.hgl.project.HglBuildFile
@@ -195,6 +198,80 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
         } finally {
             manager.debugSessions.forEach { it.stop() }
             WriteCommandAction.runWriteCommandAction(project) { manager.breakpointManager.removeBreakpoint(breakpoint) }
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        }
+    }
+
+    fun testStepIntoBundledCoreOpensHglSource() {
+        VfsRootAccess.allowRootAccess(testRootDisposable, "/usr/include")
+        val dir = Files.createDirectory(Path.of(project.basePath!!, "src"))
+        val path = dir.resolve("dates.hgl")
+        Files.writeString(path, """
+            module dates
+            const fn shift(day: date, by: tenor) -> date {
+                let next = day + by
+                return next
+            }
+            test friday {
+                assert shift(@2026-01-02, 1B) == @2026-01-05
+                assert shift(@2026-01-05, 1B) == @2026-01-06
+            }
+        """.trimIndent())
+        val source = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
+        PsiTestUtil.addContentRoot(module, source.parent)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_CLI")), null)
+        myFixture.configureFromExistingVirtualFile(source)
+        val name = myFixture.file.findElementAt(myFixture.file.text.indexOf("friday"))!!
+        val executor = DefaultDebugExecutor.getDebugExecutorInstance()
+        val env = ExecutionEnvironmentBuilder.create(executor, runConfigurationAt(name)).build()
+        val manager = XDebuggerManager.getInstance(project)
+        val type = XDebuggerUtil.getInstance().findBreakpointType(HglLineBreakpoint::class.java)
+        val breakpoints = WriteCommandAction.writeCommandAction(project).compute<MutableList<XLineBreakpoint<*>>, RuntimeException> {
+            listOf(2, 4).mapTo(mutableListOf()) { line -> manager.breakpointManager.addLineBreakpoint(type, source.url, line, null) }
+        }
+        try {
+            env.runner.execute(env)
+            PlatformTestUtil.waitWithEventsDispatching("Missing date addition breakpoint", {
+                manager.debugSessions.any { it.isSuspended && it.currentPosition?.file == source && it.currentPosition?.line == 2 }
+            }, 90)
+            val session = manager.debugSessions.single { it.isSuspended }
+            val before = session.suspendContext
+            session.stepInto()
+            PlatformTestUtil.waitWithEventsDispatching("Step Into did not reach date addition", {
+                session.isSuspended && session.suspendContext !== before && session.suspendContext?.activeExecutionStack?.topFrame?.sourcePosition != null
+            }, 15)
+            val position = session.suspendContext!!.activeExecutionStack!!.topFrame!!.sourcePosition!!
+            assertEquals("Step Into at ${position.file.path}:${position.line + 1}", "calendar.hgl.source", position.file.name)
+            assertSame(HglDebugSourceFileType, position.file.fileType)
+            val document = FileDocumentManager.getInstance().getDocument(position.file)!!
+            val line = document.text.lineSequence().elementAt(position.line)
+            assertTrue(line, "fn add_(lhs: date, rhs: tenor)" in line)
+            println("HGL_STEP_INTO ${position.file.name}:${position.line + 1}")
+            session.resume()
+            PlatformTestUtil.waitWithEventsDispatching("Missing HGL function closing line", {
+                session.isSuspended && session.currentPosition?.file == source && session.currentPosition?.line == 4
+            }, 15)
+            WriteCommandAction.runWriteCommandAction(project) {
+                breakpoints.forEach { it.isEnabled = false }
+                breakpoints.add(manager.breakpointManager.addLineBreakpoint(type, position.file.url, position.line, null))
+            }
+            val coreBreakpoint = breakpoints.last()
+            PlatformTestUtil.waitWithEventsDispatching("LLDB did not bind the breakpoint in bundled Core", {
+                val presentation = (session as XDebugSessionImpl).getBreakpointPresentation(coreBreakpoint)
+                assertNull(presentation?.errorMessage)
+                presentation?.icon == XDebuggerUtilImpl.getVerifiedIcon(coreBreakpoint)
+            }, 15)
+            session.resume()
+            PlatformTestUtil.waitWithEventsDispatching("Second call missed its bundled Core breakpoint", {
+                session.isSuspended && session.currentPosition?.file == position.file && session.currentPosition?.line == position.line
+            }, 15)
+            WriteCommandAction.runWriteCommandAction(project) { breakpoints.last().isEnabled = false }
+            session.resume()
+            PlatformTestUtil.waitWithEventsDispatching("Date test did not finish", { session.isStopped }, 20)
+            RunContentManager.getInstance(project).removeRunContent(executor, session.runContentDescriptor)
+        } finally {
+            manager.debugSessions.forEach { it.stop() }
+            WriteCommandAction.runWriteCommandAction(project) { breakpoints.forEach(manager.breakpointManager::removeBreakpoint) }
             PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         }
     }

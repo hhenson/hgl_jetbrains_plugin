@@ -839,7 +839,7 @@ Read the value under a key, of the run's store or of a dictionary, as a read tha
 
 | `store` | `key` | Result |
 | --- | --- | --- |
-| `GlobalState`, the run's store | A `str` fixed when the graph is built | `result<V, error>`, a failure where the key holds no value |
+| `GlobalState`, the run's store | A `str` fixed when the graph is built | `result<V, error>`, a failure with code `value.missing_key` where the key holds no value |
 | `dict<K, V>` | A `K` | `result<V, error>`, a failure with code `value.missing_key` where the dictionary has no such key |
 
 The `result` takes its form from its place. Where a `result<V, error>`
@@ -881,8 +881,8 @@ Returns:
     holds none.
 
 Raises:
-    - `value.missing_key`: where a `V` is taken of a dictionary's read and
-      the dictionary has no such key.
+    - `value.missing_key`: where a `V` is taken of a read whose key is absent
+      from the store or dictionary.
     - `store.key_type`: a `get` of the store of another type than an
       earlier use of the key, where the two are not in one program.
 
@@ -940,6 +940,16 @@ Examples:
         }
     }
     assert eval absent(value: [1]) == [true]
+    ~~~
+
+    Taking the value of a missing store entry raises its failure.
+
+    ~~~hgl
+    fn read_absent(value: i64) -> i64 {
+        inject global_state
+        when { return get<i64>(global_state, "absent") }
+    }
+    assert raises("value.missing_key") { eval read_absent(value: [1]) }
     ~~~
 
     A dictionary's read, in value code.
@@ -2072,7 +2082,6 @@ Options:
       their instants alone. False when none is given. Written
       `a =={utc: true} b`, or `eq_(a, b, utc: true)`.
 
-    A tolerance is finite and not below zero; any other is an HGL error.
     Both tolerances are configuration parameters. A graph binds them
     when it is built and rejects a connection given to either one. In
     value code and runtime hooks, they are values for the current call.
@@ -2080,6 +2089,9 @@ Options:
 
 Returns:
     True where the two are equal.
+
+Raises:
+    - `numeric.invalid_tolerance`: `abs` or `rel` is negative or non-finite.
 
 Ticks:
     - With values, the call is evaluated directly, with no timing of its
@@ -2144,6 +2156,11 @@ Examples:
     assert eval same(left: [1, _, 5], right: [1, 3, _]) == [true, false, false]
     ~~~
 
+    ~~~hgl
+    const fn equal_with_tolerance(tolerance: f64) -> bool => 1.0 =={abs: tolerance} 1.0
+    assert raises("numeric.invalid_tolerance") { equal_with_tolerance(-0.5) }
+    ~~~
+
 Rules:
     OPS-1, OPS-2, NUM-2, NUM-4, NUM-5, NUM-7, NUM-8, NUM-11, EXPR-10,
     EXPR-14, TYPE-2, TYPE-3, TYPE-17, ERR-15, FN-6, FN-11, FN-12
@@ -2181,6 +2198,9 @@ Options:
 Returns:
     True where the two are not equal.
 
+Raises:
+    - `numeric.invalid_tolerance`: `abs` or `rel` is negative or non-finite.
+
 Ticks:
     As for `eq_`: lifted where a graph gives it a connection, the result
     ticks in each cycle in which an input ticks and the call is admitted,
@@ -2202,6 +2222,12 @@ Examples:
     let utc = @2026-09-03T08:30+00:00[UTC]
     assert london != utc && !(london !={utc: true} utc)
     assert eval differ(left: [1, _, 5], right: [1, 3, _]) == [false, true, true]
+    ~~~
+
+    ~~~hgl
+    const fn differ_with_tolerance(tolerance: f64) -> bool => 1.0 !={rel: tolerance} 1.0
+    let nan: f64 = 0.0 /{zero: .nan} 0.0
+    assert raises("numeric.invalid_tolerance") { differ_with_tolerance(nan) }
     ~~~
 
 Rules:

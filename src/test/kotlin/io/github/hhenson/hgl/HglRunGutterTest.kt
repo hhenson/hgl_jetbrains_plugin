@@ -4,15 +4,19 @@ import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.actions.RunConfigurationProducer
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.lineMarker.RunLineMarkerContributor
+import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.components.service
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.debug.HglDebugRunner
+import io.github.hhenson.hgl.debug.HglLineBreakpoint
+import io.github.hhenson.hgl.psi.HglFile
+import io.github.hhenson.hgl.reference.HglModuleIndex
 import io.github.hhenson.hgl.run.HglApplicationProducer
 import io.github.hhenson.hgl.run.HglRunConfiguration
 import io.github.hhenson.hgl.run.HglRunGutter
+import io.github.hhenson.hgl.run.HglTestProducer
 import io.github.hhenson.hgl.run.HglTestSettings
 import org.jdom.Element
 
@@ -23,6 +27,22 @@ class HglRunGutterTest : HglEditorFixture() {
     }
 
     private val marker get() = RunLineMarkerContributor.EXTENSION.allForLanguage(HglLanguage).filterIsInstance<HglRunGutter>().single()
+
+    fun testDebuggerCopyUsesHglWithoutBecomingAProjectModuleOrTest() {
+        val copy = myFixture.addFileToProject("build/debug-sources/core.hgl.source", "module bundled\ntest example { assert true }")
+        assertInstanceOf(copy, HglFile::class.java)
+        assertSame(HglDebugSourceFileType, copy.fileType)
+        assertSame(HglDebugSourceFileType, copy.virtualFile.fileType)
+        assertFalse(myFixture.addFileToProject("notes.source", "notes").fileType == HglDebugSourceFileType)
+        assertSame(HglLanguage, copy.language)
+        assertTrue(HglLineBreakpoint().canPutAt(copy.virtualFile, 1, project))
+        val source = myFixture.addFileToProject("src/bundled.hgl", "module bundled")
+        assertEquals(listOf(source), HglModuleIndex.findFiles(project, "bundled"))
+        assertEmpty(PsiTreeUtil.collectElements(copy) { marker.getInfo(it) != null })
+        val name = copy.findElementAt(copy.text.indexOf("example"))!!
+        val context = ConfigurationContext(name)
+        assertNull(HglTestProducer().createConfigurationFromContext(context))
+    }
 
     fun testOneActionOnEachNamedDeclaration() {
         for (declaration in listOf("test selected {}", "test { test selected {} }", "@timeout(1s)\nintegration_test selected {}")) {

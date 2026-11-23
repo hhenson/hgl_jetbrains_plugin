@@ -144,8 +144,11 @@ configuration. A selection spanning modules opens one LLDB session per module,
 in order. Continue after a breakpoint to proceed. Stop cancels the remaining
 modules. Integration test timeouts are suspended while debugging. A failed
 compiler-checked rejection appears with its diagnostic. Other executable tests
-still run. Step Over follows HGL assertions. Step Into can show generated C++
-at a function’s closing brace or inside `eval` wiring. [Compiler issue #611](https://github.com/hhenson/hgl-compiler/issues/611)
+still run.
+
+Step Over follows HGL assertions. Step Into can open bundled Core HGL from the
+debug build. The IDE highlights its `*.hgl.source` files. Breakpoints in those
+copies apply to that debug session. Function ends map to their HGL closing lines.
 
 On macOS the plugin
 uses Apple's LLDB adapter from the active developer tools. Run

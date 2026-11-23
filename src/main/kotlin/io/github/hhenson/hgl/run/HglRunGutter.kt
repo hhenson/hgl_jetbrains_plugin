@@ -8,6 +8,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import io.github.hhenson.hgl.HglDebugSourceFileType
 import io.github.hhenson.hgl.psi.HglApplicationDecl
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglIdent
@@ -18,15 +19,15 @@ import io.github.hhenson.hgl.psi.dottedName
 class HglRunGutter : RunLineMarkerContributor() {
     override fun getInfo(element: PsiElement): Info? {
         val parent = element.parent
-        if (parent is HglApplicationDecl && element.node.elementType == HglTypes.APPLICATION_KW &&
-            parent.applicationPath() != null) {
-            return withExecutorActions(AllIcons.Actions.Execute)
+        val icon = when {
+            parent is HglApplicationDecl && element.node.elementType == HglTypes.APPLICATION_KW &&
+                parent.applicationPath() != null -> AllIcons.Actions.Execute
+            parent is HglIdent && parent.parent is HglTestDecl &&
+                !(element.containingFile as? HglFile)?.modulePath.isNullOrEmpty() -> AllIcons.RunConfigurations.TestState.Run
+            else -> return null
         }
-        if (parent is HglIdent && parent.parent is HglTestDecl &&
-            !(element.containingFile as? HglFile)?.modulePath.isNullOrEmpty()) {
-            return withExecutorActions(AllIcons.RunConfigurations.TestState.Run)
-        }
-        return null
+        if (element.containingFile.fileType == HglDebugSourceFileType) return null
+        return withExecutorActions(icon)
     }
 }
 
@@ -38,6 +39,7 @@ abstract class HglRunProducer<D : PsiElement>(private val declarationClass: Clas
 
     private fun declaration(context: ConfigurationContext): D? =
         PsiTreeUtil.getParentOfType(context.psiLocation, declarationClass, false)
+            ?.takeUnless { it.containingFile.fileType == HglDebugSourceFileType }
 
     override fun setupConfigurationFromContext(
         configuration: HglRunConfiguration, context: ConfigurationContext, sourceElement: Ref<PsiElement>,

@@ -191,7 +191,10 @@ both IDE versions. macOS launches the active Apple toolchain adapter with
 The supported build range is limited to the verified
 platform branch. Before widening it, run Plugin Verifier and the native
 breakpoint-and-resume test in both IDEs. Native line tables map breakpoints and stack
-frames to the HGL file.
+frames to the HGL file. The compiler writes bundled Core sources under
+`debug-sources/`. Their `*.hgl.source` file type shares the HGL language
+and line breakpoints. Module indexing, test discovery and on-save checks
+use the primary `.hgl` file type.
 
 A test configuration passes its Run selectors to `hgl test --debug-build DIR`.
 Exit 0 returns the module launches in execution order and lists skipped cases.
