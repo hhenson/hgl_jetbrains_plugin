@@ -65,7 +65,10 @@ test-local declarations and runnable examples. A private export qualifies a test
 with its owning test. An operator’s candidate list includes implementations
 declared at module scope, including those in importing modules. Named
 constructor arguments select the struct's field record. The editor recognizes `Options:`, `Rules:` and `Status:` in
-both source comments and exported documentation.
+both source comments and exported documentation. Parameter descriptions keep
+their Markdown after the common continuation indent is removed. A heading beside
+the opening comment delimiter is prose. The export records this distinction in
+the section’s `recognized` field.
 
 ## Compiler diagnostics on save
 

@@ -115,7 +115,7 @@
               },
               {
                 "heading": "Rules:",
-                "recognized": false,
+                "recognized": true,
                 "text": "CRUN-3",
                 "entries": []
               }
@@ -215,7 +215,7 @@
                 "entries": [
                   {
                     "key": "value",
-                    "text": "```hgl\n    assert shown_entry_only"
+                    "text": "```hgl\nassert shown_entry_only"
                   }
                 ]
               }
@@ -242,7 +242,7 @@
                 "runnable": true
               },
               {
-                "code": "    assert shown_entry_only",
+                "code": "assert shown_entry_only",
                 "position": null,
                 "runnable": false
               }
@@ -839,7 +839,7 @@
                 "entries": [
                   {
                     "key": "input",
-                    "text": "A café value with  two spaces.\n    A continuation that keeps its indent."
+                    "text": "A café value with  two spaces.\nA continuation that keeps its indent."
                   },
                   {
                     "key": "count",
@@ -1305,6 +1305,161 @@
           "type": null,
           "default": null,
           "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        }
+      ]
+    },
+    {
+      "name": "extraction_check",
+      "application": false,
+      "parts": [
+        {
+          "name": null,
+          "source": {
+            "module": "extraction_check",
+            "part": null,
+            "file": "doc_extraction.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        }
+      ],
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "describe_value",
+          "canonicalName": "extraction_check::describe_value",
+          "role": "value",
+          "exported": true,
+          "source": {
+            "module": "extraction_check",
+            "part": null,
+            "file": "doc_extraction.hgl",
+            "line": 35,
+            "column": 17
+          },
+          "documentation": {
+            "text": "Presents a value.\nArgs:\n    value: First paragraph.\n\n        | Key | Value |\n        | --- | ----- |\n        | one | two   |\n\n        - Item\n          Second line\n\n        ~~~hgl no-run\n        assert true\n        ~~~\n\n        Last paragraph.\nOptions:\n\n    - Preserve the option as a list.\nRules:\n    SDOC-7.\nStatus:\n    Covered.\nNotes for display:\n\n    A custom section.",
+            "summary": "Presents a value.",
+            "sections": [
+              {
+                "heading": "Args:",
+                "recognized": true,
+                "text": "value: First paragraph.\n\n    | Key | Value |\n    | --- | ----- |\n    | one | two   |\n\n    - Item\n      Second line\n\n    ~~~hgl no-run\n    assert true\n    ~~~\n\n    Last paragraph.",
+                "entries": [
+                  {
+                    "key": "value",
+                    "text": "First paragraph.\n\n| Key | Value |\n| --- | ----- |\n| one | two   |\n\n- Item\n  Second line\n\n~~~hgl no-run\nassert true\n~~~\n\nLast paragraph."
+                  }
+                ]
+              },
+              {
+                "heading": "Options:",
+                "recognized": true,
+                "text": "- Preserve the option as a list.",
+                "entries": []
+              },
+              {
+                "heading": "Rules:",
+                "recognized": true,
+                "text": "SDOC-7.",
+                "entries": []
+              },
+              {
+                "heading": "Status:",
+                "recognized": true,
+                "text": "Covered.",
+                "entries": []
+              },
+              {
+                "heading": "Notes for display:",
+                "recognized": false,
+                "text": "A custom section.",
+                "entries": []
+              }
+            ],
+            "examples": [
+              {
+                "code": "assert true\n",
+                "position": null,
+                "runnable": false
+              }
+            ]
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "value",
+              "type": "i64",
+              "written": "value: i64",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "i64",
+            "written": "-> i64",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        },
+        {
+          "kind": "constant",
+          "name": "prose_example",
+          "canonicalName": "extraction_check::prose_example",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "extraction_check",
+            "part": null,
+            "file": "doc_extraction.hgl",
+            "line": 44,
+            "column": 14
+          },
+          "documentation": {
+            "text": "Examples:\n    ~~~hgl\n    assert false\n    ~~~\nNotes:\n    The same-line heading remains prose in the model.",
+            "summary": "",
+            "sections": [
+              {
+                "heading": "Examples:",
+                "recognized": false,
+                "text": "~~~hgl\nassert false\n~~~",
+                "entries": []
+              },
+              {
+                "heading": "Notes:",
+                "recognized": true,
+                "text": "The same-line heading remains prose in the model.",
+                "entries": []
+              }
+            ]
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": "i64",
+          "default": null,
+          "value": "42",
           "abstractStruct": false,
           "members": [],
           "candidates": []

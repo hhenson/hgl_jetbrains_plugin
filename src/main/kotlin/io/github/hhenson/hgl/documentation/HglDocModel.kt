@@ -95,11 +95,10 @@ private fun record(item: JsonObject, includeChildren: Boolean = true): ExportedD
     val descriptions = mutableMapOf<String, String>()
     for (section in doc?.objects("sections").orEmpty()) {
         val heading = section.string("heading")
-        val recognized = heading in docHeadings || section.string("recognized") == "true"
-        sections += HglDocSection(heading, section.required("text").lines(), recognized)
-        if (recognized && heading == "Args:") for (entry in section.objects("entries")) {
-            descriptions[entry.required("key")] = entry.required("text")
-        }
+        val recognized = section.string("recognized")?.toBooleanStrictOrNull() ?: (heading in docHeadings)
+        val entries = section.objects("entries").associate { it.required("key") to it.required("text") }
+        sections += HglDocSection(heading, section.required("text").lines(), recognized, entries)
+        if (recognized && heading == "Args:") descriptions.putAll(entries)
     }
     val genericParameters = item.objects("genericParameters")
     val generics = genericParameters.map { it.string("written") ?: it.required("name") }
