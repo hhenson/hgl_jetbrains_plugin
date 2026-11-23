@@ -6,6 +6,12 @@ struct Quote {
 fn spread(quote: Quote) -> f64
     => quote.ask - quote.bid
 
+const fn larger<T>(a: T, b: T) -> T
+    requires T in {i64, f64}
+{
+    if a < b { b } else { a }
+}
+
 fn low(quote: Quote, margin: f64) -> f64 {
     let sum = quote
         .bid

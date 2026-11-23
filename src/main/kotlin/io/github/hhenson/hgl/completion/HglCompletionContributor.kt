@@ -61,7 +61,7 @@ class HglCompletionContributor : CompletionContributor() {
             val argument = position.parentOfType<HglArgument>() ?: return false
             val named = argument.namedArgument
             val label = named?.memberName
-                ?: (argument.expr as? HglReferenceExpr)?.qualifiedName?.identList?.singleOrNull()
+                ?: PsiTreeUtil.getChildOfType(argument, HglReferenceExpr::class.java)?.qualifiedName?.identList?.singleOrNull()
                 ?: return false
             if (argument.ellipsis != null || !PsiTreeUtil.isAncestor(label, position, false)) return false
 

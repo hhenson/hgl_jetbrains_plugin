@@ -1,5 +1,8 @@
-operator first_of<T>(values: ...T{1:*}) -> T
+struct Box<T> { value: T }
+const fn boxed() -> Box<i64> => Box<i64>(value: 7)
 
-operator pair_of<...Ts{2}>(values: ...Ts) -> str
+fn preserve<T, N>(items: list<T, N>) -> list<T, N> => items
 
-operator labelled<...Fields>(values: ...{Fields}{1:4}) -> str
+fn numeric<T>(value: T) -> T requires T in {i64, f64} { return value }
+
+const fn configuration<N>() -> bool requires type(N) in {i64, f64} { return true }

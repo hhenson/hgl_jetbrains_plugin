@@ -24,7 +24,10 @@ phase checking, overload resolution and runtime conformance belong to the
 compiler. The editor reads its structured diagnostics on save. Current
 navigation uses the plugin's syntax
 scopes and module index. Module parts share declarations and test helpers.
-Each named test has a private scope for its own declarations and operator candidates. Imports stay file-local. Other modules see exported declarations, including exported operators,
+Each named test owns its declared names. Within test code, navigation to an
+operator includes candidates contributed by any test in that module (TST-1).
+The compiler selects the overload, including inside functions called by a test.
+Imports stay file-local. Other modules see exported declarations, including exported operators,
 and the public `core` prelude. Applications have their own file scope.
 
 Operator gutters link a declaration to its HGL and native candidates in both

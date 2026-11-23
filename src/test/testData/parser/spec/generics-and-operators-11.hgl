@@ -1,5 +1,5 @@
-operator read_one<X, Y>(left: X, right: Y) -> i64
+operator maybe<X>(x: X) -> i64?
 
-impl const fn read_one<T, U>(left: T, right: U) -> i64
-    requires (T in {result<i64, error>} && U in {i64})
-          || (T in {i64} && U in {result<i64, error>}) => 0
+impl const fn maybe(x: i64) -> i64? => x
+
+const fn required(value: i64) -> i64 => maybe(value)

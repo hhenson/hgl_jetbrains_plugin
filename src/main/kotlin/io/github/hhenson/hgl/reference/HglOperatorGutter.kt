@@ -61,7 +61,6 @@ class HglOperatorGutter : RelatedItemLineMarkerProvider() {
 /** Scope and candidate lookups are shared by overloads during one highlighting pass. */
 private class OperatorLinks {
     private val operators = mutableMapOf<Pair<PsiElement, String>, List<HglOperatorDecl>>()
-    private val candidates = mutableMapOf<HglFile, Map<String?, List<HglNamedElement>>>()
 
     fun operatorsOf(candidate: HglNamedElement): List<HglOperatorDecl> {
         val scope = candidate.parent
@@ -84,12 +83,7 @@ private class OperatorLinks {
         val files = listOf(file) + indexed.filter { it != file.virtualFile }.mapNotNull { manager.findFile(it) as? HglFile }
         return files.flatMap { part ->
             ProgressManager.checkCanceled()
-            candidates.getOrPut(part) {
-                val topLevel = part.children.filterIsInstance<HglNamedElement>()
-                val tests = topLevel.filterIsInstance<HglTestDecl>() +
-                    part.children.filterIsInstance<HglTestContext>().flatMap { it.testDeclList }
-                (topLevel + tests.flatMap { it.helperDeclarations }).filter { it.isOperatorImplementation }.groupBy { it.name }
-            }[name].orEmpty().filter { operator in operatorsOf(it) }
+            HglScope.operatorCandidates(part)[name].orEmpty().filter { operator in operatorsOf(it) }
         }
     }
 }
