@@ -133,8 +133,14 @@ tasks.test {
     systemProperty("rider.disable.resharper.backend", "true")
 }
 
+// Select by configuration, including when signPlugin is already up to date.
+val marketplaceArchive = if (authorSigning) tasks.signPlugin.flatMap { it.signedArchiveFile }
+    else tasks.buildPlugin.flatMap { it.archiveFile }
+
 // A parser regression must fail CI instead of leaving an editor test spinning.
 tasks.withType<Test>().configureEach {
+    inputs.file(marketplaceArchive).withPathSensitivity(PathSensitivity.NONE)
+    systemProperty("hglPluginArchive", marketplaceArchive.get().asFile.absolutePath)
     // Bundled LLDB imports Python modules inside the read-only IDE distribution.
     environment("PYTHONDONTWRITEBYTECODE", "1")
     inputs.dir("src/test/testData").withPathSensitivity(PathSensitivity.RELATIVE)
@@ -153,9 +159,6 @@ tasks.withType<Test>().configureEach {
     timeout = Duration.ofMinutes(5)
 }
 
-// Select by configuration, including when signPlugin is already up to date.
-val marketplaceArchive = if (authorSigning) tasks.signPlugin.flatMap { it.signedArchiveFile }
-    else tasks.buildPlugin.flatMap { it.archiveFile }
 tasks.verifyPlugin {
     archiveFile = marketplaceArchive
 }
