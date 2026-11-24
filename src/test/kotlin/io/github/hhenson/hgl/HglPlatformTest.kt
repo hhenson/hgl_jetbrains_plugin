@@ -406,6 +406,18 @@ class HglPlatformTest : HglEditorFixture() {
         assertDoesntContain(completionsInModule("test t { assert true == <caret> }"), "raises")
     }
 
+    fun testCategoryCompletionIsLimitedToMembership() {
+        fun suggestions(constraint: String) =
+            completionsInModule("const fn f<T>(x: T) -> T requires $constraint => x")
+
+        assertContainsElements(suggestions("T in /* category */ <caret>"), "struct", "enum", "i64")
+        for (constraint in listOf("T is <caret>", "T == <caret>", "T in {<caret>}", "<caret> in {T}")) {
+            val names = suggestions(constraint)
+            assertContainsElements(names, "i64")
+            assertDoesntContain(names, "struct", "enum")
+        }
+    }
+
     fun testArrowExpressionStartersAndNames() {
         val names = completionsInModule("""
             fn helper(x: str) -> str => x

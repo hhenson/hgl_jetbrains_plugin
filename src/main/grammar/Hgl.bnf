@@ -313,9 +313,8 @@ private constraint_atom ::= constraint_each
                           | LPAREN nls constraint nls RPAREN
                           | constraint_operand
 constraint_requirement ::= ARROW nls type {pin=1}
-constraint_relation ::= (EQEQ | NEQ) constraint_operand
+constraint_relation ::= (EQEQ | NEQ | IS_KW) constraint_operand
                       | <<kw "IN_KW">> (STRUCT_KW | ENUM_KW | constraint_operand)
-                      | IS_KW (STRUCT_KW | ident)
 constraint_each ::= (<<kw "EACH_KW">> | ANY_KW) for_binding <<kw "IN_KW">> constraint_operand LBRACE nls constraint nls RBRACE {pin=1}
 constraint_set ::= LBRACE nls <<list_of constraint_operand>> nls RBRACE {pin=1}
 constraint_call ::= &(ident (COLONCOLON ident)? LPAREN) qualified_name <<adjacent>> LPAREN nls <<list_of constraint_operand>>? nls RPAREN {pin=2}

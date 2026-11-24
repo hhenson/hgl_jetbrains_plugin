@@ -66,6 +66,22 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         assertEquals(listOf("!= U", "!= 0", "!= 1"), relations.map { it.text })
     }
 
+    fun testCategoryKeywordsOnlyFollowMembership() {
+        for (category in listOf("struct", "enum")) {
+            accepted("""
+                module demo.categories
+                const fn one<T>(value: T) -> T requires T in $category => value
+                const fn all<...Ts>(values: tuple<Ts>) -> bool
+                    requires each T in types(Ts) { T in $category } => true
+            """)
+            for (constraint in listOf("T is $category", "T == $category", "T != $category",
+                "T in {$category}", "$category in {T}")) {
+                rejected("const fn f<T>(value: T) -> T requires $constraint => value")
+            }
+        }
+        accepted("module demo\nconst fn f<T>(value: T) -> T requires T is i64 => value")
+    }
+
     fun testLoopMadeListInAConstantArgument() {
         accepted("""
             module demo.offsets
