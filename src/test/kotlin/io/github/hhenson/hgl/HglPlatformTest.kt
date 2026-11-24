@@ -4,6 +4,8 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.ide.structureView.StructureViewTreeElement
+import io.github.hhenson.hgl.highlighting.HglColors
+import io.github.hhenson.hgl.psi.HglOperatorDecl
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglImportItem
@@ -564,6 +566,25 @@ class HglPlatformTest : HglEditorFixture() {
         assertContainsElements(suggestions("module live\n<caret>"), "test", "integration_test")
         assertContainsElements(suggestions("module live\n@<caret>"), "timeout", "suppress_warning")
         assertContainsElements(suggestions("module live\nintegration_test pulses { <caret> }"), "run", "assert")
+    }
+
+    fun testDictionaryKeysUsesOperatorHighlightingAndResolvesToCore() {
+        val source = "module prices\nfn watched(book: dict<str, i64>) -> set<str> => ke<caret>ys(book)"
+        fun checkCall() {
+            myFixture.configureByText("prices.hgl", source)
+            val start = myFixture.file.text.indexOf("keys(book)")
+            val colours = myFixture.doHighlighting(HighlightSeverity.INFORMATION)
+                .filter { it.startOffset == start && it.endOffset == start + "keys".length }
+                .map { it.forcedTextAttributesKey }
+            assertContainsElements(colours, HglColors.FUNCTION_CALL)
+            assertFalse(HglColors.INTRINSIC in colours)
+        }
+        checkCall()
+        val core = java.io.File("src/test/testData/parser/core/hgl_native_key_sets.hgl")
+        myFixture.addFileToProject("key_sets.hgl", core.readText())
+        checkCall()
+        val operator = resolveAtCaret().filterIsInstance<HglOperatorDecl>().single()
+        assertEquals("key_sets.hgl", operator.containingFile.name)
     }
 
     fun testValidModuleHasNoErrorHighlights() {

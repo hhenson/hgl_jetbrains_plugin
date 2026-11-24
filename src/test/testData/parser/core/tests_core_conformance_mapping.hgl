@@ -138,3 +138,75 @@ test fixed_reduction_follows_the_callbacks_validity {
         delta<list<i64, 2>>(updated: [1: 3]),
     ]) == [2, _, _, 3]
 }
+
+const fn append_growing_digit(accumulated: str, digit: i64) -> str =>
+    accumulated + "|" + convert<str>(digit)
+
+fn ordered_growing_digits(digits: list<i64>, seed: str) -> str =>
+    reduce(append_growing_digit, digits, seed)
+
+/**
+A growing ordered reduction folds the valid positions from the seed.
+
+An invalid middle position is skipped even after it previously contributed.
+Changing the seed when the list is empty publishes the new seed.
+
+Rules:
+    RED-1, RED-2, RED-5
+
+Status:
+    agreed
+*/
+test growing_ordered_fold_skips_invalid_positions {
+    assert eval ordered_growing_digits(
+        digits: [
+            [],
+            delta<list<i64>>(updated: [0: 2, 2: 7], size_modified: 3),
+            delta<list<i64>>(updated: [1: 4]),
+            delta<list<i64>>(removed: [1]),
+            [],
+            _,
+        ],
+        seed: ["seed", _, _, _, _, "next"],
+    ) == ["seed", "seed|2|7", "seed|2|4|7", "seed|2|7", "seed", "next"]
+}
+
+fn sum_fold_step<T>(accumulated: T, member: T) -> T
+    requires add_(T, T) -> T => accumulated + member
+
+fn ordered_growing_sum(items: list<i64>) -> i64 =>
+    reduce(sum_fold_step<i64>, zero: 5, items: items)
+
+/**
+The growing ordered fold wires the selected temporal callback instance.
+
+Named arguments may put the seed before the collection.
+
+Rules:
+    RED-1, RED-5, FN-17, FN-8
+
+Status:
+    agreed
+*/
+test growing_ordered_fold_wires_the_selected_temporal_instance {
+    assert eval ordered_growing_sum(items: [[], [8, 2], [3]]) == [5, 15, 8]
+}
+
+fn ordered_growing_last(items: list<i64>, seed: i64) -> i64 =>
+    reduce(take_last, items, seed)
+
+/**
+An ordered growing fold waits for its seed to publish.
+
+The first member is already valid when the seed arrives. The callback
+ignores the accumulator and publishes the member on that cycle.
+
+Rules:
+    RED-5
+
+Status:
+    agreed
+*/
+test growing_ordered_fold_waits_for_its_seed {
+    assert eval ordered_growing_last(items: [[7], _, [9]], seed: [_, 0, _]) == [_, 7, 9]
+}

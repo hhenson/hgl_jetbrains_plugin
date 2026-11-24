@@ -1,0 +1,55 @@
+module core part key_sets
+
+/**
+Return the set of keys held by a dictionary.
+
+A key belongs to the result independently of the value held by that key's
+entry.
+
+Type Args:
+    K: The dictionary's key type. It is inferred.
+    V: The dictionary's entry type. It is inferred.
+
+Args:
+    dictionary: The dictionary whose keys are taken, as a value or a connection.
+
+Returns:
+    The dictionary's keys as a set of K.
+
+Ticks:
+    A connection publishes when keys enter or leave. An update to an
+    entry's value alone is silent.
+
+Validity:
+    A dictionary published empty gives a valid empty key set. Key
+    membership needs no read of the entries' values.
+
+Examples:
+    ~~~hgl
+    let book: dict<str, i64> = ["bid": 100, "ask": 101]
+    let wanted: set<str> = ["ask", "bid"]
+    assert keys(book) == wanted
+    ~~~
+
+    Changing the bid changes no key. Removing it removes that key.
+
+    ~~~hgl
+    fn watched_keys(book: dict<str, i64>) -> set<str> => keys(book)
+    assert eval watched_keys(book: [
+        ["bid": 100],
+        delta<dict<str, i64>>(updated: ["bid": 99]),
+        delta<dict<str, i64>>(removed: ["bid"])
+    ]) == [
+        delta<set<str>>(added: ["bid"]),
+        _,
+        delta<set<str>>(removed: ["bid"])
+    ]
+    ~~~
+
+Rules:
+    SET-1, GEN-5, TIME-7
+*/
+export operator keys<K, V>(dictionary: dict<K, V>) -> set<K>
+
+native impl const fn keys<K, V>(dictionary: dict<K, V>) -> set<K>
+native impl fn keys<K, V>(dictionary: dict<K, V>) -> set<K>
