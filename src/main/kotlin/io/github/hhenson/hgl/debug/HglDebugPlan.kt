@@ -56,12 +56,19 @@ internal data class HglDebugPlan(
             }
         }
 
-        private fun arguments(launch: JsonObject): Map<String, Any> = mapOf(
-            "program" to launch["executable"].asString,
-            "args" to launch["arguments"].asJsonArray.map { it.asString },
-            "cwd" to launch["workingDirectory"].asString,
-            "env" to launch["environment"].asJsonObject.entrySet().associate { it.key to it.value.asString },
-        )
+        private fun arguments(launch: JsonObject): Map<String, Any> = buildMap {
+            put("program", launch["executable"].asString)
+            put("args", launch["arguments"].asJsonArray.map { it.asString })
+            put("cwd", launch["workingDirectory"].asString)
+            put("env", launch["environment"].asJsonObject.entrySet().associate { it.key to it.value.asString })
+            launch["sourceMap"]?.let { mappings ->
+                // lldb-dap expects ordered [build root, installed root] pairs.
+                put("sourceMap", mappings.asJsonObject.entrySet().map { (from, to) ->
+                    require(to.isJsonPrimitive && to.asJsonPrimitive.isString) { "Expected a source map path." }
+                    listOf(from, to.asString)
+                })
+            }
+        }
     }
 }
 

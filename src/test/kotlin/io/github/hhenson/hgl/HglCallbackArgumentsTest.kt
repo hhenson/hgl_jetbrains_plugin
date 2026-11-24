@@ -44,6 +44,15 @@ class HglCallbackArgumentsTest : HglEditorFixture() {
         assertDoesntContain(afterNamed, "end")
     }
 
+    fun testNamedLabelsAfterAPositionalPackRemainAvailable() {
+        val header = "fn relay(f: fn(first: i64, ...i64, scale: i64, offset: i64) -> i64) -> i64 => "
+        assertContainsElements(complete(header + "f(<caret>)"), "first", "scale", "offset")
+        val labels = complete(header + "f(1, 2, 3, 4, <caret>, offset: 5)")
+        assertContainsElements(labels, "scale")
+        assertDoesntContain(labels, "first", "offset")
+        assertEquals("scale", navigationTarget(header + "f(1, 2, 3, 4, sc<caret>ale: 5)")?.name)
+    }
+
     fun testSeparatorAndFollowingArgumentsConstrainCompletion() {
         val header = "fn relay(f: fn(count: i64, step: i64) -> i64) -> i64 => "
         val labels = complete(header + "f(<caret>: 1)")

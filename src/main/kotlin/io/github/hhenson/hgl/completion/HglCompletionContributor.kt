@@ -82,7 +82,16 @@ class HglCompletionContributor : CompletionContributor() {
                     else -> return named != null // EXPR-2: positional arguments must precede labels.
                 }
             }
-            for (parameter in signature.functionTypeParameterList.drop(positional)) {
+            for (parameter in signature.functionTypeParameterList) {
+                val pack = parameter.pack
+                if (pack != null) {
+                    if (pack.lbrace == null) positional = 0 // The positional pack takes all remaining positional arguments.
+                    continue
+                }
+                if (positional > 0) {
+                    positional--
+                    continue
+                }
                 val name = parameter.name ?: continue
                 if (name in usedNames) continue
                 result.addElement(
