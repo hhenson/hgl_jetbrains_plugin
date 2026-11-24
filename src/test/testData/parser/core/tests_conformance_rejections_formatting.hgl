@@ -1,0 +1,260 @@
+module conformance.rejections part formatting
+
+/**
+A brace that opens no place and closes none rejects at that brace.
+
+Rules:
+    FMT-3
+
+Status:
+    proposed
+*/
+const fn format_unmatched_brace() -> str {
+    # expect-error(type, "format.syntax")
+    return format("at {", 1.0)
+}
+
+/**
+A positional place with no argument left rejects at that place.
+
+Rules:
+    FMT-3
+
+Status:
+    proposed
+*/
+const fn format_missing_argument() -> str {
+    # expect-error(type, "format.argument")
+    return format("{} at {}", 1)
+}
+
+/**
+An argument that no place takes rejects at that argument.
+
+Rules:
+    FMT-3
+
+Status:
+    proposed
+*/
+const fn format_unused_argument() -> str {
+    # expect-error(type, "format.unused")
+    return format("fill", 1)
+}
+
+/**
+A floating-point specifier on an integer rejects at the specifier.
+
+Rules:
+    FMT-3, FMT-4
+
+Status:
+    proposed
+*/
+const fn format_wrong_specifier() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:.2f}", 1)
+}
+
+/**
+A time directive on a date rejects at the specifier.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_date_with_time() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:%H}", @2026-11-22)
+}
+
+/**
+A date directive on a time rejects at the specifier.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_time_with_date() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:%Y}", @09:30:00)
+}
+
+/**
+The evaluation-time place rejects in value code.
+
+Rules:
+    FMT-9
+
+Status:
+    proposed
+*/
+const fn format_engine_time_in_value_code() -> str {
+    # expect-error(type, "format.argument")
+    return format("{engine_time}")
+}
+
+/**
+A marked place with a plain value rejects at the mark.
+
+Rules:
+    FMT-9
+
+Status:
+    proposed
+*/
+const fn format_marks_unmarked_value() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{*}", 1)
+}
+
+/**
+A whole-duration directive is not admitted for a time of day.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_time_with_duration_total() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:%[H]}", @09:30:00)
+}
+
+/**
+A whole-duration directive is not admitted for a datetime.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_datetime_with_duration_total() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:%[S]}", @2026-11-22T09:30:00Z)
+}
+
+/**
+The locale flag is not admitted.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_with_locale_flag() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:Ld}", 42)
+}
+
+/**
+A numeric sign flag is not admitted before chrono directives.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_chrono_with_sign() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:+12}", @09:30:00)
+}
+
+/**
+The alternate-form flag is not admitted before chrono directives.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_chrono_with_alternate_form() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:#12%H}", @09:30:00)
+}
+
+/**
+The zero flag is not admitted before the width of a chrono specifier.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_chrono_with_zero_flag() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:012}", @09:30:00)
+}
+
+/**
+A primitive type letter is not admitted in a chrono specifier.
+
+Rules:
+    FMT-4
+
+Status:
+    proposed
+*/
+const fn format_chrono_with_type_letter() -> str {
+    # expect-error(type, "format.specifier")
+    return format("{:12f}", @09:30:00)
+}
+
+/**
+A pattern that is only known when the program runs rejects.
+
+Rules:
+    FMT-1, FMT-3
+
+Status:
+    agreed
+*/
+const fn format_needs_constant_text(pattern: str) -> str {
+    # expect-error(type, "argument.constant")
+    return format(pattern)
+}
+
+struct UnwritableFormatValue {
+    id: i64
+}
+
+/**
+A type without a text conversion cannot fill a place.
+
+Rules:
+    FMT-5, GEN-5
+
+Status:
+    agreed
+*/
+const fn format_needs_conversion(value: UnwritableFormatValue) -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return format("{}", value)
+}
+
+const fn format_with_generic_pattern<const Pattern: str>(value: i64) -> str =>
+    format(Pattern, value)
+
+/**
+A generic string argument is checked where the call gives it a value.
+
+Rules:
+    FMT-1, FMT-3, FMT-4, GEN-7
+
+Status:
+    proposed
+*/
+const fn format_specializes_pattern() -> str {
+    # expect-error(type, "format.specifier")
+    return format_with_generic_pattern<"{:.2f}">(42)
+}

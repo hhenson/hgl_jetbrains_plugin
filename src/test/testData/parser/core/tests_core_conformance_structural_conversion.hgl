@@ -1,0 +1,109 @@
+module core_conformance part structural_conversion
+
+struct CollectionOrderId {
+    number: i64
+}
+
+impl const fn convert(value: CollectionOrderId) -> str => "order " + convert<str>(value.number)
+
+/**
+Bounded and unbounded lists write their parts in index order, using each
+part's own conversion and quoting and escaping strings.
+
+Rules:
+    OPS-4, FMT-5, GEN-5
+
+Status:
+    agreed
+*/
+test list_text_uses_each_parts_conversion {
+    let unbounded: list<CollectionOrderId> = [CollectionOrderId(number: 42)]
+    let bounded: list<str?, 2> = [null, "a\n\"b\\c"]
+    assert convert<str>(unbounded) == "[order 42]"
+    assert convert<str>(bounded) == "[null, \"a\\n\\\"b\\\\c\"]"
+    assert format("{}", bounded) == convert<str>(bounded)
+}
+
+/**
+Sets and dictionaries write entries in the order a loop over them visits.
+
+Rules:
+    OPS-4, FMT-5, CTRL-12
+
+Status:
+    agreed
+*/
+test collection_text_uses_iteration_order {
+    let members: set<i64> = [2, 1]
+    var set_parts = ""
+    var separator = ""
+    for member in members {
+        set_parts = set_parts + separator + convert<str>(member)
+        separator = ", "
+    }
+    assert convert<str>(members) == "[" + set_parts + "]"
+
+    let entries: dict<i64, str> = [2: "b", 1: "a"]
+    var dict_parts = ""
+    separator = ""
+    for key, value in entries {
+        dict_parts = dict_parts + separator + convert<str>(key) + ": \"" + value + "\""
+        separator = ", "
+    }
+    assert convert<str>(entries) == "[" + dict_parts + "]"
+}
+
+/**
+A dictionary's value can select the list conversion, whose dates and absent
+parts use their default text.
+
+Rules:
+    OPS-4, FMT-5, GEN-5
+
+Status:
+    agreed
+*/
+test collection_conversions_compose {
+    let dates: list<date?> = [@2026-11-22, null]
+    let entries: dict<str, list<date?>> = ["dates": dates]
+    assert convert<str>(entries) == "[\"dates\": [2026-11-22, null]]"
+}
+
+/**
+A present nullable member uses the payload's selected conversion and an
+absent member is written as null.
+
+Rules:
+    OPS-4, FMT-5, GEN-5
+
+Status:
+    agreed
+*/
+test collection_conversions_of_nullable_members {
+    let members: list<CollectionOrderId?> = [CollectionOrderId(number: 7), null]
+    let entries: dict<str, CollectionOrderId?> = ["next": CollectionOrderId(number: 9)]
+    assert convert<str>(members) == "[order 7, null]"
+    assert convert<str>(entries) == "[\"next\": order 9]"
+}
+
+struct CustomTextMember {
+    number: i64
+}
+
+impl const fn convert(value: CustomTextMember) -> str => convert<str>(value.number)
+impl const fn convert(value: list<CustomTextMember>) -> str => "custom members"
+
+/**
+Formatting selects a program's more-specific collection conversion.
+
+Rules:
+    OPS-4, FMT-5, GEN-5
+
+Status:
+    agreed
+*/
+test collection_conversion_preserves_selection {
+    let members: list<CustomTextMember> = [CustomTextMember(number: 7)]
+    assert convert<str>(members) == "custom members"
+    assert format("{}", members) == convert<str>(members)
+}

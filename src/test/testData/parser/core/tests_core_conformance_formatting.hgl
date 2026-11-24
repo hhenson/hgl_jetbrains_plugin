@@ -1,0 +1,358 @@
+module core_conformance part formatting
+
+const fn filled(qty: i64, price: f64) -> str =>
+    format("fill {} at {:.2f}", qty, price)
+
+const fn padded(level: i64) -> str =>
+    format("level {level:>3} of {{book}}", level: level)
+
+struct OrderId {
+    number: i64
+}
+
+impl const fn convert(value: OrderId) -> str => "order " + convert<str>(value.number)
+
+/**
+Positional and named arguments fill their places while doubled braces
+give literal braces.
+
+Rules:
+    FMT-1, FMT-2, FMT-3
+
+Status:
+    agreed
+*/
+test format_places {
+    assert filled(10, 101.5) == "fill 10 at 101.50"
+    assert padded(7) == "level   7 of {book}"
+    assert format("fill {} at {price:.2f}", 10, price: 101.5) == "fill 10 at 101.50"
+    assert format("{{no places}}") == "{no places}"
+    assert format("value " + "{}", 3) == "value 3"
+}
+
+/**
+The scalar types stay typed when their specifiers are applied.
+
+Rules:
+    FMT-4, FMT-5, OPS-6
+
+Status:
+    agreed
+*/
+test format_scalars {
+    assert format("{:+d} {:04x}", 42, 42) == "+42 002a"
+    assert format("{:.2f} {:.2e}", 1.25, 1.25) == "1.25 1.25e+00"
+    assert format("{:>5} {:.2}", "ab", "abcd") == "   ab ab"
+    assert format("{:>6} {:d}", true, false) == "  true 0"
+    assert format("{}", 1.25) == convert<str>(1.25)
+    assert format("{}", "a b") == "a b"
+}
+
+/**
+The numeric and string examples in the formatting reference keep their
+field widths, signs and precision.
+
+Rules:
+    FMT-4
+
+Status:
+    agreed
+*/
+test format_reference_scalar_specifiers {
+    assert format("{:>6}", "ab") == "    ab"
+    assert format("{:*^6}", "ab") == "**ab**"
+    assert format("{:+}", 5) == "+5"
+    assert format("{:#x}", 255) == "0xff"
+    assert format("{:05}", 42) == "00042"
+    assert format("{:6}", 42) == "    42"
+    assert format("{:.2f}", 101.5) == "101.50"
+    assert format("{:.3}", "abcdef") == "abc"
+    assert format("{:d}", true) == "1"
+    assert format("{:x}", 255) == "ff"
+    assert format("{:o}", 8) == "10"
+    assert format("{:b}", 5) == "101"
+    assert format("{:.2f}", 3.14159) == "3.14"
+    assert format("{:.2e}", 1234.5) == "1.23e+03"
+    assert format("{:g} {:g} {:g}", 1234.5, 100000.0, 1000000.0) ==
+        "1234.5 100000 1e+06"
+    assert format("{:s}", true) == "true"
+}
+
+/**
+An explicit chrono specifier applies to each supported temporal type.
+
+Rules:
+    FMT-4
+
+Status:
+    agreed
+*/
+test format_temporal_values {
+    assert format("{:%Y-%m-%d} {:%d/%m/%Y}", @2026-11-21, @2026-11-21) ==
+        "2026-11-21 21/11/2026"
+    assert format("{:%H:%M} {:%M:%H}", @09:30:00, @09:30:00) == "09:30 30:09"
+    assert format("{:%Y-%m-%d %H:%M} {:%d/%m/%Y %H:%M}",
+        @2026-11-21T09:30:00Z, @2026-11-21T09:30:00Z) ==
+        "2026-11-21 09:30 21/11/2026 09:30"
+}
+
+/**
+Time-of-day directives write the hour, minute, second and meridiem.
+
+Rules:
+    FMT-4
+
+Status:
+    agreed
+*/
+test format_time_directives {
+    assert format("{:%H:%M:%S} {:%I:%M %p}", @09:30:00, @21:05:06) ==
+        "09:30:00 09:05 PM"
+    assert format("{:%R} {:%T}", @21:05:06, @21:05:06) == "21:05 21:05:06"
+}
+
+/**
+The reference's date, time, datetime and duration directives write
+the corresponding calendar, clock or elapsed-time fields.
+
+Rules:
+    FMT-4
+
+Status:
+    agreed
+*/
+test format_reference_chrono_specifiers {
+    let day = @2026-11-22
+    let clock = @09:30:00.250000
+    let instant = @2026-11-22T09:30:00.250000Z
+    assert format("{:%Y %y %m %b %B %d %e %a %A %j %F %D %%}", day) ==
+        "2026 26 11 Nov November 22 22 Sun Sunday 326 2026-11-22 11/22/26 %"
+    assert format("{:%Y-%m-%d %H:%M}", instant) == "2026-11-22 09:30"
+    assert format("{:%H %I %p %M %S %S.3 %S.6 %S.9 %R %T %T.3 %%}", clock) ==
+        "09 09 AM 30 00 00.250 00.250000 00.250000000 09:30 09:30:00 09:30:00.250 %"
+    assert format("{:%H:%M:%S.3}", 9h30m250ms) == "09:30:00.250"
+    assert format("{:%H:%M} {:%M:%H}", 90m, 90m) == "01:30 30:01"
+    assert format("{:%j %T}", 1d1h) == "1 01:00:00"
+}
+
+/**
+Bracketed duration directives write the whole duration in their unit.
+The ordinary hours directive still gives the hours left after whole days.
+
+Rules:
+    FMT-4
+
+Status:
+    agreed
+*/
+test format_reference_whole_duration {
+    assert format("{:%[H] %[M] %[S]}", 1d1h30m) == "25 1530 91800"
+    assert format("{:%H:%M:%S} {:%[H]:%M:%S}", 1d1h, 1d1h) ==
+        "01:00:00 25:00:00"
+    assert format("{:%[S].3}", 1s250987us) == "01.250"
+    assert format("{:%[S].9}", 1s250987us) == "01.250987000"
+}
+
+/**
+Seconds omit the fraction unless the directive gives a precision.
+A millisecond display drops finer digits.
+
+Rules:
+    FMT-4
+
+Status:
+    agreed
+*/
+test format_second_fractions {
+    let time_of_day = @21:07:08.250987
+    assert format("{:%H:%M:%S.0}", time_of_day) == "21:07:08"
+    assert format("{:%H:%M:%S.3}", time_of_day) == "21:07:08.250"
+    assert format("{:%T.6}", time_of_day) == "21:07:08.250987"
+    assert format("{:%T.9}", time_of_day) == "21:07:08.250987000"
+    assert format("{:%S} {:%T}", time_of_day, time_of_day) == "08 21:07:08"
+    assert format("{:%S.3/%S.6}", time_of_day) == "08.250/08.250987"
+    assert format("{:%S.3}", @2026-11-22T21:07:08.250987Z) == "08.250"
+    assert format("{:%S.3}", 1s250ms987us) == "01.250"
+}
+
+/**
+Dates, times and UTC instants use ISO text. A nonzero fraction has six digits.
+
+Rules:
+    FMT-5
+
+Status:
+    agreed
+*/
+test format_default_temporal_values {
+    assert format("{}", @2026-11-22) == "2026-11-22"
+    assert format("{}", @09:30:00) == "09:30:00"
+    assert format("{}", @09:30:00.250000) == "09:30:00.250000"
+    assert format("{}", @2026-11-22T09:30:00Z) == "2026-11-22T09:30:00Z"
+    assert format("{}", @2026-11-22T09:30:00.250000Z) == "2026-11-22T09:30:00.250000Z"
+}
+
+/**
+Duration text uses whole numbers in the largest units.
+
+Rules:
+    FMT-5
+
+Status:
+    agreed
+*/
+test format_default_durations {
+    assert format("{}", 90m) == "1h30m"
+    assert format("{}", 1500ms) == "1s500ms"
+    assert format("{}", 250us) == "250us"
+    assert format("{}", 0s) == "0s"
+}
+
+/**
+A negative duration begins with a minus.
+
+Rules:
+    FMT-5
+
+Status:
+    agreed
+*/
+test format_default_negative_duration {
+    assert format("{}", -90m) == "-1h30m"
+}
+
+/**
+List, set and dictionary text uses HGL collection spellings.
+
+Rules:
+    FMT-5, OPS-4, CTRL-12
+
+Status:
+    agreed
+*/
+test format_default_collection_values {
+    let numbers: list<i64> = [1, 2]
+    let members: set<i64> = [1, 2]
+    let dictionary: dict<str, i64> = ["a": 1]
+    assert format("{}", numbers) == "[1, 2]"
+    let set_text = format("{}", members)
+    assert set_text == "[1, 2]" || set_text == "[2, 1]"
+    assert format("{}", dictionary) == "[\"a\": 1]"
+}
+
+/**
+Collection text escapes strings as HGL literals and writes an absent part as null.
+
+Rules:
+    FMT-5, OPS-4
+
+Status:
+    agreed
+*/
+test format_default_escaped_and_null_parts {
+    let strings: list<str> = ["a\n\"b\\c"]
+    let absent: list<i64?> = [null]
+    assert format("{}", strings) == "[\"a\\n\\\"b\\\\c\"]"
+    assert format("{}", absent) == "[null]"
+}
+
+/**
+Default formatting uses the shortest scalar text, HGL collection syntax
+and the selected conversion for types outside FMT-4.
+
+Rules:
+    FMT-5, OPS-4, OPS-6
+
+Status:
+    agreed
+*/
+test format_reference_default_values {
+    let strings: list<str> = ["a", "b"]
+    let maybe_numbers: list<i64?> = [1, null]
+    assert format("{} {} {} {} {} {} {}", "fill", 42, -3, 101.5, 3.0, 1e21, true) ==
+        "fill 42 -3 101.5 3.0 1e21 true"
+    assert format("{}", -250ms) == "-250ms"
+    assert format("{}", strings) == "[\"a\", \"b\"]"
+    assert format("{}", maybe_numbers) == "[1, null]"
+    assert format("{}", 13D) == "1W6D"
+}
+
+/**
+A value of a program-defined type uses its conversion to text.
+
+Rules:
+    FMT-5, OPS-4
+
+Status:
+    agreed
+*/
+test format_converts_a_user_type {
+    assert format("id: {}", OrderId(number: 7)) == "id: order 7"
+}
+
+/**
+A Marked value uses its payload's specifier, or the missing value text.
+
+Rules:
+    FMT-7
+
+Status:
+    agreed
+*/
+test format_marked_payloads {
+    let present = Marked<f64>(value: 101.5, ticked: true)
+    let absent = Marked<f64>(value: null, ticked: false)
+    assert format("mid {:.1f}", present) == "mid 101.5"
+    assert format("mid {:.1f}", absent) == "mid <not valid>"
+    assert format{not_valid: "missing"}("mid {:.1f}", absent) == "mid missing"
+}
+
+/**
+A mark on a Marked value uses the configured text where it ticked.
+
+Rules:
+    FMT-7, FMT-9
+
+Status:
+    agreed
+*/
+test format_marks_ticked_payloads {
+    let ticked = Marked<f64>(value: 101.5, ticked: true)
+    let unchanged = Marked<f64>(value: 101.5, ticked: false)
+    assert format("mid {*:.1f}", ticked) == "mid *101.5"
+    assert format("mid {*:.1f}", unchanged) == "mid 101.5"
+    assert format{ticked: "!"}("mid {*mid:.1f}", mid: ticked) == "mid !101.5"
+}
+
+/**
+The wall clock placeholder accepts a datetime specifier in value code.
+A literal percent leaves the assertion independent of the current time.
+
+Rules:
+    FMT-4, FMT-9
+
+Status:
+    agreed
+*/
+test format_wall_time_in_value_code {
+    assert format("{wall_time:%%}") == "%"
+}
+
+/**
+Fill, alignment and width pad the default temporal text or the text
+the directives write.
+
+Rules:
+    FMT-4, FMT-5
+
+Status:
+    agreed
+*/
+test format_pads_chrono_text {
+    assert format("{:>12}", @09:30:00) == "    09:30:00"
+    assert format("{:>12%H:%M}", @09:30:00) == "       09:30"
+    assert format("{:0>12%H:%M}", @09:30:00) == "000000009:30"
+    assert format("{:*^14}", @2026-11-22) == "**2026-11-22**"
+    assert format("{:<23}", @2026-11-22T09:30:00Z) == "2026-11-22T09:30:00Z   "
+    assert format("{:8}", -1h30m) == "-1h30m  "
+}

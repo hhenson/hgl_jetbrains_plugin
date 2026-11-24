@@ -6,7 +6,7 @@ const fn filled(qty: i64, price: f64) -> str =>
 const fn padded(level: i64) -> str =>
     format("level {level:>3} of {{book}}", level: level)
 
-const fn shown(price: f64?, ticked: bool) -> str =>
+const fn shown(ticked: bool, price: f64?) -> str =>
     format("mid {*:.1f}", Marked<f64>(value: price, ticked: ticked))
 
 fn quoted(bid: f64, ask: f64) -> str =>
@@ -15,7 +15,7 @@ fn quoted(bid: f64, ask: f64) -> str =>
 test texts {
     assert filled(10, 101.5) == "fill 10 at 101.50"
     assert padded(7) == "level   7 of {book}"
-    assert shown(101.5, true) == "mid *101.5"
-    assert shown(101.5, false) == "mid 101.5"
-    assert shown(null, false) == "mid <not valid>"
+    assert shown(true, 101.5) == "mid *101.5"
+    assert shown(false, 101.5) == "mid 101.5"
+    assert shown(false, null) == "mid <not valid>"
 }

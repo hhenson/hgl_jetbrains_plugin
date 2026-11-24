@@ -50,11 +50,33 @@
           "documentation": null
         },
         {
+          "name": "formatting",
+          "source": {
+            "module": "core",
+            "part": "formatting",
+            "file": "<core>/native/formatting.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
           "name": "lists",
           "source": {
             "module": "core",
             "part": "lists",
             "file": "<core>/native/lists.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "output",
+          "source": {
+            "module": "core",
+            "part": "output",
+            "file": "<core>/native/output.hgl",
             "line": 1,
             "column": 8
           },
@@ -138,6 +160,501 @@
           "type": "duration",
           "default": null,
           "value": "1us",
+          "abstractStruct": false,
+          "members": [],
+          "candidates": []
+        },
+        {
+          "kind": "operator",
+          "name": "format",
+          "canonicalName": "core::format",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "core",
+            "part": "formatting",
+            "file": "<core>/native/formatting.hgl",
+            "line": 55,
+            "column": 17
+          },
+          "documentation": {
+            "text": "Fill the places in a constant format string.\n\n`{}` consumes the next positional argument and `{name}` uses the given\nname. Double a brace to write it literally. A place may add a specifier\nafter a colon, as in `{price:.2f}`.\n\n| Value | Place |\n| --- | --- |\n| Integer, float, string or boolean | The type's numeric or text specifiers |\n| Date, time, datetime or duration | The type's date or time directives and optional padding |\n| Any other type | A place with no specifier, using its `convert<str>` |\n\nType Args:\n    As: The types of the positional values, in supplied order.\n    Ks: The types of the named values, keyed by their supplied names.\n\nArgs:\n    fmt_str: The constant pattern containing literal text and places.\n    args: The arguments that fill positional places.\n    kwargs: The arguments that fill named places.\n\nOptions:\n    - `not_valid: str`: text for an absent `Marked` payload. The default is\n      `\"<not valid>\"`. Set it with `format{not_valid: \"missing\"}(...)`.\n    - `ticked: str`: prefix for a marked place whose `Marked` argument ticked.\n      The default is `\"*\"`. Set it with `format{ticked: \"!\"}(...)`.\n\nReturns:\n    The literal text with each place filled by its formatted value.\n\nRaises:\n    - `argument.constant`: the format string is not constant at compilation.\n    - `format.syntax`: an unmatched brace.\n    - `format.argument`: a place has no matching argument.\n    - `format.unused`: an argument fills no place.\n    - `format.specifier`: a place's type does not admit its specifier.\n    - `operator.no_candidate`: a value has no required `convert<str>`.\n\nExamples:\n    ~~~hgl\n    assert format(\"fill {} at {price:.2f}\", 10, price: 101.5) == \"fill 10 at 101.50\"\n    assert format(\"{{ready}}\") == \"{ready}\"\n    ~~~\n\nNotes:\n    See the [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference)\n    for the admitted specifiers and each type's default text.\n\nRules:\n    FMT-1, FMT-2, FMT-3, FMT-4, FMT-5, FMT-7, FMT-9",
+            "summary": "Fill the places in a constant format string.",
+            "sections": [
+              {
+                "heading": null,
+                "recognized": false,
+                "text": "`{}` consumes the next positional argument and `{name}` uses the given\nname. Double a brace to write it literally. A place may add a specifier\nafter a colon, as in `{price:.2f}`.\n\n| Value | Place |\n| --- | --- |\n| Integer, float, string or boolean | The type's numeric or text specifiers |\n| Date, time, datetime or duration | The type's date or time directives and optional padding |\n| Any other type | A place with no specifier, using its `convert<str>` |",
+                "entries": []
+              },
+              {
+                "heading": "Type Args:",
+                "recognized": true,
+                "text": "As: The types of the positional values, in supplied order.\nKs: The types of the named values, keyed by their supplied names.",
+                "entries": [
+                  {
+                    "key": "As",
+                    "text": "The types of the positional values, in supplied order."
+                  },
+                  {
+                    "key": "Ks",
+                    "text": "The types of the named values, keyed by their supplied names."
+                  }
+                ]
+              },
+              {
+                "heading": "Args:",
+                "recognized": true,
+                "text": "fmt_str: The constant pattern containing literal text and places.\nargs: The arguments that fill positional places.\nkwargs: The arguments that fill named places.",
+                "entries": [
+                  {
+                    "key": "fmt_str",
+                    "text": "The constant pattern containing literal text and places."
+                  },
+                  {
+                    "key": "args",
+                    "text": "The arguments that fill positional places."
+                  },
+                  {
+                    "key": "kwargs",
+                    "text": "The arguments that fill named places."
+                  }
+                ]
+              },
+              {
+                "heading": "Options:",
+                "recognized": true,
+                "text": "- `not_valid: str`: text for an absent `Marked` payload. The default is\n  `\"<not valid>\"`. Set it with `format{not_valid: \"missing\"}(...)`.\n- `ticked: str`: prefix for a marked place whose `Marked` argument ticked.\n  The default is `\"*\"`. Set it with `format{ticked: \"!\"}(...)`.",
+                "entries": []
+              },
+              {
+                "heading": "Returns:",
+                "recognized": true,
+                "text": "The literal text with each place filled by its formatted value.",
+                "entries": []
+              },
+              {
+                "heading": "Raises:",
+                "recognized": true,
+                "text": "- `argument.constant`: the format string is not constant at compilation.\n- `format.syntax`: an unmatched brace.\n- `format.argument`: a place has no matching argument.\n- `format.unused`: an argument fills no place.\n- `format.specifier`: a place's type does not admit its specifier.\n- `operator.no_candidate`: a value has no required `convert<str>`.",
+                "entries": []
+              },
+              {
+                "heading": "Examples:",
+                "recognized": true,
+                "text": "~~~hgl\nassert format(\"fill {} at {price:.2f}\", 10, price: 101.5) == \"fill 10 at 101.50\"\nassert format(\"{{ready}}\") == \"{ready}\"\n~~~",
+                "entries": []
+              },
+              {
+                "heading": "Notes:",
+                "recognized": true,
+                "text": "See the [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference)\nfor the admitted specifiers and each type's default text.",
+                "entries": []
+              },
+              {
+                "heading": "Rules:",
+                "recognized": true,
+                "text": "FMT-1, FMT-2, FMT-3, FMT-4, FMT-5, FMT-7, FMT-9",
+                "entries": []
+              }
+            ],
+            "examples": [
+              {
+                "code": "assert format(\"fill {} at {price:.2f}\", 10, price: 101.5) == \"fill 10 at 101.50\"\nassert format(\"{{ready}}\") == \"{ready}\"\n",
+                "position": 1,
+                "runnable": true
+              }
+            ]
+          },
+          "genericParameters": [
+            {
+              "name": "As",
+              "kind": "pack",
+              "type": null,
+              "bounds": {
+                "minimum": 0,
+                "maximum": null
+              },
+              "written": "...As",
+              "default": null
+            },
+            {
+              "name": "Ks",
+              "kind": "pack",
+              "type": null,
+              "bounds": {
+                "minimum": 0,
+                "maximum": null
+              },
+              "written": "...Ks",
+              "default": null
+            }
+          ],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "fmt_str",
+              "type": "str",
+              "written": "const fmt_str: str",
+              "constant": true,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            },
+            {
+              "name": "args",
+              "type": "As",
+              "written": "args: ...As",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": "positional",
+              "bounds": {
+                "minimum": 0,
+                "maximum": null
+              },
+              "default": null
+            },
+            {
+              "name": "kwargs",
+              "type": "Ks",
+              "written": "kwargs: ...{Ks}",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": "named",
+              "bounds": {
+                "minimum": 0,
+                "maximum": null
+              },
+              "default": null
+            }
+          ],
+          "result": {
+            "type": "str",
+            "written": "-> str",
+            "reference": false
+          },
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [],
+          "candidates": [
+            {
+              "kind": "nativeCandidate",
+              "name": "format",
+              "canonicalName": "core::format",
+              "role": "value",
+              "exported": false,
+              "source": {
+                "module": "core",
+                "part": "formatting",
+                "file": "<core>/native/formatting.hgl",
+                "line": 95,
+                "column": 22
+              },
+              "documentation": {
+                "text": "Format values where the call is evaluated in value code.\n\nA `Marked` argument uses the specifiers of its payload type. If the\npayload is absent, the place uses `not_valid` without applying the\nspecifier. In a place with `*`, a ticked argument also adds the\n`ticked` prefix. A mark on any other argument rejects with\n`format.specifier`. `{wall_time}` uses the process clock as a\n`datetime`; `{engine_time}` rejects with `format.argument` in value code.\n\nType Args:\n    As: The types of the positional values, in supplied order.\n    Ks: The types of the named values, keyed by their supplied names.\n\nArgs:\n    fmt_str: The constant format string.\n    args: The arguments that fill positional places.\n    kwargs: The arguments that fill named places.\n\nReturns:\n    The formatted text, including requested prefixes.\n\nExamples:\n    ~~~hgl\n    let price = Marked<f64>(value: 101.5, ticked: true)\n    assert format(\"mid {*:.1f}\", price) == \"mid *101.5\"\n    let absent = Marked<f64>(value: null, ticked: false)\n    assert format{not_valid: \"missing\"}(\"mid {:.1f}\", absent) == \"mid missing\"\n    ~~~\n\nNotes:\n    See the [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference)\n    for the mark and clock place spellings.\n\nRules:\n    FMT-4, FMT-7, FMT-9",
+                "summary": "Format values where the call is evaluated in value code.",
+                "sections": [
+                  {
+                    "heading": null,
+                    "recognized": false,
+                    "text": "A `Marked` argument uses the specifiers of its payload type. If the\npayload is absent, the place uses `not_valid` without applying the\nspecifier. In a place with `*`, a ticked argument also adds the\n`ticked` prefix. A mark on any other argument rejects with\n`format.specifier`. `{wall_time}` uses the process clock as a\n`datetime`; `{engine_time}` rejects with `format.argument` in value code.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Type Args:",
+                    "recognized": true,
+                    "text": "As: The types of the positional values, in supplied order.\nKs: The types of the named values, keyed by their supplied names.",
+                    "entries": [
+                      {
+                        "key": "As",
+                        "text": "The types of the positional values, in supplied order."
+                      },
+                      {
+                        "key": "Ks",
+                        "text": "The types of the named values, keyed by their supplied names."
+                      }
+                    ]
+                  },
+                  {
+                    "heading": "Args:",
+                    "recognized": true,
+                    "text": "fmt_str: The constant format string.\nargs: The arguments that fill positional places.\nkwargs: The arguments that fill named places.",
+                    "entries": [
+                      {
+                        "key": "fmt_str",
+                        "text": "The constant format string."
+                      },
+                      {
+                        "key": "args",
+                        "text": "The arguments that fill positional places."
+                      },
+                      {
+                        "key": "kwargs",
+                        "text": "The arguments that fill named places."
+                      }
+                    ]
+                  },
+                  {
+                    "heading": "Returns:",
+                    "recognized": true,
+                    "text": "The formatted text, including requested prefixes.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "~~~hgl\nlet price = Marked<f64>(value: 101.5, ticked: true)\nassert format(\"mid {*:.1f}\", price) == \"mid *101.5\"\nlet absent = Marked<f64>(value: null, ticked: false)\nassert format{not_valid: \"missing\"}(\"mid {:.1f}\", absent) == \"mid missing\"\n~~~",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Notes:",
+                    "recognized": true,
+                    "text": "See the [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference)\nfor the mark and clock place spellings.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Rules:",
+                    "recognized": true,
+                    "text": "FMT-4, FMT-7, FMT-9",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "let price = Marked<f64>(value: 101.5, ticked: true)\nassert format(\"mid {*:.1f}\", price) == \"mid *101.5\"\nlet absent = Marked<f64>(value: null, ticked: false)\nassert format{not_valid: \"missing\"}(\"mid {:.1f}\", absent) == \"mid missing\"\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
+              "genericParameters": [
+                {
+                  "name": "As",
+                  "kind": "pack",
+                  "type": null,
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "written": "...As",
+                  "default": null
+                },
+                {
+                  "name": "Ks",
+                  "kind": "pack",
+                  "type": null,
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "written": "...Ks",
+                  "default": null
+                }
+              ],
+              "configurationParameters": [
+                {
+                  "name": "not_valid",
+                  "type": "str",
+                  "written": "const not_valid: str = \"<not valid>\"",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": "\"<not valid>\""
+                },
+                {
+                  "name": "ticked",
+                  "type": "str",
+                  "written": "const ticked: str = \"*\"",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": "\"*\""
+                }
+              ],
+              "parameters": [
+                {
+                  "name": "fmt_str",
+                  "type": "str",
+                  "written": "const fmt_str: str",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                },
+                {
+                  "name": "args",
+                  "type": "As",
+                  "written": "args: ...As",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": "positional",
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "default": null
+                },
+                {
+                  "name": "kwargs",
+                  "type": "Ks",
+                  "written": "kwargs: ...{Ks}",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": "named",
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "default": null
+                }
+              ],
+              "result": {
+                "type": "str",
+                "written": "-> str",
+                "reference": false
+              },
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ]
+        },
+        {
+          "kind": "nativeFunction",
+          "name": "write",
+          "canonicalName": "core::write",
+          "role": "value",
+          "exported": true,
+          "source": {
+            "module": "core",
+            "part": "output",
+            "file": "<core>/native/output.hgl",
+            "line": 68,
+            "column": 24
+          },
+          "documentation": {
+            "text": "Write text to a process stream exactly as given.\n\nThe call adds no line ending and gives no result. It writes where it\nis executed, in a value function or in a node handler. Its stream\ntext does not enter the run's record.\n\nArgs:\n    text: The text to write, including any desired line ending.\n    stream: The process stream. The default is `.out`.\n    flush: Flush the stream before returning. The default is `false`,\n        so the stream decides when the text is visible.\n\nExamples:\n    ~~~hgl\n    write(\"ready\\n\", flush: true)\n    write(\"warning\\n\", .err)\n    ~~~\n\nNotes:\n    Use `format` to prepare text with values. See the\n    [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference).\n\nRules:\n    OUT-1, OUT-2",
+            "summary": "Write text to a process stream exactly as given.",
+            "sections": [
+              {
+                "heading": null,
+                "recognized": false,
+                "text": "The call adds no line ending and gives no result. It writes where it\nis executed, in a value function or in a node handler. Its stream\ntext does not enter the run's record.",
+                "entries": []
+              },
+              {
+                "heading": "Args:",
+                "recognized": true,
+                "text": "text: The text to write, including any desired line ending.\nstream: The process stream. The default is `.out`.\nflush: Flush the stream before returning. The default is `false`,\n    so the stream decides when the text is visible.",
+                "entries": [
+                  {
+                    "key": "text",
+                    "text": "The text to write, including any desired line ending."
+                  },
+                  {
+                    "key": "stream",
+                    "text": "The process stream. The default is `.out`."
+                  },
+                  {
+                    "key": "flush",
+                    "text": "Flush the stream before returning. The default is `false`,\nso the stream decides when the text is visible."
+                  }
+                ]
+              },
+              {
+                "heading": "Examples:",
+                "recognized": true,
+                "text": "~~~hgl\nwrite(\"ready\\n\", flush: true)\nwrite(\"warning\\n\", .err)\n~~~",
+                "entries": []
+              },
+              {
+                "heading": "Notes:",
+                "recognized": true,
+                "text": "Use `format` to prepare text with values. See the\n[formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference).",
+                "entries": []
+              },
+              {
+                "heading": "Rules:",
+                "recognized": true,
+                "text": "OUT-1, OUT-2",
+                "entries": []
+              }
+            ],
+            "examples": [
+              {
+                "code": "write(\"ready\\n\", flush: true)\nwrite(\"warning\\n\", .err)\n",
+                "position": 1,
+                "runnable": true
+              }
+            ]
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "written": "text: str",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": null
+            },
+            {
+              "name": "stream",
+              "type": "Stream",
+              "written": "stream: Stream = .out",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": ".out"
+            },
+            {
+              "name": "flush",
+              "type": "bool",
+              "written": "flush: bool = false",
+              "constant": false,
+              "var": false,
+              "reference": false,
+              "pack": null,
+              "bounds": null,
+              "default": "false"
+            }
+          ],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
           "abstractStruct": false,
           "members": [],
           "candidates": []

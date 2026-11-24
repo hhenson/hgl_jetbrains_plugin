@@ -1,0 +1,44 @@
+module core_conformance part output
+
+fn counted(value: i64) -> i64 {
+    state seen: i64 = 0
+    when {
+        seen += 1
+        write(format("tick {}\n", seen), flush: true)
+        write("counted\n", .err)
+        return seen
+    }
+}
+
+/**
+A native writes consecutive fragments to the chosen stream without
+inserting a line end. The process writes stdout-line and stderr-line
+to the corresponding streams, each followed by one newline.
+
+Rules:
+    OUT-1, OUT-2
+
+Status:
+    agreed
+*/
+test writes_to_process_streams {
+    write("stdout")
+    write("-line\n", .out, flush: true)
+    write("stderr", .err)
+    write("-line\n", .err, flush: true)
+}
+
+/**
+A handler writes to the process streams while its observations remain
+the two published counts. Stdout receives tick 1 and tick 2, and
+stderr receives counted twice, each on its own line.
+
+Rules:
+    OUT-1, OUT-2
+
+Status:
+    agreed
+*/
+test a_handler_writes_while_publishing {
+    assert eval counted(value: [10, 40]) == [1, 2]
+}

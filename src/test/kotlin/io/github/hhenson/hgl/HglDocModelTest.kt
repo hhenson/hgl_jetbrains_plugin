@@ -39,6 +39,20 @@ class HglDocModelTest : HglEditorFixture() {
         assertNotNull(core.createPointer().dereference())
     }
 
+    fun testBundledFormatPacksAndWriteParameterHelp() {
+        myFixture.addFileToProject("documentation.json", model)
+        val format = targets("""module consumer
+            |const fn text() => for<caret>mat("{} {price:.2f}", 7, price: 2.5)
+        """.trimMargin()).single().computeDocumentationHint()!!
+        assertTrue(format, format.contains("args: ...As, kwargs: ...{Ks}"))
+        assertTrue(format, format.contains("Fill the places in a constant format string."))
+
+        val flush = targets("""module consumer
+            |const fn emit() { write("ready", flu<caret>sh: true) }
+        """.trimMargin()).single().computeDocumentationHint()!!
+        assertTrue(flush, flush.contains("flush: bool = false") && flush.contains("Flush the stream before returning."))
+    }
+
     fun testExportedStructConstructorLabelsShowFieldDocumentation() {
         myFixture.addFileToProject("documentation.json", model)
         val code = "module consumer\nuse examples.apidoc as api\nfn g() => api::Box<i64>(val<caret>ue: 7)"
