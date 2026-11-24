@@ -76,6 +76,7 @@ hgl doc src --format json --out docs
 
 ## Code documentation
 
+Documentation comments start folded. Expand `/**...*/` to edit the comment.
 Hover over a declaration or a resolved name to see its written signature and
 the summary from its `/** ... */` comment. **View → Quick Documentation**
 shows the full comment, including HGL sections such as `Args:`, `Returns:`

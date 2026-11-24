@@ -55,14 +55,15 @@ class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
         val descriptors = ArrayList<FoldingDescriptor>()
         PsiTreeUtil.processElements(root) { element ->
             val node = element.node
+            val isDocComment = node.elementType == HglTypes.DOC_COMMENT
             val foldable = when {
                 element is HglBlock || element is HglStructBody || element is HglNativeContractBody ||
                     element is HglNativeTypeBody || element is HglTestContext || element is HglImportSet || element is HglEnumDecl ||
                     element is HglSwitchStmt -> braceRange(node)
-                node.elementType == HglTypes.DOC_COMMENT || node.elementType == HglTypes.BLOCK_COMMENT -> node.textRange
+                isDocComment || node.elementType == HglTypes.BLOCK_COMMENT -> node.textRange
                 else -> null
             }
-            if (foldable != null && spansLines(document, foldable.startOffset, foldable.endOffset)) {
+            if (foldable != null && (isDocComment || spansLines(document, foldable.startOffset, foldable.endOffset))) {
                 descriptors.add(FoldingDescriptor(node, foldable))
             }
             true
@@ -76,7 +77,7 @@ class HglFoldingBuilder : FoldingBuilderEx(), DumbAware {
         else -> "{...}"
     }
 
-    override fun isCollapsedByDefault(node: ASTNode): Boolean = false
+    override fun isCollapsedByDefault(node: ASTNode): Boolean = node.elementType == HglTypes.DOC_COMMENT
 
     /** The range from the first `{` to the last `}` of a body, or null when either is missing. */
     private fun braceRange(node: ASTNode): com.intellij.openapi.util.TextRange? {
