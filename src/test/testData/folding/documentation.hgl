@@ -1,0 +1,13 @@
+module demo
+<fold text='/**...*/' expand='false'>/** The input. */</fold>
+struct Input { value: i64 }
+
+<fold text='/**...*/' expand='false'>/**
+Return the input unchanged.
+*/</fold>
+const fn echo(value: i64) -> i64 <fold text='{...}' expand='true'>{
+    <fold text='/*...*/' expand='true'>/* ordinary
+       implementation note */</fold>
+    # keep this line visible
+    return value
+}</fold>
