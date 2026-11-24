@@ -1,0 +1,52 @@
+module core_conformance part key_sets
+
+/**
+An ordinary dictionary gives its keys regardless of its entries' values.
+
+Rules:
+    SET-1
+
+Status:
+    agreed
+*/
+test keys_of_an_ordinary_dictionary {
+    let counts: dict<str, i64> = ["a": 10, "b": 20]
+    let samples: dict<str, list<i64>> = ["a": [1, 2], "b": [3]]
+    let wanted: set<str> = ["a", "b"]
+    assert keys(counts) == wanted
+    assert keys(samples) == wanted
+}
+
+fn watch_keys(book: dict<str, i64>) -> set<str> => keys(dictionary: book)
+
+/**
+A key set tracks additions and removals without publishing value-only updates.
+
+The dictionary is silent, then publishes empty. A later whole write of
+the same keys and a delta changing only a value leave the key set silent.
+
+Rules:
+    SET-1, TIME-7
+
+Status:
+    agreed
+*/
+test dictionary_keys_tick_with_membership {
+    assert eval watch_keys(book: [
+        _,
+        delta<dict<str, i64>>(),
+        ["a": 10, "b": 20],
+        ["a": 11, "b": 20],
+        delta<dict<str, i64>>(updated: ["a": 12]),
+        delta<dict<str, i64>>(updated: ["c": 30], removed: ["a"]),
+        delta<dict<str, i64>>(removed: ["b", "c"])
+    ]) == [
+        _,
+        delta<set<str>>(),
+        delta<set<str>>(added: ["a", "b"]),
+        _,
+        _,
+        delta<set<str>>(added: ["c"], removed: ["a"]),
+        delta<set<str>>(removed: ["b", "c"])
+    ]
+}

@@ -62,6 +62,20 @@ fn ordered_without_a_zero(values: list<i64, 2>) -> i64 {
 }
 
 /**
+A growing ordered reduction also requires its starting value.
+
+Rules:
+    RED-5
+
+Status:
+    agreed
+*/
+fn growing_ordered_without_a_zero(values: list<i64>) -> i64 {
+    # expect-error(operator, "operator.no_candidate")
+    return reduce(reduction_rejection_step, values)
+}
+
+/**
 A fixed-size tree reduction needs a first position even with a given identity.
 
 Rules:

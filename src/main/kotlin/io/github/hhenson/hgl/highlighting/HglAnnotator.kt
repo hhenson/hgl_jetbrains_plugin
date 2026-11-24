@@ -171,7 +171,7 @@ class HglAnnotator : Annotator {
         /** Prelude intrinsics and metadata functions ("Temporal metadata syntax", ADR 0007, ADR 0010). */
         val INTRINSICS: Set<String> = setOf(
             "last_modified", "delta", "scheduled", "passivate", "activate",
-            "key_set", "elements", "values", "keys", "len", "types", "type_at", "fields", "has_fields",
+            "key_set", "elements", "values", "len", "types", "type_at", "fields", "has_fields",
             "field_type", "schemas", "arg_keys", "associative", "commutative",
         )
     }

@@ -224,15 +224,25 @@ Examples:
     assert eval pair_digits(digits: [[2, 3], [4, 5]]) == [123, 145]
     ~~~
 
-    The same two forms work on lists whose sizes can change. Their
-    native candidates have yet to be implemented.
+    The ordered form skips positions that are not valid, and an empty
+    growing list gives the seed.
+
+    ~~~hgl
+    const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit
+    fn list_digits(digits: list<i64>) -> i64 => reduce(append_digit, digits, 1)
+    assert eval list_digits(digits: [
+        [],
+        delta<list<i64>>(updated: [0: 2, 2: 7], size_modified: 3),
+        delta<list<i64>>(updated: [1: 4]),
+        delta<list<i64>>(removed: [1])
+    ]) == [1, 127, 1247, 127]
+    ~~~
+
+    The tree candidate over a growing list is a native obligation.
 
     ~~~hgl no-run
-    const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit
     fn list_sum(items: list<i64>) -> i64 => reduce(add_, items, 0)
-    fn list_digits(digits: list<i64>) -> i64 => reduce(append_digit, digits, 1)
     assert eval list_sum(items: [[2, 3]]) == [5]
-    assert eval list_digits(digits: [[2, 3]]) == [123]
     ~~~
 
     A set uses the tree form with a commutative function. Its native
