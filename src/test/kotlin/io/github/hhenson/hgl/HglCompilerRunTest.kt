@@ -90,21 +90,24 @@ class HglCompilerRunTest : HglEditorFixture() {
             module checkout.suite part checks
             test unrelated { assert false }
         """.trimIndent())
+        File("src/test/testData/documentation/native_property.hgl").copyTo(root.resolve("native_property.hgl"))
         val settings = project.service<HglTestSettings>()
         val before = settings.state
         try {
             settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), root.path))
             val config = HglTestType().createTemplateConfiguration(project)
-            config.selector = "checkout.suite::[part checks]#example-2"
-            val output = runInConsole(config) { view ->
-                val tree = view.resultsViewer.testsRootNode
-                PlatformTestUtil.waitWithEventsDispatching("missing documentation test result", {
-                    tree.isFinal && tree.children.isNotEmpty()
-                }, 10)
-                assertEquals(config.selector, tree.children.single().name)
-                assertTrue(tree.children.single().isPassed)
+            for (example in listOf("checkout.suite::[part checks]#example-2", "examples.properties::Meter.if#example-1")) {
+                config.selector = example
+                val output = runInConsole(config) { view ->
+                    val tree = view.resultsViewer.testsRootNode
+                    PlatformTestUtil.waitWithEventsDispatching("missing documentation test result", {
+                        tree.isFinal && tree.children.isNotEmpty()
+                    }, 10)
+                    assertEquals(example, tree.children.single().name)
+                    assertTrue(tree.children.single().isPassed)
+                }
+                assertEquals(output.stdout + output.stderr, 0, output.exitCode)
             }
-            assertEquals(output.stdout + output.stderr, 0, output.exitCode)
         } finally {
             settings.loadState(before)
         }

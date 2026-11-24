@@ -9,6 +9,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.documentation.*
 import io.github.hhenson.hgl.psi.HglConstantDecl
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglNativeProperty
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
 import java.nio.file.Files
@@ -61,6 +62,30 @@ class HglDocModelTest : HglEditorFixture() {
         assertTrue(hint, hint.contains("value: T") && hint.contains("The payload."))
         assertEquals(hint, field.createPointer().dereference()?.computeDocumentationHint())
         assertEmpty(targets(code.replace("val<caret>ue", "miss<caret>ing")))
+    }
+
+    fun testNativePropertyDocsMatchTheExportAndResolveFromTheOwner() {
+        myFixture.addFileToProject("documentation.json", model)
+        val source = File("src/test/testData/documentation/native_property.hgl").readText()
+        val owner = targets("""
+            module consumer
+            use examples.properties as api
+            const fn read(m: api::Me<caret>ter) -> i64 => m.if
+        """).single()
+        assertTrue(owner.computeDocumentationHint()!!.contains("hgl-doc:Meter.if"))
+        val property = checkNotNull((owner as HglLinkedDoc).symbol("Meter.if"))
+        val hint = property.computeDocumentationHint()!!
+        assertTrue(hint, hint.contains("if: i64") && hint.contains("Current <strong>level</strong>."))
+        assertEquals(hint, property.createPointer().dereference()?.computeDocumentationHint())
+
+        val sourceHint = targets(source.replace("if: i64", "i<caret>f: i64")).single().computeDocumentationHint()
+        assertEquals(hint, sourceHint)
+        val members = PsiTreeUtil.findChildrenOfType(myFixture.file, HglNativeProperty::class.java)
+        val html = HglDocumentation.html(members.single { it.name == "if" })!!
+        val record = HglDocModel.read(model).declarations("examples.properties::Meter.if").single()
+        assertEquals(docHtml(record.signature, record.sections, false) { false }, html)
+        assertTrue(html, html.contains("Runnable example") && html.contains("assert true"))
+        assertNull(HglDocumentation.attached(members.single { it.name == "limit" }))
     }
 
     fun testSelectiveImportAndSourcePriority() {

@@ -1829,6 +1829,132 @@
       ]
     },
     {
+      "name": "examples.properties",
+      "application": false,
+      "parts": [
+        {
+          "name": null,
+          "source": {
+            "module": "examples.properties",
+            "part": null,
+            "file": "native_property.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        }
+      ],
+      "declarations": [
+        {
+          "kind": "nativeType",
+          "name": "Meter",
+          "canonicalName": "examples.properties::Meter",
+          "role": null,
+          "exported": true,
+          "source": {
+            "module": "examples.properties",
+            "part": null,
+            "file": "native_property.hgl",
+            "line": 4,
+            "column": 20
+          },
+          "documentation": {
+            "text": "Read `Meter.if` for the current level.",
+            "summary": "Read `Meter.if` for the current level.",
+            "sections": []
+          },
+          "genericParameters": [],
+          "configurationParameters": [],
+          "parameters": [],
+          "result": null,
+          "requires": null,
+          "properties": [],
+          "parents": [],
+          "type": null,
+          "default": null,
+          "value": null,
+          "abstractStruct": false,
+          "members": [
+            {
+              "kind": "nativeProperty",
+              "name": "if",
+              "canonicalName": "examples.properties::Meter.if",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.properties",
+                "part": null,
+                "file": "native_property.hgl",
+                "line": 12,
+                "column": 5
+              },
+              "documentation": {
+                "text": "Current **level**.\n\nExamples:\n    ~~~hgl\n    assert true\n    ~~~",
+                "summary": "Current **level**.",
+                "sections": [
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "~~~hgl\nassert true\n~~~",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "assert true\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "i64",
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "nativeProperty",
+              "name": "limit",
+              "canonicalName": "examples.properties::Meter.limit",
+              "role": null,
+              "exported": true,
+              "source": {
+                "module": "examples.properties",
+                "part": null,
+                "file": "native_property.hgl",
+                "line": 13,
+                "column": 5
+              },
+              "documentation": null,
+              "genericParameters": [],
+              "configurationParameters": [],
+              "parameters": [],
+              "result": null,
+              "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": "i64",
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            }
+          ],
+          "candidates": []
+        }
+      ]
+    },
+    {
       "name": "extraction_check",
       "application": false,
       "parts": [
