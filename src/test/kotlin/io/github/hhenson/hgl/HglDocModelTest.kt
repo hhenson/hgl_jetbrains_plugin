@@ -105,6 +105,45 @@ class HglDocModelTest : HglEditorFixture() {
         assertSize(2, targets(imports + "fn g() => api::ide<caret>ntity(2)"))
     }
 
+    fun testQualifiedDocLinksUseOnlyTheAliasesVisibleToTheComment() {
+        myFixture.addFileToProject("provider.hgl", """
+            module doc.provider
+            export const fn marker() -> i64 => 7
+            export enum Side { buy, sell }
+            const fn internal() -> i64 => 0
+        """.trimIndent())
+        val code = """
+            module consumer
+            use doc.provider as dep
+            /** Read `dep::marker`, `dep::Side.buy`, or `dep::internal`. */
+            const fn ex<caret>ample() -> i64 => 7
+        """.trimIndent()
+        val target = targets(code).single()
+        val html = target.computeDocumentationHint()!!
+        val handler = HglDocLinkHandler()
+        for (name in listOf("dep::marker", "dep::Side.buy")) {
+            assertTrue(html, html.contains("href=\"hgl-doc:$name\""))
+            assertNotNull(handler.resolveLink(target, "hgl-doc:$name"))
+        }
+        assertNull(handler.resolveLink(target, "hgl-doc:dep::internal"))
+        val shadowed = targets(code.replace("ex<caret>ample()", "ex<caret>ample(dep: i64)")).single()
+        assertFalse(shadowed.computeDocumentationHint()!!.contains("hgl-doc:dep::"))
+        assertNull(handler.resolveLink(shadowed, "hgl-doc:dep::marker"))
+    }
+
+    fun testSourceAliasLinksToExportedDocsWithoutProviderSource() {
+        myFixture.addFileToProject("documentation.json", model)
+        val target = targets("""
+            module consumer
+            use examples.apidoc as lib
+            /** See `lib::Box.value`. */
+            const fn ma<caret>in() -> i64 => 2
+        """).single()
+        val field = (target as HglLinkedDoc).symbol("lib::Box.value")
+        assertTrue(field?.computeDocumentationHint().orEmpty().contains("The payload."))
+        assertNull((field as HglLinkedDoc).symbol("lib::Box.value"))
+    }
+
     fun testConfiguredExportOutsideProject() {
         val settings = project.service<HglTestSettings>().state
         val previous = settings.documentationModel

@@ -54,6 +54,10 @@ Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
 
+Source comments can link to a public declaration or member through a visible
+file import (for example, `prices::Quote.bid`). A parameter that hides the
+alias leaves that span as plain code. Exported comments lack import metadata.
+
 A call to an operator shows the public declaration. An implementation shows
 its own documentation at its declaration. Other source overloads remain
 separate targets. The IDE handles unsaved edits directly. A future tooltip

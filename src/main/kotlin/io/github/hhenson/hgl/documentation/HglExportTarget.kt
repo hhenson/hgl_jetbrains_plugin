@@ -65,7 +65,7 @@ private class HglExportTarget(
 
     override fun symbol(name: String): DocumentationTarget? {
         // The model carries the declaring module, but not its imports. Never borrow the viewer's imports.
-        if (name.substringBefore('.') in record.parameterNames) return null
+        if ("::" in name || name.substringBefore('.') in record.parameterNames) return null
         val model = HglDocModel.forFile(file)
         val matches = model.declarations("${record.source.module}::$name").ifEmpty {
             qualifiedDocNames(name).flatMap { model.declarations(it) }.filter { it.exported }

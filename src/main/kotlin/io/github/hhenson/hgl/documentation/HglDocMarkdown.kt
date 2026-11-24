@@ -25,7 +25,8 @@ internal fun fencedLines(text: String): Set<Int> = buildSet {
 }
 
 internal const val SYMBOL_LINK = "hgl-doc:"
-internal val docName = Regex("""[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*""")
+private const val IDENTIFIER = "[A-Za-z_][A-Za-z_0-9]*"
+internal val docName = Regex("""(?:$IDENTIFIER::)?$IDENTIFIER(?:\.$IDENTIFIER)*""")
 
 /** CommonMark with tables. Display fenced math and Mermaid as source (SDOC-7). */
 private fun markdown(text: String, inExamples: Boolean, hasTarget: (String) -> Boolean): String {
