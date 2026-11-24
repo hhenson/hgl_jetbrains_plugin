@@ -1,6 +1,0 @@
-const fn same<T>(a: T, b: T) -> T => a
-const fn larger<T>(a: T, b: T) -> T
-    requires T in {i64, f64} => if a < b { b } else { a }
-
-const fn kept(a: i64, b: i64) -> i64? => same(a, b)
-const fn best(a: i64, b: i64) -> i64? => larger(a, b)

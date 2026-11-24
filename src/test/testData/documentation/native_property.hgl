@@ -1,0 +1,14 @@
+module examples.properties
+
+/** Read `Meter.if` for the current level. */
+export native type Meter {
+    /** Current **level**.
+
+    Examples:
+        ~~~hgl
+        assert true
+        ~~~
+    */
+    if: i64
+    limit: i64
+}

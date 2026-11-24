@@ -20,6 +20,9 @@ import io.github.hhenson.hgl.psi.HglArgument
 import io.github.hhenson.hgl.psi.HglArguments
 import io.github.hhenson.hgl.psi.HglAssertStmt
 import io.github.hhenson.hgl.psi.HglBlock
+import io.github.hhenson.hgl.psi.HglConstraintOperand
+import io.github.hhenson.hgl.psi.HglConstraintRelation
+import io.github.hhenson.hgl.psi.HglConstraintTerm
 import io.github.hhenson.hgl.psi.HglExpr
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
@@ -128,6 +131,16 @@ class HglCompletionContributor : CompletionContributor() {
         }
 
         private fun contextKeywords(position: PsiElement, previous: IElementType?): List<String> {
+            val operand = position.parentOfType<HglConstraintOperand>()
+            if (operand?.constraintName != null) {
+                val parent = operand.parent
+                return when {
+                    parent is HglConstraintRelation && parent.firstChild.node.elementType == HglTypes.IN_KW ->
+                        CONSTRAINT_OPERAND_KEYWORDS + listOf("struct", "enum")
+                    parent is HglConstraintTerm -> CONSTRAINT_OPERAND_KEYWORDS + "each"
+                    else -> CONSTRAINT_OPERAND_KEYWORDS
+                }
+            }
             if (inArrowExpression(position)) {
                 val test = position.parentOfType<HglTestDecl>()
                 return when {
@@ -180,5 +193,6 @@ class HglCompletionContributor : CompletionContributor() {
             "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling_window",
             "endpoint", "tenor", "ref", "signal", "unbounded", "bytes", "any", "result", "error",
         )
+        private val CONSTRAINT_OPERAND_KEYWORDS = (TYPE_KEYWORDS - "unbounded") + listOf("true", "false", "null")
     }
 }

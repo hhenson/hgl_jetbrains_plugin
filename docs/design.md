@@ -30,6 +30,12 @@ The compiler selects the overload, including inside functions called by a test.
 Imports stay file-local. Other modules see exported declarations, including exported operators,
 and the public `core` prelude. Applications have their own file scope.
 
+Navigation, name completion and documentation use the nearest binding (UNIT-10/12).
+A local hides an outer name after its initializer. Switch cases share the enclosing
+block. A hidden import alias cannot qualify a name. Signature types and ordinary
+defaults see the declaration's generics and enclosing scope. A reflected pack and a
+generic law default can name their callback (FN-8, GEN-18).
+
 Operator gutters link a declaration to its HGL and native candidates in both
 directions (GEN-4). A name index narrows the search to files with an `impl`
 header. Any module can contribute overloads by selectively importing the operator

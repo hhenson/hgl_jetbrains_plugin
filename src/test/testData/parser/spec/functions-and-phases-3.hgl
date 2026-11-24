@@ -1,1 +1,4 @@
 fn sampled(value: f64, tick: signal?) -> f64 => value
+
+fn omitted_tick(price: f64) -> f64 => sampled(price)
+fn written_null_tick(price: f64) -> f64 => sampled(price, null)

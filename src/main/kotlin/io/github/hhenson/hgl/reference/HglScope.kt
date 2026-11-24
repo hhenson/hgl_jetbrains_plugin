@@ -5,7 +5,9 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
+import io.github.hhenson.hgl.psi.HglArgument
 import io.github.hhenson.hgl.psi.HglBlock
+import io.github.hhenson.hgl.psi.HglCallExpr
 import io.github.hhenson.hgl.psi.HglConfigurationParameters
 import io.github.hhenson.hgl.psi.HglConstantDecl
 import io.github.hhenson.hgl.psi.HglEnumDecl
@@ -16,6 +18,7 @@ import io.github.hhenson.hgl.psi.HglLoopEntries
 import io.github.hhenson.hgl.psi.HglConstraintEach
 import io.github.hhenson.hgl.psi.HglForStmt
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglFunctionSignature
 import io.github.hhenson.hgl.psi.HglGenericParameters
 import io.github.hhenson.hgl.psi.HglImportItem
 import io.github.hhenson.hgl.psi.HglInjectDecl
@@ -23,8 +26,14 @@ import io.github.hhenson.hgl.psi.HglLocalDecl
 import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglNativeFunctionDecl
 import io.github.hhenson.hgl.psi.HglOperatorDecl
+import io.github.hhenson.hgl.psi.HglPack
+import io.github.hhenson.hgl.psi.HglQualifiedName
+import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStateDecl
 import io.github.hhenson.hgl.psi.HglStructDecl
+import io.github.hhenson.hgl.psi.HglSwitchCase
+import io.github.hhenson.hgl.psi.HglSwitchDefault
+import io.github.hhenson.hgl.psi.HglSwitchStmt
 import io.github.hhenson.hgl.psi.HglTestContext
 import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglTypes
@@ -46,17 +55,18 @@ object HglScope {
     fun scopes(from: PsiElement): Sequence<List<HglNamedElement>> = sequence {
         val useOffset = from.textOffset
         var inTests = false
-        var scope: PsiElement? = from.parent
+        var child = from
+        var scope = child.parent
         while (scope != null) {
             val declared: List<HglNamedElement> = when (scope) {
                 is HglBlock -> blockDeclarations(scope, useOffset)
                 is HglForStmt -> if (PsiTreeUtil.isAncestor(scope.block, from, false)) scope.forBindingList else emptyList()
                 is HglLoopEntries -> if (PsiTreeUtil.isAncestor(scope.expr, from, false)) listOfNotNull(scope.forBinding) else emptyList()
                 is HglConstraintEach -> if (PsiTreeUtil.isAncestor(scope.constraint, from, false)) listOfNotNull(scope.forBinding) else emptyList()
-                is HglFnExpr -> scope.anonymousParameterList
-                is HglFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
-                is HglNativeFunctionDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
-                is HglOperatorDecl -> signatureDeclarations(scope.functionSignature, scope.genericParameters, scope.configurationParameters)
+                is HglFnExpr -> if (child == scope.expr || child == scope.block) scope.anonymousParameterList else emptyList()
+                is HglFunctionDecl -> signatureDeclarations(from, child, scope.functionSignature, scope.genericParameters, scope.configurationParameters)
+                is HglNativeFunctionDecl -> signatureDeclarations(from, child, scope.functionSignature, scope.genericParameters, scope.configurationParameters)
+                is HglOperatorDecl -> signatureDeclarations(from, child, scope.functionSignature, scope.genericParameters, scope.configurationParameters)
                 is HglStructDecl -> genericParameters(scope.genericParameters)
                 is HglTestDecl -> {
                     inTests = true
@@ -73,7 +83,8 @@ object HglScope {
                 else -> emptyList()
             }
             if (declared.isNotEmpty()) yield(declared)
-            scope = scope.parent
+            child = scope
+            scope = child.parent
         }
     }
 
@@ -162,13 +173,9 @@ object HglScope {
     fun exportedDeclarations(file: HglFile, name: String): List<HglNamedElement> =
         publicDeclarations(file).filter { it.name == name }
 
-    /** The `use ... as alias` declaration named `alias` in the file containing `from`. */
-    fun findAlias(from: PsiElement, alias: String): HglUseAlias? {
-        val file = from.containingFile as? HglFile ?: return null
-        return PsiTreeUtil.getChildrenOfTypeAsList(file, HglUseDecl::class.java)
-            .mapNotNull { it.useAlias }
-            .firstOrNull { it.name == alias }
-    }
+    /** A qualifier must still name the file's import alias at the use site (UNIT-12). */
+    fun findAlias(from: PsiElement, alias: String): HglUseAlias? =
+        resolve(from, alias, includeImplementations = false).singleOrNull() as? HglUseAlias
 
     /** The module files a `use` declaration refers to. */
     fun targetFiles(useDecl: HglUseDecl): List<HglFile> {
@@ -181,22 +188,44 @@ object HglScope {
         parameters?.genericParameterList ?: emptyList()
 
     private fun signatureDeclarations(
-        signature: io.github.hhenson.hgl.psi.HglFunctionSignature?,
-        generics: HglGenericParameters?,
-        configuration: HglConfigurationParameters?,
-    ): List<HglNamedElement> = signature?.parameterList.orEmpty() + configuration?.configurationParameterList.orEmpty() + genericParameters(generics)
-
-    private fun blockDeclarations(block: HglBlock, useOffset: Int): List<HglNamedElement> {
-        val result = ArrayList<HglNamedElement>()
-        for (child in block.children) {
-            when (child) {
-                is HglLocalDecl -> if (child.textOffset < useOffset) result.add(child)
-                is HglStateDecl -> result.add(child)
-                is HglCacheDecl -> result.add(child)
-                is HglInjectDecl -> result.addAll(child.injectItemList)
+        from: PsiElement, child: PsiElement, signature: HglFunctionSignature?,
+        generics: HglGenericParameters?, configuration: HglConfigurationParameters?,
+    ): List<HglNamedElement> {
+        val parameters = signature?.parameterList.orEmpty()
+        val types = genericParameters(generics)
+        if (child != signature && child != generics && child != configuration) {
+            return parameters + configuration?.configurationParameterList.orEmpty() + types
+        }
+        // Signature types and defaults see the defining scope and its generics (UNIT-7/10).
+        // A reflected pack or law predicate explicitly names a callback (FN-8, GEN-18).
+        val name = from.parentOfType<HglQualifiedName>(withSelf = true)
+        if (name != null) {
+            val pack = name.parent as? HglPack
+            val argument = (name.parent as? HglReferenceExpr)?.parent as? HglArgument
+            val call = argument?.parent?.parent as? HglCallExpr
+            val predicate = (call?.expr as? HglReferenceExpr)?.qualifiedName?.text
+            if (name == pack?.qualifiedNameList?.firstOrNull() ||
+                (child == generics && (predicate == "associative" || predicate == "commutative"))) {
+                return parameters.filter { it.functionType != null } + types
             }
         }
-        return result
+        return types
+    }
+
+    private fun blockDeclarations(block: HglBlock, useOffset: Int): List<HglNamedElement> = buildList {
+        fun collect(statements: PsiElement) {
+            for (child in statements.children) {
+                when (child) {
+                    is HglLocalDecl -> if (child.textRange.endOffset <= useOffset) add(child)
+                    is HglStateDecl -> add(child)
+                    is HglCacheDecl -> add(child)
+                    is HglInjectDecl -> addAll(child.injectItemList)
+                    // Cases share their enclosing block. Braced statement bodies have their own scope.
+                    is HglSwitchStmt, is HglSwitchCase, is HglSwitchDefault -> collect(child)
+                }
+            }
+        }
+        collect(block)
     }
 }
 

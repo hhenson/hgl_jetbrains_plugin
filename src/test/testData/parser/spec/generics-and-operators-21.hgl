@@ -1,5 +1,5 @@
-operator applied<V>(f: fn(V) -> V, x: V) -> V
+operator doubled<T>(value: T) -> T
 
-impl const fn applied(f: const fn(i64) -> i64, x: i64) -> i64 => f(x)
+impl const fn doubled(value: i64) -> i64 => value * 2
 
-impl fn applied(f: fn(i64) -> i64, x: i64) -> i64 => f(x)
+impl fn doubled(value: f64) -> f64 => value * 2.0
