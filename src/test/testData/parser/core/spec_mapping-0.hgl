@@ -73,7 +73,7 @@ native impl fn reduce<L, R, const associative: bool = associative(f)>(
 # Tree, over a list of a fixed size: written in HGL, from the first member.
 impl fn reduce<V, N, const associative: bool = associative(f)>(
     f: fn(V, V) -> V, items: list<V, N>, zero: V? = null) -> V
-    requires associative
+    requires associative && N != 0
 {
     var acc = items[0]
     for i in 1..<N { acc = f(acc, items[i]) }

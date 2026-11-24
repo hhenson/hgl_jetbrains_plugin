@@ -49,6 +49,32 @@ test format_scalars {
 }
 
 /**
+The quoted string specifier writes the same HGL literal as a string in a
+collection, preserving Unicode and escaping quotes, backslashes and controls.
+
+Rules:
+    FMT-4, FMT-5, FMT-7, LEX-24
+
+Status:
+    agreed
+*/
+test format_hgl_string_literal {
+    let text = "日'\"\\\n\r\t\u{0}\u{1}\u{7f}"
+    let literal = "\"日'\\\"\\\\\\n\\r\\t\\u{0}\\u{1}\\u{7f}\""
+    let texts: list<str> = [text]
+    assert format("{:?}", text) == literal
+    assert format("label={text:?}", text: text) == "label=" + literal
+    assert format("{:?}", "") == "\"\""
+    assert format("{}", text) == text
+    assert convert<str>(texts) == "[" + literal + "]"
+
+    let marked = Marked<str>(value: text, ticked: true)
+    let absent = Marked<str>(value: null, ticked: true)
+    assert format("{*:?}", marked) == "*" + literal
+    assert format("{*:?}", absent) == "*<not valid>"
+}
+
+/**
 The numeric and string examples in the formatting reference keep their
 field widths, signs and precision.
 

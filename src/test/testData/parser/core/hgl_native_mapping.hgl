@@ -1,0 +1,42 @@
+module core part mapping_natives
+
+# Mapping and reduction whose children are selected at runtime (spec/mapping.md).
+
+# Keyed: at least one argument is a dictionary of its parameter's type,
+# and every argument is that or its parameter's own type.
+native impl fn map<K, R, ...Ps, ...As, const key: str = "key">{
+    const join: Join = .inner,
+    keys: set<K>? = null,
+}(f: fn(...{Ps}) -> R, args: ...{As for f without key}) -> dict<K, R>
+    requires any arg in arg_keys(As) { As[arg] == dict<K, Ps[arg]> }
+          && each arg in arg_keys(As) { As[arg] in {Ps[arg], dict<K, Ps[arg]>} }
+
+# By position: the same of a list.
+native impl fn map<R, ...Ps, ...As, const key: str = "key">{
+    const join: Join = .inner,
+}(f: fn(...{Ps}) -> R, args: ...{As for f without key}) -> list<R>
+    requires any arg in arg_keys(As) { As[arg] == list<Ps[arg]> }
+          && each arg in arg_keys(As) { As[arg] in {Ps[arg], list<Ps[arg]>} }
+
+# Tree, over a list: the members in order, in any grouping.
+native impl fn reduce<V, const associative: bool = associative(f)>(
+    f: fn(V, V) -> V, items: list<V>, zero: V? = null) -> V
+    requires associative
+
+# Tree, over a set or a dictionary's values: in any order and grouping.
+native impl fn reduce<V,
+    const associative: bool = associative(f),
+    const commutative: bool = commutative(f),
+>(f: fn(V, V) -> V, items: set<V>, zero: V? = null) -> V
+    requires associative && commutative
+
+native impl fn reduce<K, V,
+    const associative: bool = associative(f),
+    const commutative: bool = commutative(f),
+>(f: fn(V, V) -> V, items: dict<K, V>, zero: V? = null) -> V
+    requires associative && commutative
+
+# Ordered, over a list: a fold from the zero, which it requires.
+native impl fn reduce<L, R, const associative: bool = associative(f)>(
+    f: fn(L, R) -> L, items: list<R>, zero: L) -> L
+    requires !associative
