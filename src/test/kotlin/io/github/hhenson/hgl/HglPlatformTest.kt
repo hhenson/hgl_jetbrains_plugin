@@ -196,6 +196,94 @@ class HglPlatformTest : HglEditorFixture() {
         assertTrue(resolveAtCaret().isEmpty())
     }
 
+    fun testLocalHidesAnOuterNameAfterItsInitializerAndAcrossSwitchCases() {
+        val code = """
+            module sample
+            const scale: i64 = 2
+            const fn example(n: i64) -> i64 {
+                switch n {
+                    case 0:
+                        let scale = scale + 1
+                    default:
+                        return scale
+                }
+                return scale
+            }
+        """.trimIndent()
+        fun target(at: String, marked: String): PsiElement {
+            myFixture.configureByText("sample.hgl", code.replace(at, marked))
+            return resolveAtCaret().single()
+        }
+        assertInstanceOf(target("= scale +", "= sc<caret>ale +"), io.github.hhenson.hgl.psi.HglConstantDecl::class.java)
+        assertInstanceOf(target("return scale\n    }", "return sc<caret>ale\n    }"), HglLocalDecl::class.java)
+        assertInstanceOf(target("return scale\n}", "return sc<caret>ale\n}"), HglLocalDecl::class.java)
+    }
+
+    fun testCallbackHidesModuleFunctionOnlyInTheBody() {
+        val code = """
+            module sample
+            const fn seed() -> i64 => 7
+            const fn apply(seed: const fn(count: i64) -> i64, n: i64 = seed()) -> i64 =>
+                seed(count: n)
+        """.trimIndent()
+        myFixture.configureByText("sample.hgl", code.replace("= seed()", "= se<caret>ed()"))
+        assertInstanceOf(resolveAtCaret().single(), HglFunctionDecl::class.java)
+        myFixture.configureByText("sample.hgl", code.replace("seed(count:", "se<caret>ed(count:"))
+        assertInstanceOf(resolveAtCaret().single(), HglParameter::class.java)
+
+        myFixture.configureByText("sample.hgl",
+            "module sample\nstruct Item {}\nfn f(Item: i64, value: I<caret>tem) {}")
+        assertInstanceOf(resolveAtCaret().single(), HglStructDecl::class.java)
+    }
+
+    fun testReflectedPackAndGenericLawDefaultStillResolveTheCallback() {
+        for (declaration in listOf(
+            "operator apply<...Ps, ...As>(f: fn(...{Ps}), args: ...{As for <caret>f})",
+            "const fn combine<T, const law: bool = associative(<caret>f)>(f: const fn(T, T) -> T) -> bool => law",
+        )) {
+            myFixture.configureByText("sample.hgl", "module sample\n$declaration")
+            assertInstanceOf(resolveAtCaret().single(), HglParameter::class.java)
+        }
+    }
+
+    fun testHiddenAliasCannotQualifyASourceReference() {
+        myFixture.addFileToProject("market_data.hgl", marketData)
+        val code = """
+            module sample
+            use examples.market_data as market
+            fn inside(market: i64) => market::spread()
+            fn outside() => market::spread()
+        """.trimIndent()
+        myFixture.configureByText("sample.hgl", code.replace("i64) => market::spread", "i64) => market::spr<caret>ead"))
+        assertEmpty(resolveAtCaret())
+        myFixture.configureByText("sample.hgl", code.replace("outside() => market::spread", "outside() => market::spr<caret>ead"))
+        assertInstanceOf(resolveAtCaret().single(), HglFunctionDecl::class.java)
+    }
+
+    fun testLocalCompletionAndNavigationPreferTheBindingOverImportAndPrelude() {
+        myFixture.addFileToProject("library.hgl", "module library\nexport const selected: i64 = 1")
+        myFixture.addFileToProject("core.hgl", "module core\nexport const fallback: i64 = 2")
+        val source = """
+            module sample
+            use library::{selected}
+            const fn read() -> i64 {
+                let selected = 3
+                let fallback = 4
+                return selected + fallback
+            }
+        """.trimIndent()
+        for (name in listOf("selected", "fallback")) {
+            myFixture.configureByText("sample.hgl", source.replace("return selected + fallback",
+                "return " + "selected + fallback".replace(name, "<caret>$name")))
+            val local = resolveAtCaret().single()
+            assertInstanceOf(local, HglLocalDecl::class.java)
+            val reference = myFixture.file.findReferenceAt(myFixture.caretOffset)!!
+            val variant = reference.variants.filterIsInstance<com.intellij.codeInsight.lookup.LookupElement>()
+                .single { it.lookupString == name }
+            assertEquals(local, variant.psiElement)
+        }
+    }
+
     fun testOverloadsResolveToEveryCandidate() {
         myFixture.configureByText(
             "a.hgl",

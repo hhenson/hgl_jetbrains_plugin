@@ -1,5 +1,9 @@
-operator doubled<T>(value: T) -> T
+operator each_slot<R, ...Ps, ...As, const key: str = "key", const index: str = "index">(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without key, index},
+) -> list<R>
 
-impl const fn doubled(value: i64) -> i64 => value * 2
-
-impl fn doubled(value: f64) -> f64 => value * 2.0
+operator each_given<R, ...Ps, ...As, const given: set<str> = ["key", "index"]>(
+    f: fn(...{Ps}) -> R,
+    args: ...{As for f without given},
+) -> list<R>

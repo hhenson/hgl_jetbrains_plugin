@@ -1,1 +1,2 @@
-const fn shifted(n: i64) -> i64 => apply(fn(x) => x + n, 7)
+const fn const(value: i64) -> i64 => value
+const fn example() -> i64 => const(7)

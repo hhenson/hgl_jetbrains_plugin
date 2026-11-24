@@ -98,6 +98,13 @@ class HglDocModelTest : HglEditorFixture() {
         assertEmpty(targets(code.replace("identity}", "shifted}").replace("ide<caret>ntity", "shif<caret>ted")))
     }
 
+    fun testParameterHidingAliasAlsoHidesExportedDocumentation() {
+        myFixture.addFileToProject("documentation.json", model)
+        val imports = "module consumer\nuse examples.apidoc as api\n"
+        assertEmpty(targets(imports + "fn g(api: i64) => api::ide<caret>ntity(2)"))
+        assertSize(2, targets(imports + "fn g() => api::ide<caret>ntity(2)"))
+    }
+
     fun testConfiguredExportOutsideProject() {
         val settings = project.service<HglTestSettings>().state
         val previous = settings.documentationModel

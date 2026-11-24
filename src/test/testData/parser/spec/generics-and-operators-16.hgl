@@ -1,16 +1,10 @@
-operator keyed<K, R, ...Ps, ...As>(
+operator call_through<R, ...Ps, ...As>(f: fn(...{Ps}) -> R, args: ...{As for f}) -> R
+    requires each arg in arg_keys(As) { As[arg] == Ps[arg] }
+
+operator each_key<K, R, ...Ps, ...As, const key: str = "key">(
     f: fn(...{Ps}) -> R,
-    args: ...{As for f},
+    args: ...{As for f without key},
 ) -> dict<K, R>
-    requires any arg in arg_keys(As) { As[arg] == dict<K, Ps[arg]> }
-          && each arg in arg_keys(As) { As[arg] in {Ps[arg], dict<K, Ps[arg]>} }
-
-operator fold<V, const associative: bool = associative(f)>(
-    f: fn(V, V) -> V,
-    items: list<V>,
-) -> V
-
-impl const fn fold<V, const associative: bool = associative(f)>(
-    f: const fn(V, V) -> V,
-    items: list<V>,
-) -> V requires associative { return items[0] }
+    requires each arg in arg_keys(As) {
+        As[arg] == Ps[arg] || As[arg] == dict<K, Ps[arg]>
+    }

@@ -1,0 +1,18 @@
+operator fetch<T, R>(value: T) -> R
+
+impl const fn fetch<T>(value: T) -> i64 => 5
+
+impl const fn fetch(value: i64) -> str => "other"
+
+const fn inferred<T>(value: T) -> i64 {
+    let answer = fetch(value)
+    return answer
+}
+
+operator items_of<T, C>(value: T) -> C
+
+impl const fn items_of<T>(value: T) -> list<i64, 2> => [1, 2]
+
+impl const fn items_of(value: i64) -> list<i64, 3> => [value, value + 1, value + 2]
+
+const fn first_of<T>(value: T) -> i64 => items_of(value)[0]

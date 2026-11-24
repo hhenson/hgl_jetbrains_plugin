@@ -1,10 +1,10 @@
-operator call_through<R, ...Ps, ...As>(f: fn(...{Ps}) -> R, args: ...{As for f}) -> R
-    requires each arg in arg_keys(As) { As[arg] == Ps[arg] }
+module examples.rooms
 
-operator each_key<K, R, ...Ps, ...As, const key: str = "key">(
-    f: fn(...{Ps}) -> R,
-    args: ...{As for f without key},
-) -> dict<K, R>
-    requires each arg in arg_keys(As) {
-        As[arg] == Ps[arg] || As[arg] == dict<K, Ps[arg]>
-    }
+use examples.shapes::{area}
+
+struct Room {
+    width: f64
+    depth: f64
+}
+
+impl const fn area(room: Room) -> f64 => room.width * room.depth
