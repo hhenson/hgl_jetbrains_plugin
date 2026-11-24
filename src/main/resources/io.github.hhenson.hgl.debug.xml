@@ -1,4 +1,9 @@
-<idea-plugin>
+<idea-plugin package="io.github.hhenson.hgl.debug">
+    <dependencies>
+        <module name="intellij.platform.dap"/>
+        <module name="intellij.platform.debugger"/>
+        <plugin id="com.intellij.nativeDebug"/>
+    </dependencies>
     <extensions defaultExtensionNs="com.intellij">
         <programRunner implementation="io.github.hhenson.hgl.debug.HglDebugRunner"/>
         <xdebugger.breakpointType implementation="io.github.hhenson.hgl.debug.HglLineBreakpoint"/>

@@ -17,7 +17,9 @@
     <depends>com.intellij.platform.testRunner</depends>
 
     <depends optional="true" config-file="hgl-compdb.xml">com.intellij.clion-compdb</depends>
-    <depends optional="true" config-file="hgl-debug.xml">com.intellij.nativeDebug</depends>
+    <content>
+        <module name="io.github.hhenson.hgl.debug"/>
+    </content>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileType name="HGL"

@@ -189,7 +189,9 @@ The application gutter uses the same configuration and source roots for Run
 and Debug. The Debug runner asks `hgl run --debug-build DIR` for its version 1
 launch description. The IDE launches that executable under LLDB via
 the platform’s experimental Debug Adapter Protocol API, checked against
-both IDE versions. macOS launches the active Apple toolchain adapter with
+both IDE versions. The optional HGL debug module declares its platform DAP,
+debugger and native debugging dependencies. Its class loader owns the runner,
+breakpoints and adapter provider. macOS launches the active Apple toolchain adapter with
 `/usr/bin/xcrun lldb-dap`. Linux uses the adapter bundled with the IDE.
 The supported build range is limited to the verified
 platform branch. Before widening it, run Plugin Verifier and the native
@@ -218,6 +220,9 @@ Run the lexer, parser and platform tests against each supported IDE. Build the
 distribution once, then pass that ZIP to Plugin Verifier for both products.
 These checks validate editor integration. Execution conformance runs through
 the compiler and runtime.
+
+A separate JVM loads the packaged plugin using each IDE’s boot classpath and
+resolves its debugger extensions with their installed plugin class loaders.
 
 CI pins the compiler independently and exercises both IDEs with the native hgraph SDK.
 Set `HGL_TEST_CLI`, `HGL_HGRAPH_SDK` and `HGL_HGRAPH_DEPS` to run those process
