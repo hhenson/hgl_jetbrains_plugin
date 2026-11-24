@@ -54,6 +54,10 @@ Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
 
+Source comments can link to a public declaration or member through a visible
+file import (for example, `prices::Quote.bid`). A parameter that hides the
+alias leaves that span as plain code. Exported comments lack import metadata.
+
 A call to an operator shows the public declaration. An implementation shows
 its own documentation at its declaration. Other source overloads remain
 separate targets. The IDE handles unsaved edits directly. A future tooltip
@@ -175,6 +179,9 @@ Keyword completion in a named or anonymous function's `=>` body
 offers expression starters at operands. A nested block resumes statement
 completion. Test bodies also admit `eval`, and integration tests admit `run`.
 Names in scope are supplied independently by reference completion.
+Calls to the core endpoint predicates `modified`, `valid` and `all_valid` use the
+contextual keyword colour. Temporal handlers offer all three in completion even
+when core sources are absent. A local binding keeps its own colour and completion.
 
 At a callback call, completion and Go to Declaration use the function type of
 the parameter the callee resolves to (FN-17). Only names written in that type

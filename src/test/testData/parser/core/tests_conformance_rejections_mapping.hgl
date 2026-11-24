@@ -1,0 +1,90 @@
+module conformance.rejections part mapping
+
+fn mapping_rejection_scale(price: f64, factor: f64) -> f64 => price * factor
+
+const fn reduction_rejection_step(accumulated: i64, item: i64) -> i64 =>
+    accumulated * 10 + item
+
+/**
+Map rejects when both arguments would go whole to a child.
+
+Rules:
+    MAP-3
+
+Status:
+    agreed
+*/
+fn map_without_a_split(price: f64, factor: f64) -> list<f64, 2> {
+    # expect-error(operator, "operator.no_candidate")
+    return map(mapping_rejection_scale, factor: factor, price: price)
+}
+
+/**
+A map rejects when its split arguments mix a dictionary and a list.
+
+Rules:
+    MAP-1
+
+Status:
+    agreed
+*/
+fn map_mixed_split_shapes(prices: dict<str, f64>, factors: list<f64, 2>) -> list<f64, 2> {
+    # expect-error(operator, "operator.no_candidate")
+    return map(mapping_rejection_scale, prices, factors)
+}
+
+/**
+A positional map does not accept an explicit set of keys.
+
+Rules:
+    MAP-1, MAP-5
+
+Status:
+    agreed
+*/
+fn map_positional_with_keys(prices: list<f64, 2>, factor: f64, selected: set<str>) -> list<f64, 2> {
+    # expect-error(operator, "operator.no_candidate")
+    return map{keys: selected}(mapping_rejection_scale, prices, factor)
+}
+
+/**
+An ordered reduction requires its starting value.
+
+Rules:
+    RED-5
+
+Status:
+    agreed
+*/
+fn ordered_without_a_zero(values: list<i64, 2>) -> i64 {
+    # expect-error(operator, "operator.no_candidate")
+    return reduce(reduction_rejection_step, values)
+}
+
+/**
+A fixed-size tree reduction needs a first position even with a given identity.
+
+Rules:
+    RED-3, RED-6
+
+Status:
+    agreed
+*/
+fn tree_without_a_position(values: list<i64, 0>, supplied_zero: i64) -> i64 {
+    # expect-error(operator, "operator.no_candidate")
+    return reduce(add_, values, supplied_zero)
+}
+
+/**
+A dictionary reduction needs an associative and commutative callback.
+
+Rules:
+    RED-3, RED-4
+
+Status:
+    agreed
+*/
+fn unordered_without_laws(values: dict<str, i64>, supplied_zero: i64) -> i64 {
+    # expect-error(operator, "operator.no_candidate")
+    return reduce(reduction_rejection_step, values, supplied_zero)
+}

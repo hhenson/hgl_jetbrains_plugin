@@ -72,6 +72,28 @@
           "documentation": null
         },
         {
+          "name": "mapping",
+          "source": {
+            "module": "core",
+            "part": "mapping",
+            "file": "<core>/core/mapping.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
+          "name": "mapping_natives",
+          "source": {
+            "module": "core",
+            "part": "mapping_natives",
+            "file": "<core>/native/mapping.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
           "name": "output",
           "source": {
             "module": "core",

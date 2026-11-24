@@ -1,0 +1,140 @@
+module core_conformance part mapping
+
+fn scaled_child(price: f64, factor: f64) -> f64 => price * factor
+
+fn map_fixed_positional(prices: list<f64, 2>, factor: f64) -> list<f64, 2> =>
+    map(scaled_child, prices, factor)
+
+fn map_fixed_named(prices: list<f64, 2>, factor: f64) -> list<f64, 2> =>
+    map(scaled_child, factor: factor, price: prices)
+
+/**
+Each position receives its split price and the whole factor.
+
+Both spellings pass the same arguments even when their order differs.
+
+Rules:
+    MAP-1, MAP-2, MAP-7, MAP-10
+
+Status:
+    agreed
+*/
+test fixed_map_binds_positional_and_named_arguments {
+    assert eval map_fixed_positional(prices: [[2.0, 3.0]], factor: [4.0]) == [[8.0, 12.0]]
+    assert eval map_fixed_named(prices: [[2.0, 3.0]], factor: [4.0]) == [[8.0, 12.0]]
+}
+
+fn with_mapped_key(key: i64, amount: i64, scale: i64 = 2) -> i64 => key + amount * scale
+fn with_renamed_position(position: i64, amount: i64) -> i64 => position + amount
+
+fn map_fixed_defaults(values: list<i64, 2>) -> list<i64, 2> =>
+    map(with_mapped_key, amount: values)
+
+fn map_fixed_renamed(values: list<i64, 2>) -> list<i64, 2> =>
+    map{key: "position"}(with_renamed_position, amount: values)
+
+/**
+Each child receives its position under the selected parameter name.
+
+An omitted `scale` uses the child's own default.
+
+Rules:
+    MAP-2, MAP-9, UNIT-8
+
+Status:
+    agreed
+*/
+test fixed_map_binds_default_and_renamed_keys {
+    assert eval map_fixed_defaults(values: [[2, 3]]) == [[4, 7]]
+    assert eval map_fixed_renamed(values: [[2, 3]]) == [[2, 4]]
+}
+
+fn checked_quotient(divisor: i64) -> i64 {
+    when { return 12 // divisor }
+}
+
+fn map_fixed_quotients(divisors: list<i64, 2>) -> list<i64, 2> =>
+    map(checked_quotient, divisors)
+
+/**
+A failure leaving a mapped child leaves the map.
+
+Rules:
+    MAP-10, NUM-12
+
+Status:
+    agreed
+*/
+test fixed_map_propagates_child_failure {
+    assert eval map_fixed_quotients(divisors: [[2, 3]]) == [[6, 4]]
+    assert raises("numeric.division_by_zero") { eval map_fixed_quotients(divisors: [[2, 0]]) }
+}
+
+fn fixed_tree_sum(values: list<i64, 2>) -> i64 => reduce(add_, values)
+
+const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit
+
+fn fixed_ordered_digits(values: list<i64, 2>) -> i64 => reduce(append_digit, values, 1)
+
+struct FixedReductionEvent { size: i64 }
+
+const fn append_size(accumulated: i64, event: FixedReductionEvent) -> i64 =>
+    accumulated * 10 + event.size
+
+fn fixed_ordered_events(values: list<FixedReductionEvent, 2>) -> i64 =>
+    reduce(append_size, values, 1)
+
+/**
+A fixed tree reduction starts from the first position and an ordered
+reduction starts from the given zero.
+
+The digit fold distinguishes the order of the positions.
+
+Rules:
+    RED-1, RED-2, RED-3, RED-5
+
+Status:
+    agreed
+*/
+test fixed_reduce_selects_tree_and_ordered_folds {
+    assert eval fixed_tree_sum(values: [[2, 3], [4, 5]]) == [5, 9]
+    assert eval fixed_ordered_digits(values: [[2, 3], [4, 5]]) == [123, 145]
+    assert eval fixed_ordered_events(
+        values: [[FixedReductionEvent(size: 2), FixedReductionEvent(size: 3)]],
+    ) == [123]
+}
+
+fn take_last(accumulated: i64, item: i64) -> i64 => item
+
+fn fixed_ordered_last(items: list<i64, 2>) -> i64 => reduce(take_last, items, 0)
+
+fn fixed_tree_last(items: list<i64, 2>) -> i64 =>
+    reduce{associative: true}(take_last, items)
+
+/**
+A fixed-size reduction follows its callback's input dependencies.
+
+Here the callback ignores the accumulator. The last position can
+publish before the first position, and a later tick of the unused
+first position leaves the output silent.
+
+Rules:
+    RED-2, RED-3, RED-5
+
+Status:
+    agreed
+*/
+test fixed_reduction_follows_the_callbacks_validity {
+    assert eval fixed_ordered_last([
+        delta<list<i64, 2>>(updated: [1: 2]),
+        _,
+        delta<list<i64, 2>>(updated: [0: 1]),
+        delta<list<i64, 2>>(updated: [1: 3]),
+    ]) == [2, _, _, 3]
+    assert eval fixed_tree_last([
+        delta<list<i64, 2>>(updated: [1: 2]),
+        _,
+        delta<list<i64, 2>>(updated: [0: 1]),
+        delta<list<i64, 2>>(updated: [1: 3]),
+    ]) == [2, _, _, 3]
+}

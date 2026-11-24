@@ -51,6 +51,19 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         assertTrue(html, "requires C in {Scheduler, Alarm} &amp;&amp; W in {duration, datetime}</pre>" in html)
     }
 
+    fun testHoverDistinguishesOutputlessAndGenericResultCallbacks() {
+        val outputless = hint("""
+            module calls
+            fn each_of(f: fn(value: i64), a: i64) => <caret>f(a)
+        """)
+        assertTrue(outputless, outputless.contains("<pre>f: fn(value: i64)</pre>"))
+        val generic = hint("""
+            module calls
+            fn through<R>(f: fn(value: i64) -> R, a: i64) -> R => <caret>f(a)
+        """)
+        assertTrue(generic, generic.contains("<pre>f: fn(value: i64) -&gt; R</pre>"))
+    }
+
     fun testQuickDocFormatsSectionsAndPreservesUnsupportedMarkup() {
         val source = """
             module contracts

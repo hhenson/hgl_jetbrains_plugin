@@ -1,13 +1,7 @@
-operator tick<V>(value: V) -> V
+fn through<R>(f: fn(i64) -> R, a: i64) -> R => f(a)
 
-impl fn tick(value: i64) -> i64 {
-    when { return value }
-}
+operator visit<R>(f: fn(i64) -> R, a: i64) -> R
 
-impl const fn tick(value: f64) -> f64 => value
+impl fn visit(f: fn(i64) -> i64, a: i64) -> i64 => f(a)
 
-operator pass<T>(a: T) -> T
-
-impl fn pass<T>(a: T) -> T requires tick(T) -> T => tick(a)
-
-fn reals(x: f64) -> f64 => pass(x)
+impl fn visit(f: fn(i64), a: i64) => f(a)

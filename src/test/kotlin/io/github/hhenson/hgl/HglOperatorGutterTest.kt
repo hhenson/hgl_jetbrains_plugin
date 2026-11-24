@@ -172,6 +172,18 @@ class HglOperatorGutterTest : HglEditorFixture() {
         assertTrue(reverse.all { targets(it).single() == add.element!!.parent.parent })
     }
 
+    fun testMapAndReduceGuttersFindFixedAndNativeCandidatesInCore() {
+        val fixtures = Path.of("src/test/testData/parser/core")
+        val fixed = source("core/mapping.hgl", fixtures.resolve("hgl_core_mapping.hgl").readText())
+        val native = source("native/mapping.hgl", fixtures.resolve("hgl_native_mapping.hgl").readText())
+        val operators = markers(fixed).filter { it.icon == AllIcons.Gutter.ImplementedMethod }
+        for ((name, fixedCount, nativeCount) in listOf(Triple("map", 1, 2), Triple("reduce", 2, 4))) {
+            val marker = operators.single { it.element!!.text == name }
+            val candidates = targets(marker).groupingBy { it.containingFile }.eachCount()
+            assertEquals(name, mapOf(fixed to fixedCount, native to nativeCount), candidates)
+        }
+    }
+
     fun testRemovingAndRenamingAnImplementationRefreshesTheOperatorMarker() {
         val api = source("api.hgl", "module m\noperator a()\noperator b()")
         val candidate = source("part.hgl", "module m part more\nimpl fn a() {}")

@@ -40,11 +40,16 @@ internal fun sourceDocSymbol(element: PsiElement, name: String): DocumentationTa
         else -> element
     }
     val file = owner.containingFile as? HglFile ?: return null
-    val first = name.substringBefore('.')
+    val first = name.substringBefore("::").substringBefore('.')
     val parameters = PsiTreeUtil.getChildOfType(owner, HglFunctionSignature::class.java)?.parameterList.orEmpty() +
         PsiTreeUtil.getChildOfType(owner, HglGenericParameters::class.java)?.genericParameterList.orEmpty() +
         PsiTreeUtil.getChildOfType(owner, HglConfigurationParameters::class.java)?.configurationParameterList.orEmpty()
     if (parameters.any { it.name == first }) return null
+    if ("::" in name) {
+        val alias = HglScope.findAlias(owner, first) ?: return null
+        val module = (alias.parent as? HglUseDecl)?.modulePath?.dottedName ?: return null
+        return moduleDocTargets(owner, file, module, name.substringAfter("::"), includePrivate = false).singleOrNull()
+    }
     val local = HglScope.resolve(owner, first, includeImplementations = false)
     val tail = name.substringAfter('.', "")
     val visible = if (tail.isEmpty()) local else local.mapNotNull { member(it, tail) }
@@ -57,18 +62,24 @@ internal fun sourceDocSymbol(element: PsiElement, name: String): DocumentationTa
             .mapNotNull { it.modulePath?.dottedName }.ifEmpty { listOf("core") }
         return modules.flatMap { exportTargets(file, it, name) }.singleOrNull()
     }
-    val targets = qualifiedDocNames(name).flatMap { canonical ->
+    return qualifiedDocNames(name).flatMap { canonical ->
         val module = canonical.substringBefore("::")
-        val path = canonical.substringAfter("::")
-        val files = HglModuleIndex.findFiles(file.project, module)
-        if (files.isEmpty()) exportTargets(file, module, path)
-        else files.flatMap { part ->
-            val declared = if (module == file.modulePath)
-                part.children.filterIsInstance<HglNamedElement>().filter { it.name == path.substringBefore('.') }
-            else HglScope.exportedDeclarations(part, path.substringBefore('.'))
-            declared.filterNot { it.isOperatorImplementation }.mapNotNull { if ('.' in path) member(it, path.substringAfter('.')) else it }
-                .mapNotNull { provider.documentationTarget(it, owner) }
-        }
+        moduleDocTargets(owner, file, module, canonical.substringAfter("::"), includePrivate = module == file.modulePath)
+    }.singleOrNull()
+}
+
+private fun moduleDocTargets(
+    owner: PsiElement, file: HglFile, module: String, path: String, includePrivate: Boolean,
+): List<DocumentationTarget> {
+    val files = HglModuleIndex.findFiles(file.project, module)
+    if (files.isEmpty()) return exportTargets(file, module, path)
+    val name = path.substringBefore('.')
+    val provider = HglDocumentationTargetProvider()
+    return files.flatMap { part ->
+        val declared = if (includePrivate)
+            part.children.filterIsInstance<HglNamedElement>().filter { it.name == name }
+        else HglScope.exportedDeclarations(part, name)
+        declared.filterNot { it.isOperatorImplementation }.mapNotNull { if ('.' in path) member(it, path.substringAfter('.')) else it }
+            .mapNotNull { provider.documentationTarget(it, owner) }
     }
-    return targets.singleOrNull()
 }
