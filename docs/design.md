@@ -230,6 +230,8 @@ When the compiler supplies `sourceMap`, the IDE passes its build and installed
 source roots to LLDB as path pairs for that launch. With the matching
 `hgl-debug` package installed, native hgraph stack frames open their C++ source.
 
+For each debug launch the plugin imports the scalar endpoint formatter from the hgraph SDK named by the compiler. The SDK supplies the runtime-specific layouts. Older SDKs retain the native debugger display.
+
 For a usable plan, LLDB starts each executable with the supplied arguments
 and environment. Debug launches omit integration test deadlines. The IDE
 reads the module’s results file at exit. Terminal outcomes allow the next
