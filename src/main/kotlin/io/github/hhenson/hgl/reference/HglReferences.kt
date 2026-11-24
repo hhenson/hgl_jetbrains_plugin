@@ -7,11 +7,16 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementResolveResult
 import com.intellij.psi.PsiPolyVariantReferenceBase
 import com.intellij.psi.ResolveResult
+import com.intellij.psi.util.parentOfType
+import io.github.hhenson.hgl.HglLanguage
 import io.github.hhenson.hgl.psi.HglImportItem
+import io.github.hhenson.hgl.psi.HglLifecycleStmt
 import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglQualifiedName
+import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglUseDecl
+import io.github.hhenson.hgl.psi.HglWhenStmt
 import io.github.hhenson.hgl.structure.HglPresentation
 
 /**
@@ -47,12 +52,19 @@ class HglQualifiedNameReference(element: HglQualifiedName) :
 
     override fun getVariants(): Array<Any> {
         if (element.identList.size > 1) return emptyArray()
-        return HglScope.visibleDeclarations(element)
+        val variants = HglScope.visibleDeclarations(element)
             .filter { !it.name.isNullOrEmpty() }
             .distinctBy { it.name }
             .map { lookupFor(it) }
-            .toList()
-            .toTypedArray()
+            .toMutableList()
+        if (element.parent is HglReferenceExpr &&
+            (element.parentOfType<HglWhenStmt>() != null || element.parentOfType<HglLifecycleStmt>() != null)) {
+            val visible = variants.mapTo(HashSet()) { it.lookupString }
+            for (name in HglLanguage.endpointPredicates - visible) {
+                variants.add(LookupElementBuilder.create(name).bold().withTypeText("endpoint predicate"))
+            }
+        }
+        return variants.toTypedArray()
     }
 
     override fun handleElementRename(newElementName: String): PsiElement {

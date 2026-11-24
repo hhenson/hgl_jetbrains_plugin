@@ -6,6 +6,8 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.util.parentOfType
+import io.github.hhenson.hgl.HglLanguage
 import io.github.hhenson.hgl.psi.HglConfigurationParameter
 import io.github.hhenson.hgl.psi.HglAnonymousParameter
 import io.github.hhenson.hgl.psi.HglCacheDecl
@@ -14,6 +16,7 @@ import io.github.hhenson.hgl.psi.HglConstantDecl
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglEnumMember
 import io.github.hhenson.hgl.psi.HglFieldExpr
+import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglForBinding
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglFunctionTypeParameter
@@ -39,6 +42,9 @@ import io.github.hhenson.hgl.psi.HglStructMember
 import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglTokenSets
 import io.github.hhenson.hgl.psi.HglUseAlias
+import io.github.hhenson.hgl.psi.HglUseDecl
+import io.github.hhenson.hgl.psi.dottedName
+import io.github.hhenson.hgl.reference.HglScope
 
 /**
  * Semantic colouring on top of the lexer: declaration names by kind,
@@ -104,6 +110,8 @@ class HglAnnotator : Annotator {
         val targets = (reference.reference as? com.intellij.psi.PsiPolyVariantReference)
             ?.multiResolve(false)?.mapNotNull { it.element } ?: emptyList()
         val key = when {
+            last.text in HglLanguage.endpointPredicates && isCallee(reference) && bindsCorePredicate(reference, targets) ->
+                HglColors.CONTEXTUAL_KEYWORD
             targets.isNotEmpty() -> keyForTargets(targets)
             reference.parent is HglNamedType -> HglColors.STRUCT_REFERENCE
             last.text in INTRINSICS -> HglColors.INTRINSIC
@@ -112,6 +120,20 @@ class HglAnnotator : Annotator {
         }
         if (key != null) colour(holder, last, key)
         if (reference.identList.size == 2) colour(holder, reference.identList[0], HglColors.MODULE_PATH)
+    }
+
+    private fun bindsCorePredicate(reference: HglQualifiedName, targets: List<PsiElement>): Boolean {
+        if (targets.isEmpty()) {
+            val alias = reference.identList.dropLast(1).singleOrNull() ?: return true
+            return HglScope.findAlias(reference, alias.text)?.parentOfType<HglUseDecl>()?.modulePath?.dottedName == "core"
+        }
+        return targets.all {
+            when (it) {
+                is HglNativeFunctionDecl -> (it.containingFile as? HglFile)?.modulePath == "core"
+                is HglImportItem -> it.parentOfType<HglUseDecl>()?.modulePath?.dottedName == "core"
+                else -> false
+            }
+        }
     }
 
     private fun isCallee(reference: HglQualifiedName): Boolean {
@@ -148,7 +170,7 @@ class HglAnnotator : Annotator {
     companion object {
         /** Prelude intrinsics and metadata functions ("Temporal metadata syntax", ADR 0007, ADR 0010). */
         val INTRINSICS: Set<String> = setOf(
-            "modified", "valid", "all_valid", "last_modified", "delta", "scheduled", "passivate", "activate",
+            "last_modified", "delta", "scheduled", "passivate", "activate",
             "key_set", "elements", "values", "keys", "len", "types", "type_at", "fields", "has_fields",
             "field_type", "schemas", "arg_keys", "associative", "commutative",
         )

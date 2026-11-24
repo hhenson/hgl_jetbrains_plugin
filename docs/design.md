@@ -179,6 +179,9 @@ Keyword completion in a named or anonymous function's `=>` body
 offers expression starters at operands. A nested block resumes statement
 completion. Test bodies also admit `eval`, and integration tests admit `run`.
 Names in scope are supplied independently by reference completion.
+Calls to the core endpoint predicates `modified`, `valid` and `all_valid` use the
+contextual keyword colour. Temporal handlers offer all three in completion even
+when core sources are absent. A local binding keeps its own colour and completion.
 
 At a callback call, completion and Go to Declaration use the function type of
 the parameter the callee resolves to (FN-17). Only names written in that type
