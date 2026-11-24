@@ -1,0 +1,20 @@
+module conformance.rejections part structural_conversion
+
+struct UnwrittenCollectionPart {
+    id: i64
+}
+
+/**
+A collection with a part type that has no text conversion cannot be converted
+to text.
+
+Rules:
+    OPS-4, FMT-5, GEN-5, GEN-16
+
+Status:
+    agreed
+*/
+const fn collection_without_part_conversion(value: list<UnwrittenCollectionPart?>) -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return convert<str>(value)
+}

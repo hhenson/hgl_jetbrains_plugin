@@ -104,7 +104,10 @@ private class HglDocumentationTarget(private val element: PsiElement) : Document
 
 /** Documentation of the current source buffer. */
 object HglDocumentation {
-    fun attached(element: PsiElement): String? {
+    fun attached(element: PsiElement): String? = attachedLines(element)
+        ?.dropWhile { it.docBlank() }?.dropLastWhile { it.docBlank() }?.joinToString("\n")
+
+    private fun attachedLines(element: PsiElement): List<String>? {
         if (element !is HglFunctionDecl && element !is HglNativeFunctionDecl &&
             element !is HglOperatorDecl && element !is HglStructDecl &&
             element !is HglStructMember && element !is HglTestDecl && element !is HglModuleDecl &&
@@ -115,10 +118,11 @@ object HglDocumentation {
         if (leaf?.node?.elementType != HglTypes.DOC_COMMENT) return null
         val raw = leaf.text
         val lines = raw.substring(3, raw.length - 2).lines().toMutableList()
-        if (lines.isNotEmpty()) lines[0] = lines[0].trim(' ', '\t')
-        val indent = lines.drop(1).filter { it.trim(' ', '\t').isNotEmpty() }.minOfOrNull { it.length - it.trimStart(' ', '\t').length } ?: 0
+        lines[0] = lines[0].trimStart(' ', '\t')
+        if (lines.size == 1) lines[0] = lines[0].trimEnd(' ', '\t')
+        val indent = lines.drop(1).filterNot { it.docBlank() }.minOfOrNull { it.docIndent() } ?: 0
         for (i in 1 until lines.size) lines[i] = lines[i].drop(indent)
-        return lines.dropWhile { it.trim(' ', '\t').isEmpty() }.dropLastWhile { it.trim(' ', '\t').isEmpty() }.joinToString("\n")
+        return lines
     }
 
     /** End of the written declaration header. Initializers and implementation bodies can be arbitrarily large. */
@@ -147,16 +151,25 @@ object HglDocumentation {
             .subSequence(element.textRange.startOffset, end.textRange.endOffset).toString()
     }
 
+    private fun attachedSections(element: PsiElement): List<HglDocSection> {
+        val lines = attachedLines(element) ?: return emptyList()
+        val sections = docSections(lines.joinToString("\n"), openingLineIsSummary = true)
+        // SDOC-3 defines no field keys for a struct's Args section.
+        return if (element is HglStructDecl) sections.map {
+            if (it.heading == "Args:") it.copy(entries = emptyMap()) else it
+        } else sections
+    }
+
     private fun sections(element: PsiElement): List<HglDocSection> {
         val heading = when (element) {
             is HglParameter, is HglConfigurationParameter -> "Args:"
             is HglGenericParameter -> "Type Args:"
-            else -> return attached(element)?.let(::docSections).orEmpty()
+            else -> return attachedSections(element)
         }
         val owner = element.parent?.parent ?: return emptyList()
         val name = element.name ?: return emptyList()
-        val entry = attached(owner)?.let(::docSections)?.asSequence()
-            ?.filter { it.heading == heading }?.firstNotNullOfOrNull { it.description(name) }
+        val entry = attachedSections(owner).asSequence()
+            .filter { it.recognized && it.heading == heading }.firstNotNullOfOrNull { it.description(name) }
         return listOfNotNull(entry)
     }
 

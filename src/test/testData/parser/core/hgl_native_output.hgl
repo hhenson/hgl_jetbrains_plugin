@@ -1,0 +1,68 @@
+module core part output
+
+/**
+Select the process stream that receives text from `write`.
+
+Examples:
+    ~~~hgl
+    assert Stream.out != Stream.err
+    ~~~
+
+Rules:
+    OUT-1
+*/
+export enum Stream {
+    /**
+    Send text to the process's standard output.
+
+    Examples:
+        ~~~hgl
+        write("ready\n", .out, flush: true)
+        ~~~
+
+    Rules:
+        OUT-1, OUT-2
+    */
+    out,
+
+    /**
+    Send text to the process's standard error.
+
+    Examples:
+        ~~~hgl
+        write("warning\n", .err, flush: true)
+        ~~~
+
+    Rules:
+        OUT-1, OUT-2
+    */
+    err,
+}
+
+/**
+Write text to a process stream exactly as given.
+
+The call adds no line ending and gives no result. It writes where it
+is executed, in a value function or in a node handler. Its stream
+text does not enter the run's record.
+
+Args:
+    text: The text to write, including any desired line ending.
+    stream: The process stream. The default is `.out`.
+    flush: Flush the stream before returning. The default is `false`,
+        so the stream decides when the text is visible.
+
+Examples:
+    ~~~hgl
+    write("ready\n", flush: true)
+    write("warning\n", .err)
+    ~~~
+
+Notes:
+    Use `format` to prepare text with values. See the
+    [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference).
+
+Rules:
+    OUT-1, OUT-2
+*/
+export native const fn write(text: str, stream: Stream = .out, flush: bool = false)

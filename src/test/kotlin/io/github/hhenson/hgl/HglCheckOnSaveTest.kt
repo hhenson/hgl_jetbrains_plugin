@@ -127,6 +127,36 @@ class HglCheckOnSaveTest : HglEditorFixture() {
         }
     }
 
+    fun testFormatSpecifierDiagnosticUnderlinesTheWrittenSpecifier() {
+        val dir = Files.createDirectory(Path.of(project.basePath!!, "formatting"))
+        Files.writeString(dir.resolve("demo.hgl"), "module demo\n")
+        val root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
+        PsiTestUtil.addContentRoot(module, root)
+        val file = root.findChild("demo.hgl")!!
+        myFixture.configureFromExistingVirtualFile(file)
+        val document = myFixture.editor.document
+        val settings = project.service<HglTestSettings>()
+        val before = settings.state
+        val service = project.service<HglCheckService>()
+        try {
+            settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), dir.fileName.toString()))
+            WriteCommandAction.runWriteCommandAction(project) {
+                document.insertString(document.textLength, """const fn text() -> str => format("😀\n{price:x}", price: 2.5)""")
+            }
+            FileDocumentManager.getInstance().saveDocument(document)
+            PlatformTestUtil.waitWithEventsDispatching("missing format diagnostic", {
+                service.diagnostics(file, document).any { "format.specifier" in it.message }
+            }, 15)
+            val error = myFixture.doHighlighting(HighlightSeverity.ERROR).single { "format.specifier" in it.description.orEmpty() }
+            assertEquals(document.text.indexOf("x}"), error.startOffset)
+            assertEquals("x", document.text.substring(error.startOffset, error.endOffset))
+            assertTrue(error.toolTip, "FMT-4" in error.toolTip.orEmpty())
+        } finally {
+            service.reset()
+            settings.loadState(before)
+        }
+    }
+
     fun testFixingABadRootShowsTheBundledCoreLocationOnTheNextSave() {
         val dir = Files.createDirectory(Path.of(project.basePath!!, "sources"))
         val source = Files.writeString(dir.resolve("demo.hgl"), "module demo\n")

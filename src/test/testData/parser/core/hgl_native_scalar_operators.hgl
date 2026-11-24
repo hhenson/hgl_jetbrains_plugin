@@ -179,6 +179,25 @@ native impl const fn convert(value: str) -> bytes
 native impl const fn convert(value: date) -> datetime
 native impl const fn convert(value: datetime) -> date
 
+# OPS-4, FMT-5: collection parts use their own text conversion, with
+# strings quoted and date, time, datetime and duration written as by format.
+native impl const fn convert<T>(value: list<T>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str
+native impl const fn convert<T, N>(value: list<T, N>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str
+native impl const fn convert<T>(value: list<T?>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str
+native impl const fn convert<T, N>(value: list<T?, N>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str
+native impl const fn convert<T>(value: set<T>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str
+native impl const fn convert<K, V>(value: dict<K, V>) -> str
+    requires (K in {str, date, time, datetime, duration} || convert(K) -> str)
+        && (V in {str, date, time, datetime, duration} || convert(V) -> str)
+native impl const fn convert<K, V>(value: dict<K, V?>) -> str
+    requires (K in {str, date, time, datetime, duration} || convert(K) -> str)
+        && (V in {str, date, time, datetime, duration} || convert(V) -> str)
+
 # OPS-5: the Boolean forms. A chain is `and_` or `or_` applied left to right.
 native impl const fn and_(lhs: bool, rhs: bool) -> bool
 native impl const fn or_(lhs: bool, rhs: bool) -> bool

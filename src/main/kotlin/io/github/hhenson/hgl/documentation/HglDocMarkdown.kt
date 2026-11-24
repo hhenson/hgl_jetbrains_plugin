@@ -74,12 +74,17 @@ internal fun docHtml(signature: String, sections: List<HglDocSection>, brief: Bo
             if (!summary.isNullOrEmpty()) append("<div class='content'>").append(markdown(summary, false, hasTarget)).append("</div>")
         } else if (sections.isNotEmpty()) {
             append("<div class='content'>")
-            for ((heading, lines, recognized) in sections) {
+            for (section in sections) {
+                val heading = section.heading
                 if (heading != null) {
-                    val tag = if (recognized) "h4" else "p"
-                    append("<$tag>").append(escapeDoc(heading)).append("</$tag>")
+                    if (section.recognized) append("<h4>").append(escapeDoc(heading)).append("</h4>")
+                    else append(markdown(heading, false, hasTarget))
                 }
-                if (lines.isNotEmpty()) append(markdown(lines.joinToString("\n"), heading == "Examples:", hasTarget))
+                val inExamples = section.recognized && heading == "Examples:"
+                for ((key, lines) in section.paragraphs()) {
+                    if (key != null) append("<p><code>").append(escapeDoc(key)).append("</code></p>")
+                    if (lines.isNotEmpty()) append(markdown(lines.joinToString("\n"), inExamples, hasTarget))
+                }
             }
             append("</div>")
         }

@@ -68,7 +68,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
   {BLOCK_COMMENT}                { return yytext().toString().startsWith("/**") && yylength() >= 5 ? DOC_COMMENT : BLOCK_COMMENT; }
   {UNTERMINATED_BLOCK_COMMENT}   { return BLOCK_COMMENT; }
 
-  // Hard reserved words: the keyword table of the compiler's token.cpp.
+  // Hard reserved words: LEX-9 and LEX-10.
   "module"                       { return MODULE_KW; }
   "part"                         { return PART_KW; }
   "use"                          { return USE_KW; }
@@ -90,6 +90,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
   "return"                       { return RETURN_KW; }
   "if"                           { return IF_KW; }
   "else"                         { return ELSE_KW; }
+  "switch"                       { return SWITCH_KW; }
   "start"                        { return START_KW; }
   "when"                         { return WHEN_KW; }
   "stop"                         { return STOP_KW; }
@@ -98,6 +99,7 @@ TEMPORAL_AT = "@" ( {ZONE} | {DATE} ( "T" {CLOCK} {OFFSET}? )? {ZONE}? | {CLOCK}
   "yield"                        { return YIELD_KW; }
   "test"                         { return TEST_KW; }
   "assert"                       { return ASSERT_KW; }
+  "raises"                       { return RAISES_KW; }
   "eval"                         { return EVAL_KW; }
   "true"                         { return TRUE_KW; }
   "false"                        { return FALSE_KW; }

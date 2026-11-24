@@ -44,7 +44,7 @@ class HglLexerTest : LexerTestCase() {
             assertTrue(word, io.github.hhenson.hgl.psi.HglTokenSets.KEYWORDS.contains(lexer.tokenType))
             assertEquals(word.length, lexer.tokenEnd)
         }
-        for (word in listOf("const", "native", "type", "switch", "case", "default", "raises", "application", "without", "integration_test", "timeout", "rolling")) {
+        for (word in listOf("const", "native", "type", "case", "default", "application", "without", "integration_test", "timeout", "rolling")) {
             val lexer = createLexer()
             lexer.start(word)
             assertEquals(word, io.github.hhenson.hgl.psi.HglTypes.IDENTIFIER, lexer.tokenType)

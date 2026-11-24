@@ -180,7 +180,8 @@ private line_recover ::= !(NEWLINE | USE_KW | FN_KW | OPERATOR_KW | INSTANTIATE_
 
 private nls ::= NEWLINE*
 // LEX-5: a body may start one logical line after its header.
-private body_gap ::= nls <<bodyBraceAhead>>
+private body_gap ::= continuation_gap &LBRACE
+private continuation_gap ::= nls <<continuesLine>>
 private comma_sep ::= nls COMMA nls
 private trailing_comma ::= nls COMMA
 private meta list_of ::= <<p>> (comma_sep <<p>>)* trailing_comma?
@@ -222,9 +223,9 @@ member_name ::= ident | keyword_name
 private keyword_name ::= ENUM_KW | RESULT_KW | ERROR_KW | DICT_KW | ATOMIC_KW | TUPLE_KW | LIST_KW | SET_KW | ROLLING_WINDOW_KW | ENDPOINT_KW | REF_KW | SIGNAL_KW | DELTA_KW | MODULE_KW | PART_KW | USE_KW | AS_KW | EXPORT_KW | ABSTRACT_KW | IMPL_KW
                        | INSTANTIATE_KW | OPERATOR_KW | FN_KW | STRUCT_KW
                        | REQUIRES_KW | IS_KW | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
-                       | RETURN_KW | IF_KW | ELSE_KW | START_KW | WHEN_KW | STOP_KW | FOR_KW
+                       | RETURN_KW | IF_KW | ELSE_KW | SWITCH_KW | START_KW | WHEN_KW | STOP_KW | FOR_KW
                        | WHILE_KW | YIELD_KW
-                       | TEST_KW | ASSERT_KW | EVAL_KW | RUN_KW | TRUE_KW | FALSE_KW | NULL_KW
+                       | TEST_KW | ASSERT_KW | RAISES_KW | EVAL_KW | RUN_KW | TRUE_KW | FALSE_KW | NULL_KW
                        | scalar_type_keyword
 private scalar_type_keyword ::= TENOR_KW | BYTES_KW | ANY_KW | BOOL_KW | I64_KW | F64_KW | STR_KW | DATE_KW | TIME_KW | DATETIME_KW
                               | DURATION_KW | CIVIL_DATETIME_KW | ZONED_DATETIME_KW | ZONED_TIME_KW
@@ -370,7 +371,7 @@ private statement_item ::= !(NEWLINE | RBRACE) statement_body {pin=1 recoverWhil
 private statement_body ::= statement &(NEWLINE | RBRACE | <<afterCommentBreak>>) {pin=1}
 private statement_recover ::= !(NEWLINE | RBRACE | LET_KW | VAR_KW | STATE_KW | CACHE_KW | INJECT_KW
                                | START_KW | STOP_KW | WHEN_KW | FOR_KW | WHILE_KW | YIELD_KW
-                               | RETURN_KW | ASSERT_KW)
+                               | RETURN_KW | ASSERT_KW | SWITCH_KW)
 
 private statement ::= local_decl
             | state_decl
@@ -402,8 +403,8 @@ iterable ::= (<<sizeExpr>> RANGE nls <<sizeExpr>>) | expr
 while_stmt ::= WHILE_KW (!LBRACE <<header expr>>)? body_gap block {pin=1}
 yield_stmt ::= YIELD_KW expr COLON nls expr {pin=1}
 return_stmt ::= RETURN_KW expr? {pin=1}
-assert_stmt ::= ASSERT_KW (raises_assertion | expr)
-raises_assertion ::= &(<<isKw "RAISES_KW">> ident arguments !<<afterCommentBreak>> LBRACE) <<kw "RAISES_KW">> arguments block {pin=2}
+assert_stmt ::= ASSERT_KW continuation_gap (raises_assertion | expr) {pin=1}
+raises_assertion ::= RAISES_KW <<adjacent>> LPAREN nls grouped_expr nls RPAREN body_gap block {pin=1}
 expression_stmt ::= expr assignment_tail?
 assignment_tail ::= assign_op nls expr {pin=1}
 private assign_op ::= EQ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | FLOOR_SLASH_EQ | PERCENT_EQ
@@ -510,8 +511,7 @@ native_type_body ::= body_gap LBRACE nls (native_property (NEWLINE+ native_prope
 native_property ::= member_name COLON nls type {pin=2}
 operator_configuration ::= &(LBRACE nls member_name COLON) LBRACE nls <<list_of named_argument>> nls RBRACE {pin=2}
 warning_annotation ::= AT <<kw "SUPPRESS_WARNING_KW">> <<adjacent>> LPAREN nls STRING_LITERAL nls RPAREN NEWLINE+ {pin=2}
-private switch_head ::= &<<isKw "SWITCH_KW">> !(<<header expr>> &(NEWLINE | RBRACE | assign_op | <<afterCommentBreak>>)) <<kw "SWITCH_KW">>
-switch_stmt ::= switch_head <<header expr>> body_gap LBRACE nls switch_case* switch_default? RBRACE {pin=1}
+switch_stmt ::= SWITCH_KW continuation_gap <<header expr>> body_gap LBRACE nls switch_case* switch_default? RBRACE {pin=1}
 switch_case ::= <<kw "CASE_KW">> expr COLON nls switch_body {pin=1}
 switch_default ::= <<kw "DEFAULT_KW">> COLON nls switch_body {pin=1}
 private switch_body ::= (!(RBRACE | <<isKw "CASE_KW">> | <<isKw "DEFAULT_KW">>) block_item)*

@@ -7,6 +7,7 @@ import com.intellij.platform.backend.documentation.DocumentationLinkHandler
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.documentation.*
+import io.github.hhenson.hgl.psi.HglConstantDecl
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.run.HglTestSettings
 import java.io.File
@@ -36,6 +37,20 @@ class HglDocModelTest : HglEditorFixture() {
         val core = targets("module consumer\nfn g() => smallest_st<caret>ep").single()
         assertTrue(core.computeDocumentationHint()!!.contains("smallest_step"))
         assertNotNull(core.createPointer().dereference())
+    }
+
+    fun testBundledFormatPacksAndWriteParameterHelp() {
+        myFixture.addFileToProject("documentation.json", model)
+        val format = targets("""module consumer
+            |const fn text() => for<caret>mat("{} {price:.2f}", 7, price: 2.5)
+        """.trimMargin()).single().computeDocumentationHint()!!
+        assertTrue(format, format.contains("args: ...As, kwargs: ...{Ks}"))
+        assertTrue(format, format.contains("Fill the places in a constant format string."))
+
+        val flush = targets("""module consumer
+            |const fn emit() { write("ready", flu<caret>sh: true) }
+        """.trimMargin()).single().computeDocumentationHint()!!
+        assertTrue(flush, flush.contains("flush: bool = false") && flush.contains("Flush the stream before returning."))
     }
 
     fun testExportedStructConstructorLabelsShowFieldDocumentation() {
@@ -178,6 +193,38 @@ class HglDocModelTest : HglEditorFixture() {
         assertEquals(1, "Runnable example".toRegex().findAll(source).count())
         assertEquals(2, "Shown example".toRegex().findAll(source).count())
         assertTrue(source, source.contains("<blockquote>"))
+    }
+
+    fun testSourceAndExportRenderTheSameParameterMarkdown() {
+        val source = File("src/test/testData/documentation/doc_extraction.hgl").readText()
+        myFixture.configureByText("doc_extraction.hgl", source)
+        val function = PsiTreeUtil.findChildrenOfType(myFixture.file, HglFunctionDecl::class.java)
+            .single { it.name == "describe_value" }
+        val exported = HglDocModel.read(model).declarations("extraction_check::describe_value").single()
+        val parameter = function.functionSignature!!.parameterList.single()
+        val argument = exported.arguments.getValue("value")
+        val argumentHtml = docHtml(argument.signature, listOf(HglDocSection(null, argument.description!!.lines())), false) { false }
+        assertEquals(argumentHtml, HglDocumentation.html(parameter))
+        val full = docHtml(exported.signature, exported.sections, false) { false }
+        assertEquals(full, HglDocumentation.html(function))
+        for (html in listOf(full, argumentHtml)) {
+            for (part in listOf("<table>", "<li>Item", "Second line", "Shown example", "<p>Last paragraph.</p>")) {
+                assertTrue("Missing $part in $html", html.contains(part))
+            }
+        }
+        assertTrue(full, full.contains("<p>Notes for display:</p>") && full.contains("<p>A custom section.</p>"))
+    }
+
+    fun testHeadingOnTheOpeningLineDoesNotMakeAnExampleRunnable() {
+        val source = File("src/test/testData/documentation/doc_extraction.hgl").readText()
+        myFixture.configureByText("doc_extraction.hgl", source)
+        val constant = PsiTreeUtil.findChildrenOfType(myFixture.file, HglConstantDecl::class.java)
+            .single { it.name == "prose_example" }
+        val exported = HglDocModel.read(model).declarations("extraction_check::prose_example").single()
+        val full = docHtml(exported.signature, exported.sections, false) { false }
+        assertEquals(full, HglDocumentation.html(constant))
+        assertTrue(full, full.contains("<p>Examples:</p>") && full.contains("Shown example"))
+        assertFalse(full, full.contains("Runnable example"))
     }
 
     fun testOptionsRulesAndStatusAreRecognized() {
