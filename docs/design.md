@@ -186,6 +186,8 @@ when core sources are absent. A local binding keeps its own colour and completio
 At a callback call, completion and Go to Declaration use the function type of
 the parameter the callee resolves to (FN-17). Only names written in that type
 are visible. Completion omits slots filled by positional or named arguments.
+When editing the proposed FN-8 form, a positional pack consumes the remaining
+positional arguments and later labels stay available.
 
 ## Toolbar targets
 
@@ -223,6 +225,10 @@ A failed compiler-checked rejection returns exit 1 with a plan. The IDE reports
 each failed rejection and its diagnostic, then runs the executable cases.
 Source or native build errors return empty stdout and diagnostics on stderr.
 The build error ends the debug request.
+
+When the compiler supplies `sourceMap`, the IDE passes its build and installed
+source roots to LLDB as path pairs for that launch. With the matching
+`hgl-debug` package installed, native hgraph stack frames open their C++ source.
 
 For a usable plan, LLDB starts each executable with the supplied arguments
 and environment. Debug launches omit integration test deadlines. The IDE

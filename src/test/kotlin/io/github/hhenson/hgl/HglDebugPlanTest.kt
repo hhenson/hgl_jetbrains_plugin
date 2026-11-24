@@ -12,6 +12,7 @@ class HglDebugPlanTest : TestCase() {
         val app = HglDebugPlan.parse("""{"version":1,${data.drop(1)}""", testRun = false).launches.single()
         val launch = data.dropLast(1) + ""","module":"second","tests":["second::b","second::a"],"resultsFile":"/work/results"}"""
         val plan = HglDebugPlan.parse("""{"version":1,"launches":[$launch],"skipped":[{"name":"first::c","reason":"unavailable"}]}""", true)
+        assertFalse(app.arguments.containsKey("sourceMap"))
         assertEquals(app.arguments, plan.launches.single().arguments)
         assertEquals(listOf("arg one", "--two"), app.arguments["args"])
         assertEquals(listOf("second::b", "second::a"), plan.launches.single().tests)
@@ -22,6 +23,38 @@ class HglDebugPlanTest : TestCase() {
             HglDebugPlan.parse("""{"version":1,"launches":[{}],"skipped":[]}""", true)
             fail("Missing launch fields must fail the build")
         } catch (_: ExecutionException) { }
+    }
+
+    fun testNativeSourceMappingsArePerLaunchAndPreservePathPairs() {
+        val program = """
+            "executable":"host", "arguments":[], "workingDirectory":".", "environment":{}
+        """.trimIndent()
+        val roots = """{"/build/src":"/installed engine/src","/build":"/installed engine"}"""
+        val pairs = listOf(listOf("/build/src", "/installed engine/src"), listOf("/build", "/installed engine"))
+        val app = HglDebugPlan.parse("""{"version":1,$program,"sourceMap":$roots}""", testRun = false)
+        assertEquals(pairs, app.launches.single().arguments["sourceMap"])
+
+        val testReport = """
+            {"version":1,"skipped":[],"launches":[
+              {"module":"first", $program, "sourceMap":$roots, "tests":[], "resultsFile":"first.results"},
+              {"module":"second", $program, "tests":[], "resultsFile":"second.results"}
+            ]}
+        """.trimIndent()
+        val tests = HglDebugPlan.parse(testReport, testRun = true)
+        assertEquals(pairs, tests.launches.first().arguments["sourceMap"])
+        assertFalse(tests.launches.last().arguments.containsKey("sourceMap"))
+    }
+
+    fun testMalformedNativeSourceMapIsReportedAsAnInvalidLaunch() {
+        for (map in listOf("[]", """{"/build":12}""")) {
+            val report = """{"version":1,"executable":"app","arguments":[],"workingDirectory":".","environment":{},"sourceMap":$map}"""
+            try {
+                HglDebugPlan.parse(report, testRun = false)
+                fail("Accepted invalid sourceMap $map")
+            } catch (e: ExecutionException) {
+                assertTrue(e.message.orEmpty().contains("Invalid debug launch"))
+            }
+        }
     }
 
     fun testFailedCompilerChecksPreserveDiagnosticsAndOtherLaunches() {
