@@ -121,3 +121,235 @@ test the_other_conversions {
     assert convert<datetime>(@2026-03-01) == @2026-03-01T00:00:00Z
     assert convert<date>(@2026-03-01T23:59:59Z) == @2026-03-01
 }
+
+enum ConversionSide {
+    left = -4,
+    next,
+    right = 7,
+    lowest = -9223372036854775808,
+    largest = 9223372036854775807,
+}
+enum NoConversionMembers {}
+
+const fn named_member<E>(value: E) -> str requires E in enum => convert<str>(value)
+const fn numbered_member<E>(number: i64) -> result<E, error>
+    requires E in enum => convert<E>(number)
+
+fn read_side(number: i64) -> result<ConversionSide, error> => convert<ConversionSide>(number)
+fn show_side(side: ConversionSide) -> str => convert<str>(side)
+fn number_side(side: ConversionSide) -> i64 => convert<i64>(side)
+fn require_side(number: i64) -> ConversionSide => convert<ConversionSide>(number, invalid: .fail)
+
+const fn side_outcome(value: result<ConversionSide, error>) -> str {
+    if is_err(value) { return value.error.code }
+    return convert<str>(value.value)
+}
+
+fn traced_side(number: i64) -> str => side_outcome(read_side(number))
+
+fn read_empty_enum(number: i64) -> result<NoConversionMembers, error> =>
+    convert<NoConversionMembers>(number)
+
+const fn empty_conversion_failed(value: result<NoConversionMembers, error>) -> bool =>
+    is_err(value)
+
+fn observe_empty_conversion(number: i64) -> bool =>
+    empty_conversion_failed(read_empty_enum(number))
+
+fn require_empty_enum(number: i64) -> NoConversionMembers =>
+    convert<NoConversionMembers>(number, invalid: .fail)
+
+fn show_required_empty(number: i64) -> str =>
+    convert<str>(require_empty_enum(number))
+
+fn nullable_empty_enum(number: i64) -> NoConversionMembers? =>
+    convert<NoConversionMembers>(number)
+
+fn is_null_empty(value: NoConversionMembers?) -> bool {
+    when modified(value) { return value == null }
+}
+
+fn observe_nullable_empty(number: i64) -> bool =>
+    is_null_empty(nullable_empty_enum(number))
+
+const conversion_side_key: str = "side"
+const fn accepts_conversion_side(side: ConversionSide) -> i64 => convert<i64>(side)
+
+const fn checked_reflected_enum<...Ps>(callback: const fn(...{Ps}) -> i64, number: i64)
+    -> result<Ps[conversion_side_key], error>
+    requires Ps[conversion_side_key] in enum => convert<Ps[conversion_side_key]>(number)
+
+const fn forced_reflected_enum<...Ps>(callback: const fn(...{Ps}) -> i64, number: i64)
+    -> Ps[conversion_side_key]
+    requires Ps[conversion_side_key] in enum =>
+        convert<Ps[conversion_side_key]>(number, invalid: .fail)
+
+/**
+An enum converts to its member's name and to its signed number.
+Implicit numbering follows the previous member's number.
+
+Rules:
+    TYPE-7, GEN-3, OPS-4, OPS-6
+
+Status:
+    agreed
+*/
+test enum_name_and_number {
+    assert convert<str>(ConversionSide.next) == "next"
+    assert convert<i64>(ConversionSide.left) == -4
+    assert convert<i64>(ConversionSide.next) == -3
+    assert convert<i64>(ConversionSide.lowest) == -9223372036854775808
+    assert convert<i64>(ConversionSide.largest) == 9223372036854775807
+    assert named_member(ConversionSide.next) == "next"
+    assert named_member(CmpResult.greater) == "greater"
+    assert ConversionSide("right") == .right
+    assert ConversionSide(-3) == .next
+}
+
+/**
+Core enums have the same named and numbered members in both directions of
+conversion. Checks of `.fail` and the checked return use the proposed
+OPS-7 failure profile.
+
+Rules:
+    TYPE-7, OPS-4, OPS-6, OPS-7, OPS-8
+
+Status:
+    proposed
+*/
+test runtime_owned_enum_conversions {
+    assert convert<str>(Stream.out) == "out" && convert<str>(Stream.err) == "err"
+    assert convert<i64>(Stream.out) == 0 && convert<i64>(Stream.err) == 1
+    assert convert<Stream>(0) == Stream.out
+    assert convert<Stream>(1) == Stream.err
+    assert convert<Stream>(0, invalid: .fail) == Stream.out
+    assert convert<Stream>(1, invalid: .fail) == Stream.err
+
+    assert convert<str>(CmpResult.unordered) == "unordered"
+    assert convert<i64>(CmpResult.unordered) == 3
+    assert convert<CmpResult>(3, invalid: .fail) == .unordered
+    assert convert<str>(ZeroPolicy.fail) == "fail"
+    assert convert<i64>(ZeroPolicy.fail) == 3
+    assert convert<ZeroPolicy>(3, invalid: .fail) == .fail
+    assert convert<str>(Rounding.half_down) == "half_down"
+    assert convert<i64>(Rounding.half_down) == 5
+    assert convert<Rounding>(5, invalid: .fail) == .half_down
+    assert convert<str>(InvalidPolicy.fail) == "fail"
+    assert convert<i64>(InvalidPolicy.fail) == 1
+    assert convert<InvalidPolicy>(1, invalid: .fail) == .fail
+    assert convert<str>(LogLevel.error) == "error"
+    assert convert<i64>(LogLevel.error) == 3
+    assert convert<LogLevel>(3, invalid: .fail) == .error
+}
+
+/**
+An integer that has no enum member is an Err by default and escapes under
+`.fail` under the proposed OPS-7 failure profile.
+
+Rules:
+    TYPE-7, OPS-4, OPS-6, OPS-7, OPS-8
+
+Status:
+    proposed
+*/
+test enum_numbers_use_the_conversion_policy {
+    let checked = convert<ConversionSide>(-4, invalid: .error)
+    assert is_ok(checked)
+    if is_ok(checked) { assert checked.value == .left }
+    let invalid = convert<ConversionSide>(0)
+    assert is_err(invalid)
+    if is_err(invalid) { assert invalid.error.code == "convert.invalid" }
+    assert is_err(convert<NoConversionMembers>(0))
+    assert is_ok(numbered_member<ConversionSide>(7))
+    assert is_err(numbered_member<CmpResult>(7))
+    assert convert<ConversionSide>(-9223372036854775808, invalid: .fail) == .lowest
+    assert convert<ConversionSide>(7, invalid: .fail) == .right
+    let plain: ConversionSide = convert<ConversionSide>(-3)
+    assert plain == .next
+    let nullable: ConversionSide? = convert<ConversionSide>(0)
+    assert nullable == null
+    assert raises("convert.invalid") { convert<ConversionSide>(0, invalid: .fail) }
+}
+
+/**
+Lifted enum conversions publish names, numbers, successes and failures.
+A quiet input stays quiet, and a checked error leaves the next cycle free
+to publish a success under the proposed OPS-7 failure profile.
+
+Rules:
+    TYPE-7, OPS-6, OPS-7, OPS-8, FN-6
+
+Status:
+    proposed
+*/
+test lifted_enum_conversions {
+    assert eval show_side(side: [.left, _, .right]) == ["left", _, "right"]
+    assert eval number_side(side: [.next, .right]) == [-3, 7]
+    assert eval traced_side(number: [-4, _, 0, 7]) == ["left", _, "convert.invalid", "right"]
+    assert eval require_side(number: [-4, 7]) == [ConversionSide.left, ConversionSide.right]
+    assert raises("convert.invalid") { eval require_side(number: [-4, 0]) }
+}
+
+/**
+A lifted conversion to an enum without members publishes an Err for each
+input tick under the proposed OPS-7 failure profile.
+
+Rules:
+    TYPE-7, OPS-7, FN-6
+
+Status:
+    proposed
+*/
+test lifted_empty_enum_conversion {
+    assert eval observe_empty_conversion(number: [7, _, -8]) == [true, _, true]
+}
+
+/**
+A forced conversion to an empty enum raises on its input's tick,
+including when another conversion consumes its result, under the
+proposed OPS-7 failure profile.
+
+Rules:
+    TYPE-7, OPS-7, OPS-8, FN-6
+
+Status:
+    proposed
+*/
+test lifted_empty_enum_failure_escapes {
+    assert raises("convert.invalid") { eval require_empty_enum(number: [17]) }
+    assert raises("convert.invalid") { eval show_required_empty(number: [-8]) }
+}
+
+/**
+A failed conversion into a nullable empty enum publishes null, which
+the next node sees as a value on each input tick. This case uses the
+proposed OPS-7 failure profile.
+
+Rules:
+    TYPE-7, TYPE-14, TYPE-15, OPS-7, FN-6
+
+Status:
+    proposed
+*/
+test lifted_nullable_empty_enum_publishes_null {
+    assert eval nullable_empty_enum(number: [7, _, -8]) == [null, _, null]
+    assert eval observe_nullable_empty(number: [7, _, -8]) == [true, _, true]
+}
+
+/**
+A reflected member constrained to the enum category can be the
+destination of either numeric conversion policy. Both result forms
+use the proposed OPS-7 failure profile.
+
+Rules:
+    GEN-3, GEN-7, GEN-17, OPS-4, OPS-6, OPS-7, OPS-8
+
+Status:
+    proposed
+*/
+test reflected_enum_destination {
+    let checked = checked_reflected_enum(accepts_conversion_side, -4)
+    assert is_ok(checked)
+    if is_ok(checked) { assert checked.value == .left }
+    assert forced_reflected_enum(accepts_conversion_side, 7) == .right
+}

@@ -88,6 +88,20 @@ class HglDocModelTest : HglEditorFixture() {
         assertNull(HglDocumentation.attached(members.single { it.name == "limit" }))
     }
 
+    fun testEnumMemberHoverFromExportRespectsImportsAndShadowing() {
+        myFixture.addFileToProject("documentation.json", model)
+        val imports = "module consumer\nuse examples.apidoc as api\nuse examples.apidoc::{Side}\n"
+        for (name in listOf("api::Side", "Side")) {
+            val target = targets(imports + "const fn show() -> str => convert<str>($name.b<caret>uy)").single()
+            assertTrue(target.computeDocumentationHint()!!.contains("buy"))
+            assertEquals(target.computeDocumentationHint(), target.createPointer().dereference()?.computeDocumentationHint())
+        }
+        assertEmpty(targets(imports + "const fn f(Side: i64) => Side.b<caret>uy"))
+        assertEmpty(targets(imports + "const fn f() => api::Box.va<caret>lue"))
+        myFixture.addFileToProject("local.hgl", "module examples.apidoc\nexport enum Side { other }")
+        assertEmpty(targets(imports + "const fn f() => Side.b<caret>uy"))
+    }
+
     fun testSelectiveImportAndSourcePriority() {
         myFixture.addFileToProject("documentation.json", model)
         val code = "module consumer\nuse examples.apidoc::{identity}\nfn g() => ide<caret>ntity(2)"

@@ -24,7 +24,9 @@ abstract class HglNamedElementImpl(node: ASTNode) : ASTWrapperPsiElement(node), 
 
     override fun setName(name: String): PsiElement {
         val identifier = nameIdentifier ?: return this
-        identifier.replace(HglElementFactory.createIdent(project, name))
+        val replacement = if (identifier is HglMemberName) HglElementFactory.createMemberName(project, name)
+            else HglElementFactory.createIdent(project, name)
+        identifier.replace(replacement)
         return this
     }
 

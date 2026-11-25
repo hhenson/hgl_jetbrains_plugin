@@ -54,6 +54,10 @@ Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
 
+Completion and Go to Declaration on `Side.buy` use the enum named by the
+receiver, including `alias::Side.buy` (TYPE-7). Quick Documentation shows the
+member’s source comment or its compiler export when source is unavailable.
+
 Source comments can link to a public declaration or member through a visible
 file import (for example, `prices::Quote.bid`). A parameter that hides the
 alias leaves that span as plain code. Exported comments lack import metadata.
@@ -197,7 +201,10 @@ and the caller’s test scope. The compiler selects candidates by type.
 Fixed parameters precede packs (FN-8). Named calls offer declared configuration
 parameters in braces, including Core’s `join{separator: "/"}("a", "b")`.
 Brace labels navigate to the public declaration. TYPE-18’s `type(e)` is an
-expression and accepts one operand.
+expression and accepts one operand. The descriptor spelling `Type` is contextual
+in annotations. A bare angle argument follows the declared parameter kind.
+When the call supplies the kind, a visible value takes precedence (GEN-14).
+The compiler diagnoses reserved type declarations.
 
 ## Toolbar targets
 
