@@ -32,6 +32,7 @@ class HglQualifiedNameReference(element: HglQualifiedName) :
         PsiElementResolveResult.createResults(declarations(includeImplementations = true))
 
     internal fun declarations(includeImplementations: Boolean): List<PsiElement> {
+        if (element.isDescriptorType()) return emptyList()
         val names = element.identList
         return when (names.size) {
             1 -> HglScope.resolve(element, names[0].text, includeImplementations)
@@ -53,7 +54,7 @@ class HglQualifiedNameReference(element: HglQualifiedName) :
     override fun getVariants(): Array<Any> {
         if (element.identList.size > 1) return emptyArray()
         val variants = HglScope.visibleDeclarations(element)
-            .filter { !it.name.isNullOrEmpty() }
+            .filter { !it.name.isNullOrEmpty() && !(it.name == "Type" && element.expectsDescriptorType()) }
             .distinctBy { it.name }
             .map { lookupFor(it) }
             .toMutableList()

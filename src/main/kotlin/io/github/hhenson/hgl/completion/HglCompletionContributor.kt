@@ -31,11 +31,15 @@ import io.github.hhenson.hgl.psi.HglFunctionType
 import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglOperatorConfiguration
+import io.github.hhenson.hgl.psi.HglQualifiedName
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglType
 import io.github.hhenson.hgl.psi.HglTypes
+import io.github.hhenson.hgl.reference.HglGenericKind
+import io.github.hhenson.hgl.reference.HglScope
+import io.github.hhenson.hgl.reference.angleParameterKind
 import io.github.hhenson.hgl.reference.callArguments
 import io.github.hhenson.hgl.reference.callLabels
 import io.github.hhenson.hgl.reference.configuration
@@ -165,6 +169,17 @@ class HglCompletionContributor : CompletionContributor() {
         }
 
         private fun contextKeywords(position: PsiElement, previous: IElementType?): List<String> {
+            val name = position.parentOfType<HglQualifiedName>()
+            when (name?.angleParameterKind()) {
+                HglGenericKind.TYPE -> return TYPE_KEYWORDS
+                HglGenericKind.VALUE -> return ARROW_EXPRESSION_KEYWORDS
+                HglGenericKind.CALL -> {
+                    val types = if (HglScope.resolve(name, "Type", includeImplementations = false).isEmpty())
+                        TYPE_KEYWORDS else TYPE_KEYWORDS - "Type"
+                    return ARROW_EXPRESSION_KEYWORDS + types
+                }
+                null -> Unit
+            }
             val operand = position.parentOfType<HglConstraintOperand>()
             if (operand?.constraintName != null) {
                 val parent = operand.parent
