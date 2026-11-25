@@ -8,10 +8,10 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.HglLanguage
-import io.github.hhenson.hgl.psi.HglConfigurationParameter
 import io.github.hhenson.hgl.psi.HglAnonymousParameter
 import io.github.hhenson.hgl.psi.HglCacheDecl
 import io.github.hhenson.hgl.psi.HglCallExpr
+import io.github.hhenson.hgl.psi.HglConfigurationParameter
 import io.github.hhenson.hgl.psi.HglConstantDecl
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglEnumMember
@@ -45,6 +45,7 @@ import io.github.hhenson.hgl.psi.HglUseAlias
 import io.github.hhenson.hgl.psi.HglUseDecl
 import io.github.hhenson.hgl.psi.dottedName
 import io.github.hhenson.hgl.reference.HglScope
+import io.github.hhenson.hgl.reference.isDescriptorType
 
 /**
  * Semantic colouring on top of the lexer: declaration names by kind,
@@ -107,6 +108,10 @@ class HglAnnotator : Annotator {
 
     private fun annotateReference(reference: HglQualifiedName, holder: AnnotationHolder) {
         val last = reference.identList.lastOrNull() ?: return
+        if (reference.isDescriptorType()) {
+            colour(holder, last, HglColors.CONTEXTUAL_KEYWORD)
+            return
+        }
         val targets = (reference.reference as? com.intellij.psi.PsiPolyVariantReference)
             ?.multiResolve(false)?.mapNotNull { it.element } ?: emptyList()
         val key = when {
