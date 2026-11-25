@@ -1,0 +1,29 @@
+module conformance.rejections part diagnostics
+
+/**
+A marked place on a plain value rejects in value code.
+
+Rules:
+    DBG-3, FMT-9
+
+Status:
+    agreed
+*/
+const fn debug_print_marks_unmarked_value() {
+    # expect-error(type, "format.specifier")
+    debug_print("{*}", 7)
+}
+
+/**
+The evaluation-time place rejects in value code.
+
+Rules:
+    DBG-3, FMT-9
+
+Status:
+    agreed
+*/
+const fn debug_print_engine_time_in_value_code() {
+    # expect-error(type, "format.argument")
+    debug_print("{engine_time}")
+}

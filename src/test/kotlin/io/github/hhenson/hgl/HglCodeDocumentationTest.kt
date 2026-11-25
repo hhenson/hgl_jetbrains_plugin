@@ -136,6 +136,14 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         }
     }
 
+    fun testCoreValueDebugPrintDocumentsItsPositionalAndNamedPacks() {
+        val core = java.io.File("src/test/testData/parser/core/hgl_core_diagnostics.hgl")
+        myFixture.addFileToProject("diagnostics.hgl", core.readText())
+        val result = hint("module demo\nconst fn write_quote() { debug_pr<caret>int(\"{venue}\", venue: \"test\") }")
+        assertTrue(result.contains("process") && result.contains("standard output"))
+        assertTrue(result.contains("fmt_str"))
+    }
+
     fun testNamedArgumentsInCallsAndEvalShowTheTargetParameterDescription() {
         val source = """
             module docs

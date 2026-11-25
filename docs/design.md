@@ -187,6 +187,10 @@ Named argument completion and Go to Declaration use the public signature of an
 unambiguous function or operator. At a callback call only names written in the
 parameter's function type are visible (FN-17). Completion omits slots already
 filled by positional or named arguments.
+An operator candidate may add options (GEN-6). Completion shows each label once
+and Go to Declaration offers its declaring candidates. Shared labels navigate to
+the public signature. Candidate lookup uses the gutter’s implementation index
+and the caller’s test scope. The compiler selects candidates by type.
 Fixed parameters precede packs (FN-8). Named calls offer declared configuration
 parameters in braces, including Core’s `join{separator: "/"}("a", "b")`.
 Brace labels navigate to the public declaration. TYPE-18’s `type(e)` is an

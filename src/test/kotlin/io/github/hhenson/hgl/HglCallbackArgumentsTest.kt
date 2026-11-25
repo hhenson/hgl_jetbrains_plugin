@@ -85,6 +85,84 @@ class HglCallbackArgumentsTest : HglEditorFixture() {
         assertEquals("first", (myFixture.elementAtCaret as HglParameter).name)
     }
 
+    fun testCoreDictionaryFallbackCompletesAndNavigatesToItsImplementation() {
+        val core = java.io.File("src/test/testData/parser/core/hgl_core_core.hgl")
+        myFixture.addFileToProject("core.hgl", core.readText())
+        val header = "const fn count(items: dict<str, i64>) -> i64 => "
+        assertContainsElements(complete(header + """get(items, "missing", <caret>)"""), "fallback")
+        assertDoesntContain(complete(header + """get(items, "missing", 0, <caret>)"""), "fallback")
+        for (call in listOf("""get(items, "missing", fall<caret>back: 0)""", """get{fall<caret>back: 0}(items, "missing")""")) {
+            configure(header + call)
+            val target = myFixture.elementAtCaret as HglParameter
+            assertEquals("fallback", target.name)
+            assertEquals("get", target.parentOfType<io.github.hhenson.hgl.psi.HglFunctionDecl>()?.name)
+        }
+        configure(header + """get(st<caret>ore: items, key: "missing", fallback: 0)""")
+        assertEquals("get", (myFixture.elementAtCaret as HglParameter).parentOfType<io.github.hhenson.hgl.psi.HglOperatorDecl>()?.name)
+    }
+
+    fun testCandidateLabelsAcrossModulesRetainTheirOwnPositionsAndTargets() {
+        myFixture.addFileToProject("api.hgl", "module api\nexport operator choose<T>(x: T) -> T")
+        myFixture.addFileToProject("ints.hgl", "module ints\nuse api::{choose}\nimpl const fn choose<const precision: i64 = 1>(x: i64, size: i64) -> i64 => size")
+        myFixture.addFileToProject("texts.hgl", "module texts\nuse api::{choose}\nimpl const fn choose(x: str, pad: str, size: i64) -> str => pad")
+        myFixture.addFileToProject("other.hgl", "module other\noperator choose(x: i64) -> i64\nimpl fn choose(x: i64, hidden: bool) -> i64 => x")
+        val header = "use api as a\nconst fn picked(x: str) -> str => "
+        val names = complete(header + "a::choose(x, <caret>)")
+        assertContainsElements(names, "pad", "size")
+        assertEquals(1, names.count { it == "size" })
+        assertDoesntContain(names, "hidden")
+        val afterTwo = complete(header + """a::choose(x, "-", <caret>)""")
+        assertContainsElements(afterTwo, "size")
+        assertDoesntContain(afterTwo, "pad")
+        assertDoesntContain(complete(header + """a::choose(x, "-", 2, <caret>)"""), "precision")
+        configure(header + "a::choose(x, si<caret>ze: 2)")
+        val ref = myFixture.file.findReferenceAt(myFixture.caretOffset) as com.intellij.psi.PsiPolyVariantReference
+        assertEquals(setOf("ints.hgl", "texts.hgl"), ref.multiResolve(false).map { it.element!!.containingFile.name }.toSet())
+        configure(header + """a::choose(x, "-", si<caret>ze: 2)""")
+        assertEquals("texts.hgl", myFixture.elementAtCaret.containingFile.name)
+        configure(header + """a::choose(x, pad: "-", si<caret>ze: 2)""")
+        assertEquals("texts.hgl", myFixture.elementAtCaret.containingFile.name)
+    }
+
+    fun testNamedPackDoesNotSupplyAnExtraPositionalSlot() {
+        val header = """
+            operator named<T, ...Fields>(x: T, args: ...{Fields}) -> T
+            impl const fn named<...Fields, const scale: i64 = 1>(x: i64, args: ...{Fields}) -> i64 => x
+            const fn example() -> i64 =>
+        """.trimIndent() + " "
+        assertContainsElements(complete(header + "named(1, <caret>)"), "scale")
+        assertDoesntContain(complete(header + "named(1, 2, <caret>)"), "scale")
+    }
+
+    fun testSameFileNativeCandidateKeepsBraceOnlyOptionsAndGenericLabelsSeparate() {
+        val header = """
+            operator quantize(x: i64) -> i64
+            native impl const fn quantize<const units: i64 = 1>{strict: bool = true}(x: i64, bias: i64) -> i64
+            const fn score(value: i64) -> i64 =>
+        """.trimIndent() + " "
+        val ordinary = complete(header + "quantize(value, <caret>)")
+        assertContainsElements(ordinary, "bias", "units")
+        assertDoesntContain(ordinary, "strict", "x")
+        val options = complete(header + "quantize{<caret>}(value, units: 2)")
+        assertContainsElements(options, "strict", "bias")
+        assertDoesntContain(options, "units", "x")
+        assertDoesntContain(complete(header + "quantize{units: 2}(value, <caret>)"), "units")
+    }
+
+    fun testOnlyTheDeclaringModulesTestsSeeItsTestCandidateOptions() {
+        myFixture.addFileToProject("api.hgl", "module api\nexport operator choose(x: i64) -> i64")
+        myFixture.addFileToProject("helpers.hgl", """
+            module callbacks part helpers
+            use api::{choose}
+            test with_option {
+                impl const fn choose(x: i64, scale: i64) -> i64 => x * scale
+            }
+        """.trimIndent())
+        val imported = "use api::{choose}\n"
+        assertContainsElements(complete(imported + "test another { assert choose(1, <caret>) == 2 }"), "scale")
+        assertDoesntContain(complete(imported + "const fn regular() -> i64 => choose(1, <caret>)"), "scale")
+    }
+
     fun testQualifiedGenericCallUsesDeclaredLabels() {
         myFixture.addFileToProject("lib.hgl", "module lib\nexport const fn pick<T>(first: T, second: T) -> T => first")
         val header = "use lib as l\nconst fn example() -> i64 => "

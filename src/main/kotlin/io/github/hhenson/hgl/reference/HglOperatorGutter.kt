@@ -10,6 +10,9 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.indexing.FileBasedIndex
 import io.github.hhenson.hgl.psi.*
@@ -58,6 +61,19 @@ class HglOperatorGutter : RelatedItemLineMarkerProvider() {
     }
 }
 
+/** Reuse the implementation index across argument completions and label references. */
+internal fun HglOperatorDecl.callCandidates(from: HglArguments): List<HglNamedElement> {
+    if (DumbService.isDumb(project)) return emptyList()
+    val implementations = CachedValuesManager.getCachedValue(this) {
+        CachedValueProvider.Result.create(OperatorLinks().implementationsOf(this),
+            this, PsiModificationTracker.MODIFICATION_COUNT, DumbService.getInstance(project))
+    }
+    val testModule = (from.containingFile as? HglFile)?.modulePath?.takeIf { HglScope.isTestCode(from) }
+    return implementations.filter { candidate ->
+        candidate.parent is HglFile || (testModule != null && (candidate.containingFile as? HglFile)?.modulePath == testModule)
+    }
+}
+
 /** Scope and candidate lookups are shared by overloads during one highlighting pass. */
 private class OperatorLinks {
     private val operators = mutableMapOf<Pair<PsiElement, String>, List<HglOperatorDecl>>()
@@ -80,10 +96,15 @@ private class OperatorLinks {
         val indexed = FileBasedIndex.getInstance().getContainingFiles(
             HglImplementationIndex.NAME, name, GlobalSearchScope.allScope(file.project),
         )
-        val files = listOf(file) + indexed.filter { it != file.virtualFile }.mapNotNull { manager.findFile(it) as? HglFile }
+        val files = listOf(file) + indexed.filter { it != file.originalFile.virtualFile }.mapNotNull { manager.findFile(it) as? HglFile }
         return files.flatMap { part ->
             ProgressManager.checkCanceled()
-            HglScope.operatorCandidates(part)[name].orEmpty().filter { operator in operatorsOf(it) }
+            HglScope.operatorCandidates(part)[name].orEmpty().filter { candidate ->
+                operatorsOf(candidate).any { bound ->
+                    bound == operator || (bound.parent is HglFile && bound.name == name &&
+                        bound.containingFile.originalFile == file.originalFile)
+                }
+            }
         }
     }
 }
