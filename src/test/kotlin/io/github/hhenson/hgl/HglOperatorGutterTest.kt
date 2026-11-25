@@ -177,7 +177,7 @@ class HglOperatorGutterTest : HglEditorFixture() {
         val fixed = source("core/mapping.hgl", fixtures.resolve("hgl_core_mapping.hgl").readText())
         val native = source("native/mapping.hgl", fixtures.resolve("hgl_native_mapping.hgl").readText())
         val operators = markers(fixed).filter { it.icon == AllIcons.Gutter.ImplementedMethod }
-        for ((name, fixedCount, nativeCount) in listOf(Triple("map", 1, 2), Triple("reduce", 2, 4))) {
+        for ((name, fixedCount, nativeCount) in listOf(Triple("map", 2, 2), Triple("reduce", 4, 4))) {
             val marker = operators.single { it.element!!.text == name }
             val candidates = targets(marker).groupingBy { it.containingFile }.eachCount()
             assertEquals(name, mapOf(fixed to fixedCount, native to nativeCount), candidates)
