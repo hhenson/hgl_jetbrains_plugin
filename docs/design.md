@@ -183,9 +183,10 @@ Calls to the core endpoint predicates `modified`, `valid` and `all_valid` use th
 contextual keyword colour. Temporal handlers offer all three in completion even
 when core sources are absent. A local binding keeps its own colour and completion.
 
-At a callback call, completion and Go to Declaration use the function type of
-the parameter the callee resolves to (FN-17). Only names written in that type
-are visible. Completion omits slots filled by positional or named arguments.
+Named argument completion and Go to Declaration use the public signature of an
+unambiguous function or operator. At a callback call only names written in the
+parameter's function type are visible (FN-17). Completion omits slots already
+filled by positional or named arguments.
 When editing the proposed FN-8 form, a positional pack consumes the remaining
 positional arguments and later labels stay available.
 

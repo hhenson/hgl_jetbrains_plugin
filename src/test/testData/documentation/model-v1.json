@@ -61,6 +61,17 @@
           "documentation": null
         },
         {
+          "name": "key_sets",
+          "source": {
+            "module": "core",
+            "part": "key_sets",
+            "file": "<core>/native/key_sets.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
           "name": "lists",
           "source": {
             "module": "core",

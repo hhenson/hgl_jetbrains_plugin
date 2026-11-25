@@ -1,0 +1,35 @@
+module core_conformance part join
+
+/**
+A list join preserves its list order and inserts the separator only
+between entries, including empty entries. This uses the shared
+operator's proposed argument layout.
+
+Rules:
+    OPS-11, EXPR-2, FN-8, GEN-6
+
+Status:
+    proposed
+*/
+test join_lists {
+    assert join([], separator: "/") == ""
+    assert join(["日"], separator: "/") == "日"
+    assert join(["a", "", "b"], separator: "・") == "a・・b"
+}
+
+/**
+A positional-pack join puts each string in argument order with the
+named separator between entries. This is the proposed pack trial.
+
+Rules:
+    OPS-11, EXPR-2, FN-8, GEN-6
+
+Status:
+    proposed
+*/
+test join_positional_strings {
+    assert join(separator: " ") == ""
+    assert join("a", separator: "/") == "a"
+    assert join("a", "b", "c", separator: " ") == "a b c"
+    assert join("日", "b", separator: "") == "日b"
+}

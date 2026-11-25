@@ -47,6 +47,36 @@ fn map_positional_with_keys(prices: list<f64, 2>, factor: f64, selected: set<str
     return map{keys: selected}(mapping_rejection_scale, prices, factor)
 }
 
+fn mapping_rejection_record(value: i64) { when {} }
+
+/**
+A fixed-size map of a callback with no result cannot supply a value.
+
+Rules:
+    MAP-10, GEN-1
+
+Status:
+    agreed
+*/
+fn map_resultless_as_value(values: list<i64, 2>) -> list<i64, 2> {
+    # expect-error(operator, "operator.no_candidate")
+    return map(mapping_rejection_record, values)
+}
+
+/**
+A resultless map still requires an argument that splits.
+
+Rules:
+    MAP-3, MAP-10
+
+Status:
+    agreed
+*/
+fn map_resultless_without_a_split(value: i64) {
+    # expect-error(operator, "operator.no_candidate")
+    map(mapping_rejection_record, value)
+}
+
 /**
 An ordered reduction requires its starting value.
 

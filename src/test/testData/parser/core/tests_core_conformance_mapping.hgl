@@ -70,6 +70,84 @@ test fixed_map_propagates_child_failure {
     assert raises("numeric.division_by_zero") { eval map_fixed_quotients(divisors: [[2, 0]]) }
 }
 
+fn accumulate_mapped_value(position: i64, amount: i64, offset: i64, scale: i64 = 2) {
+    inject global_state
+    when {
+        var total = amount * scale + offset
+        if position == 0 {
+            if has(global_state, "map.first") { total = total + get<i64>(global_state, "map.first") }
+            put(global_state, "map.first", total)
+        } else {
+            if has(global_state, "map.second") { total = total + get<i64>(global_state, "map.second") }
+            put(global_state, "map.second", total)
+        }
+    }
+}
+
+fn accumulate_mapped_key(key: i64, amount: i64, offset: i64, scale: i64 = 2) {
+    accumulate_mapped_value(key, amount, offset, scale)
+}
+
+fn mapped_totals(probe: bool) -> list<i64, 2> {
+    inject global_state
+    when { return [get<i64>(global_state, "map.first"), get<i64>(global_state, "map.second")] }
+}
+
+fn map_resultless_positional(values: list<i64, 2>, offset: i64, probe: bool) -> list<i64, 2> {
+    map(accumulate_mapped_key, values, offset)
+    return mapped_totals(probe)
+}
+
+fn map_resultless_named(values: list<i64, 2>, offset: i64, probe: bool) -> list<i64, 2> {
+    map{key: "position"}(accumulate_mapped_value, offset: offset, amount: values)
+    return mapped_totals(probe)
+}
+
+/**
+A resultless fixed-size map runs one child at each position.
+
+Each child receives its split amount, the whole offset and its default
+scale. The second input update wakes only the second position. A probe
+on the next cycle reads both accumulated totals from the run store.
+
+Rules:
+    MAP-2, MAP-7, MAP-9, MAP-10, UNIT-8
+
+Status:
+    agreed
+*/
+test fixed_map_runs_resultless_children {
+    assert eval map_resultless_positional(
+        values: [[2, 3], _, delta<list<i64, 2>>(updated: [1: 5]), _],
+        offset: [1, _, _, _], probe: [_, true, _, true],
+    ) == [_, [5, 7], _, [5, 18]]
+    assert eval map_resultless_named(
+        values: [[2, 3], _, delta<list<i64, 2>>(updated: [1: 5]), _],
+        offset: [1, _, _, _], probe: [_, true, _, true],
+    ) == [_, [5, 7], _, [5, 18]]
+}
+
+fn check_mapped_divisor(divisor: i64) {
+    when { let quotient = 12 // divisor }
+}
+
+fn map_resultless_quotients(divisors: list<i64, 2>) {
+    map(check_mapped_divisor, divisors)
+}
+
+/**
+A failure from a resultless mapped child leaves the map.
+
+Rules:
+    MAP-10, NUM-12
+
+Status:
+    agreed
+*/
+test fixed_map_propagates_resultless_child_failure {
+    assert raises("numeric.division_by_zero") { eval map_resultless_quotients(divisors: [[2, 0]]) }
+}
+
 fn fixed_tree_sum(values: list<i64, 2>) -> i64 => reduce(add_, values)
 
 const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit
@@ -104,19 +182,98 @@ test fixed_reduce_selects_tree_and_ordered_folds {
     ) == [123]
 }
 
-fn take_last(accumulated: i64, item: i64) -> i64 => item
+/**
+Fixed reductions select the exact input type for callbacks inferred from the list.
 
-fn fixed_ordered_last(items: list<i64, 2>) -> i64 => reduce(take_last, items, 0)
+Rules:
+    GEN-5, RED-2, RED-3
 
-fn fixed_tree_last(items: list<i64, 2>) -> i64 =>
-    reduce{associative: true}(take_last, items)
+Status:
+    proposed
+*/
+test fixed_reduce_selects_inferred_callbacks {
+    fn generic_last<T>(a: T, b: T) -> T => b
+    fn generic_first<A, B>(a: A, b: B) -> A => a
+    operator combine<T>(a: T, b: T) -> T
+    impl fn combine<T>(a: T, b: T) -> T => a
+
+    fn digits(items: list<i64, 3>) -> i64 =>
+        reduce(fn(a, b) => a * 10 + b, items, 1)
+    fn sum(items: list<i64, 3>) -> i64 =>
+        reduce{associative: true}(fn(a, b) => a + b, items)
+    fn last(items: list<i64, 3>) -> i64 =>
+        reduce{associative: true}(generic_last, items)
+    fn first(items: list<i64, 3>) -> i64 =>
+        reduce(generic_first, items, 7)
+    fn combined(items: list<str, 2>) -> str =>
+        reduce{associative: true}(combine, items)
+
+    assert eval digits(items: [[2, 3, 4]]) == [1234]
+    assert eval sum(items: [[1, 2, 3]]) == [6]
+    assert eval last(items: [[1, 2, 3]]) == [3]
+    assert eval first(items: [[1, 2, 3]]) == [7]
+    assert eval combined(items: [["a", "b"]]) == ["a"]
+}
 
 /**
-A fixed-size reduction follows its callback's input dependencies.
+An inferred callback prefers the input type given by another argument.
 
-Here the callback ignores the accumulator. The last position can
-publish before the first position, and a later tick of the unused
-first position leaves the output silent.
+A written nullable parameter selects the nullable candidate. An inferred
+callback may still use a nullable input when that is the only candidate.
+
+Rules:
+    GEN-5, FN-17
+
+Status:
+    proposed
+*/
+test inferred_callback_prefers_the_argument_type {
+    operator callback_kind<R, F>(f: fn(F) -> i64, items: list<R, 1>) -> i64
+
+    impl fn callback_kind<R>(f: fn(R) -> i64, items: list<R, 1>) -> i64 =>
+        f(items[0])
+
+    impl fn callback_kind<R>(f: fn(R?) -> i64, items: list<R, 1>) -> i64 =>
+        f(items[0]) + 100
+
+    operator nullable_only<R, F>(f: fn(F) -> i64, items: list<R, 1>) -> i64
+
+    impl fn nullable_only<R>(f: fn(R?) -> i64, items: list<R, 1>) -> i64 =>
+        f(items[0]) + 100
+
+    fn choose_inferred(items: list<i64, 1>) -> i64 => callback_kind(fn(value) => 3, items)
+    fn choose_written(items: list<i64, 1>) -> i64 => callback_kind(fn(value: i64?) => 4, items)
+    fn choose_only(items: list<i64, 1>) -> i64 => nullable_only(fn(value) => 5, items)
+
+    assert eval choose_inferred(items: [[2]]) == [3]
+    assert eval choose_written(items: [[2]]) == [104]
+    assert eval choose_only(items: [[2]]) == [105]
+}
+
+fn fixed_sparse_ordered(items: list<i64, 3>, seed: i64) -> i64 =>
+    reduce(append_digit, items, seed)
+
+fn fixed_sparse_tree(items: list<i64, 3>) -> i64 =>
+    reduce(add_, items)
+
+fn fixed_sparse_tree_with_zero(items: list<i64, 3>) -> i64 =>
+    reduce(add_, items, 0)
+
+fn fixed_sparse_tree_with_live_zero(items: list<i64, 3>, zero: i64) -> i64 =>
+    reduce(add_, items, zero)
+
+fn observe_reduction_validity(value: i64, tick: i64) -> bool {
+    when valid(tick) { return valid(value) }
+}
+
+fn fixed_sparse_tree_validity(items: list<i64, 3>, tick: i64) -> bool =>
+    observe_reduction_validity(fixed_sparse_tree(items), tick)
+
+/**
+Fixed-size reductions skip invalid positions and recompute when a member is withdrawn.
+
+Only the valid members contribute, in position order. With no members the
+ordered fold gives its seed. A tree without a zero then has no valid value.
 
 Rules:
     RED-2, RED-3, RED-5
@@ -125,18 +282,275 @@ Status:
     agreed
 */
 test fixed_reduction_follows_the_callbacks_validity {
-    assert eval fixed_ordered_last([
-        delta<list<i64, 2>>(updated: [1: 2]),
-        _,
-        delta<list<i64, 2>>(updated: [0: 1]),
-        delta<list<i64, 2>>(updated: [1: 3]),
-    ]) == [2, _, _, 3]
-    assert eval fixed_tree_last([
-        delta<list<i64, 2>>(updated: [1: 2]),
-        _,
-        delta<list<i64, 2>>(updated: [0: 1]),
-        delta<list<i64, 2>>(updated: [1: 3]),
-    ]) == [2, _, _, 3]
+    assert eval fixed_sparse_ordered(
+        items: [
+            delta<list<i64, 3>>(updated: [0: 2, 2: 7]),
+            delta<list<i64, 3>>(updated: [1: 4]),
+            delta<list<i64, 3>>(removed: [0]),
+            delta<list<i64, 3>>(removed: [2]),
+            delta<list<i64, 3>>(removed: [1]),
+        ],
+        seed: [1],
+    ) == [127, 1247, 147, 14, 1]
+    assert eval fixed_sparse_tree(items: [
+        delta<list<i64, 3>>(updated: [2: 7]),
+        delta<list<i64, 3>>(updated: [0: 2]),
+        delta<list<i64, 3>>(updated: [1: 4]),
+        delta<list<i64, 3>>(removed: [0]),
+        delta<list<i64, 3>>(removed: [1]),
+    ]) == [7, 9, 13, 11, 7]
+    assert eval fixed_sparse_tree_validity(
+        items: [
+            delta<list<i64, 3>>(),
+            delta<list<i64, 3>>(updated: [1: 6]),
+            delta<list<i64, 3>>(removed: [1]),
+        ],
+        tick: [1, 2, 3],
+    ) == [false, true, false]
+}
+
+/**
+A fixed-size tree with no valid members gives its identity.
+
+Once a member publishes, the tree forwards that member.
+
+Rules:
+    RED-2, RED-3, RED-6
+
+Status:
+    agreed
+*/
+test fixed_tree_reduction_uses_its_zero_when_no_member_is_valid {
+    assert eval fixed_sparse_tree_with_zero(items: [
+        delta<list<i64, 3>>(updated: [1: 7]),
+        delta<list<i64, 3>>(removed: [1]),
+        delta<list<i64, 3>>(updated: [2: 11]),
+        delta<list<i64, 3>>(removed: [2]),
+    ]) == [7, 0, 11, 0]
+    assert eval fixed_sparse_tree_with_live_zero(
+        items: [_, _, delta<list<i64, 3>>(updated: [2: 4])],
+        zero: [0],
+    ) == [0, _, 4]
+    assert eval fixed_sparse_tree_with_live_zero(
+        items: [_, _, delta<list<i64, 3>>(updated: [2: 4])],
+        zero: [_, 0],
+    ) == [_, 0, 4]
+}
+
+fn count_reduction_step(accumulated: i64, member: i64) -> i64 {
+    state visits: i64 = 0
+    when {
+        visits += 1
+        return accumulated + member + visits
+    }
+}
+
+fn fixed_counting_fold(items: list<i64, 1>) -> i64 =>
+    reduce(count_reduction_step, items, 10)
+
+/**
+A withdrawn member closes its reduction step until it becomes valid again.
+
+The callback counts its own calls. A returning member starts a fresh
+callback, with a count of one on its first tick.
+
+Rules:
+    RED-2, TIME-6
+
+Status:
+    agreed
+*/
+test fixed_reduction_restarts_the_callback_when_a_member_returns {
+    assert eval fixed_counting_fold(items: [
+        delta<list<i64, 1>>(updated: [0: 2]),
+        delta<list<i64, 1>>(updated: [0: 3]),
+        delta<list<i64, 1>>(removed: [0]),
+        delta<list<i64, 1>>(updated: [0: 4]),
+        delta<list<i64, 1>>(updated: [0: 5]),
+    ]) == [13, 15, 10, 15, 17]
+}
+
+fn take_last(accumulated: i64, member: i64) -> i64 => member
+
+fn fixed_ordered_last(items: list<i64, 1>, seeds: list<i64, 1>) -> i64 =>
+    reduce(take_last, items, seeds[0])
+
+/**
+The ordered fold requires a valid zero even when its callback ignores it.
+
+The only member can publish before the seed. Withdrawal of the seed
+leaves the fold invalid even if the member ticks again.
+
+Rules:
+    RED-5
+
+Status:
+    agreed
+*/
+test fixed_ordered_reduction_requires_a_valid_seed {
+    assert eval fixed_ordered_last(
+        items: [
+            delta<list<i64, 1>>(updated: [0: 2]),
+            delta<list<i64, 1>>(updated: [0: 3]),
+            delta<list<i64, 1>>(updated: [0: 7]),
+            delta<list<i64, 1>>(updated: [0: 9]),
+            _,
+        ],
+        seeds: [
+            _,
+            delta<list<i64, 1>>(updated: [0: 1]),
+            delta<list<i64, 1>>(removed: [0]),
+            _,
+            delta<list<i64, 1>>(updated: [0: 1]),
+        ],
+    ) == [_, 3, _, _, 9]
+}
+
+const fn append_nullable_digit(accumulated: i64, member: i64?) -> i64 {
+    if member == null { return accumulated * 10 + 5 }
+    return accumulated * 10 + member
+}
+
+const fn sum_nullable_digits(left: i64?, right: i64?) -> i64? {
+    let lhs = if left == null { 5 } else { left }
+    let rhs = if right == null { 5 } else { right }
+    return lhs + rhs
+}
+
+fn fixed_nullable_ordered(items: list<i64, 3>, seed: i64) -> i64 =>
+    reduce(append_nullable_digit, items, seed)
+
+fn fixed_nullable_tree(items: list<i64, 3>) -> i64? =>
+    reduce{associative: true}(sum_nullable_digits, items)
+
+/**
+A nullable combiner over nonnullable members receives null for each invalid position.
+
+The ordered callback writes a five for each null. The tree callback
+adds five for each null, including both initially invalid positions.
+
+Rules:
+    RED-2, RED-3, RED-5, ERR-14
+
+Status:
+    agreed
+*/
+test fixed_reduction_passes_null_to_a_nullable_combiner {
+    assert eval fixed_nullable_ordered(
+        items: [
+            delta<list<i64, 3>>(updated: [0: 2, 2: 7]),
+            _,
+            delta<list<i64, 3>>(updated: [1: 4]),
+            delta<list<i64, 3>>(removed: [1]),
+        ],
+        seed: [_, 1],
+    ) == [_, 1257, 1247, 1257]
+    assert eval fixed_nullable_tree(items: [
+        delta<list<i64, 3>>(updated: [2: 7]),
+        delta<list<i64, 3>>(updated: [1: 4]),
+        delta<list<i64, 3>>(removed: [1]),
+        delta<list<i64, 3>>(removed: [2]),
+    ]) == [17, 16, 17, 15]
+}
+
+/**
+The ordered nullable fold preserves separate member and accumulator ticks.
+
+The seed enables the callback and supplies null for an invalid member. An
+update to a valid seed wakes only a callback that subscribes to it.
+
+Rules:
+    RED-2, RED-5, FN-11, TIME-3
+
+Status:
+    agreed
+*/
+test fixed_nullable_ordered_keeps_member_and_seed_ticks_separate {
+    fn read_member(accumulated: i64, member: i64?) -> i64 {
+        when modified(member) {
+            if member == null { return 0 }
+            return member
+        }
+    }
+
+    fn read_seed(accumulated: i64, member: i64?) -> i64 {
+        when modified(accumulated) {
+            if member == null { return accumulated }
+            return accumulated + member
+        }
+    }
+
+    fn by_member(items: list<i64, 1>, seed: i64) -> i64 => reduce(read_member, items, seed)
+    fn by_seed(items: list<i64, 1>, seed: i64) -> i64 => reduce(read_seed, items, seed)
+
+    assert eval by_member(items: [[7], _], seed: [1, 2]) == [7, _]
+    assert eval by_member(items: [_, _], seed: [1, 2]) == [0, _]
+    assert eval by_member(items: [[7], _], seed: [_, 2]) == [_, 7]
+    assert eval by_seed(items: [[7], _], seed: [1, 2]) == [8, 9]
+}
+
+fn count_nullable_pair(left: i64?, right: i64?) -> i64? {
+    state visits: i64 = 0
+    when {
+        visits += 1
+        let lhs = if left == null { 0 } else { left }
+        let rhs = if right == null { 0 } else { right }
+        return lhs + rhs + visits * 1000
+    }
+}
+
+fn counted_nullable_tree(items: list<i64, 3>) -> i64? =>
+    reduce{associative: true}(count_nullable_pair, items)
+
+/**
+Only the nullable tree steps that read a changed member need to run.
+
+The first pair reads positions zero and one. Updating position two
+changes the count only in the final pair.
+
+Rules:
+    RED-2, RED-3, FN-11
+
+Status:
+    agreed
+*/
+test fixed_nullable_tree_leaves_an_unchanged_pair_idle {
+    assert eval counted_nullable_tree(items: [
+        [1, 2, 3],
+        delta<list<i64, 3>>(updated: [2: 4]),
+        delta<list<i64, 3>>(updated: [2: 5]),
+    ]) == [2006, 3007, 4008]
+}
+
+fn fixed_ordered_nullable_list(items: list<i64?, 3>) -> i64 =>
+    reduce(append_nullable_digit, items, 1)
+
+fn fixed_tree_nullable_list(items: list<i64?, 3>) -> i64? =>
+    reduce{associative: true}(sum_nullable_digits, items)
+
+/**
+A held null is a valid member of a list of nullable values.
+
+The callback receives that null and skips a member once its endpoint
+becomes invalid.
+
+Rules:
+    RED-2, ERR-14
+
+Status:
+    agreed
+*/
+test fixed_reduction_distinguishes_a_null_from_an_invalid_nullable_member {
+    assert eval fixed_ordered_nullable_list(items: [
+        delta<list<i64?, 3>>(updated: [0: 2, 1: delta<i64?>()]),
+        delta<list<i64?, 3>>(removed: [1]),
+        delta<list<i64?, 3>>(updated: [1: delta<i64?>()]),
+    ]) == [125, 12, 125]
+    assert eval fixed_tree_nullable_list(items: [
+        delta<list<i64?, 3>>(updated: [2: 7]),
+        delta<list<i64?, 3>>(updated: [1: delta<i64?>()]),
+        delta<list<i64?, 3>>(removed: [1]),
+    ]) == [7, 12, 7]
 }
 
 const fn append_growing_digit(accumulated: str, digit: i64) -> str =>
