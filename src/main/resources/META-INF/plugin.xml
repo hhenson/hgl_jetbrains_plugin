@@ -84,6 +84,11 @@
                     text="Release" description="Build the project with the compiler's release settings"/>
             <action id="HGL.BuildDebug" class="io.github.hhenson.hgl.project.HglDebugBuildAction"
                     text="Debug" description="Build the project with native debug symbols"/>
+            <separator/>
+            <action id="HGL.Rebuild" class="io.github.hhenson.hgl.project.HglRebuildAction"
+                    text="Clean and Rebuild Release" description="Clear the release build outputs and rebuild the project"/>
+            <action id="HGL.RebuildDebug" class="io.github.hhenson.hgl.project.HglDebugRebuildAction"
+                    text="Clean and Rebuild Debug" description="Clear the debug build outputs and rebuild with native debug symbols"/>
             <add-to-group group-id="BuildMenu" anchor="first"/>
             <add-to-group group-id="MainToolbarRight" anchor="first"/>
         </group>

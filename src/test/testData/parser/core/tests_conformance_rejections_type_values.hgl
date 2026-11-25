@@ -1,0 +1,133 @@
+module conformance.rejections part type_values
+
+struct DeltaTypeDescriptor { kind: Type }
+struct DeltaTypeBox<T> { value: T }
+
+/**
+A Type value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_type_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<Type>
+) {}
+
+/**
+A DeltaTypeDescriptor value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_struct_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<DeltaTypeDescriptor>
+) {}
+
+/**
+A DeltaTypeBox<Type> value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_generic_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<DeltaTypeBox<Type>>
+) {}
+
+/**
+A list<Type> value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_list_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<list<Type>>
+) {}
+
+/**
+A tuple<i64, Type> value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_tuple_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<tuple<i64, Type>>
+) {}
+
+/**
+A Type? value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_nullable_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<Type?>
+) {}
+
+/**
+A set<Type> value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_set_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<set<Type>>
+) {}
+
+/**
+A dict<Type, i64> value holds a Type and has no delta under the proposed Type-containing rule.
+
+Rules:
+    TYPE-16, TYPE-18
+
+Status:
+    proposed
+*/
+const fn reject_dict_delta(
+    # expect-error(shape, "delta.unsupported_shape")
+    value: delta<dict<Type, i64>>
+) {}
+
+fn type_query_temporal_call(value: i64) -> i64 => value
+
+/**
+An unevaluated Type query does not admit a temporal call in a value function.
+The call keeps the source rejection of the place in which it is written.
+
+Rules:
+    TYPE-18, FN-3
+
+Status:
+    agreed
+*/
+const fn temporal_call_in_a_value_type_query() -> Type {
+    # expect-error(function-kind, "call.role")
+    return type(type_query_temporal_call(1))
+}

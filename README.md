@@ -63,6 +63,10 @@ and its compiler flags into the open project. Build again after changing the
 HGL sources to refresh the C++ model. RustRover reports the location of
 `compile_commands.json` in the configured build directory.
 
+Choose **Clean and Rebuild Release** or **Clean and Rebuild Debug** in the same
+menu to remove stale generated files and rebuild that profile. These actions
+require HGL 0.2.10 or later. HGL 0.2.9 supports ordinary builds.
+
 Click **Generate HGL Documentation** on the main toolbar or in **Build**.
 Choose **Open documentation** in the completion notification to read the site.
 For an older, unmarked site, set **Documentation directory** to a fresh

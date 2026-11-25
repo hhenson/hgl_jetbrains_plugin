@@ -35,7 +35,8 @@ class HglBuildActionTest : HglEditorFixture() {
         for (id in listOf("BuildMenu", "MainToolbarRight")) {
             assertTrue(modes in (actions.getAction(id) as DefaultActionGroup).getChildren(null))
         }
-        assertEquals(listOf("Release", "Debug"), modes.getChildren(null).map { it.templatePresentation.text })
+        assertEquals(listOf("HGL.Build", "HGL.BuildDebug", "HGL.Rebuild", "HGL.RebuildDebug"),
+            modes.getChildren(null).mapNotNull { actions.getId(it) })
     }
 
     fun testBuildArgumentsAndUnsuccessfulBuild() {
@@ -51,8 +52,8 @@ class HglBuildActionTest : HglEditorFixture() {
         driver.setExecutable(true)
         val settings = HglBuild(compiler = driver.path, sourceRoots = listOf("src one", "src two"), buildDir = output.name)
         project.service<HglBuildFile>().save(settings, null)
-        fun failure(): String = try {
-            HglBuildAction.build(project, null, EmptyProgressIndicator())
+        fun failure(clean: Boolean = false): String = try {
+            HglBuildAction.build(project, null, EmptyProgressIndicator(), clean = clean)
             error("Build should have failed")
         } catch (e: ExecutionException) { e.message.orEmpty() }
         assertTrue(failure().contains("did not produce"))
@@ -73,6 +74,15 @@ class HglBuildActionTest : HglEditorFixture() {
         val message = failure()
         assertTrue(message, message.contains("The configured compiler must support hgl build --compile-commands"))
         assertTrue(message, message.contains(diagnostic))
+        driver.writeText(if (SystemInfo.isWindows) "@echo off\r\necho unexpected argument '--clean' found 1>&2\r\nexit /b 2\r\n"
+            else "#!/bin/sh\necho \"unexpected argument '--clean' found\" >&2\nexit 2\n")
+        assertTrue(failure(clean = true).contains("Clean and Rebuild requires HGL 0.2.10 or later"))
+        assertEquals("int updated_module;", generated.readText())
+
+        driver.writeText(if (SystemInfo.isWindows) "@echo off\r\ndel \"native output\\module.cpp\"\r\nexit /b 1\r\n"
+            else "#!/bin/sh\nrm 'native output/module.cpp'\nexit 1\n")
+        assertTrue(failure(clean = true).contains("exited with code 1"))
+        assertNull(first.parent.findChild("module.cpp"))
     }
 
     fun testNativeDatabaseIsImportedIntoCurrentProject() {
