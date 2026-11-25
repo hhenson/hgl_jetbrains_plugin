@@ -99,6 +99,7 @@ class HglDebugRunner : AsyncProgramRunner<RunnerSettings>() {
             val builder = XDebuggerManager.getInstance(environment.project).newSessionBuilder(starter).environment(environment)
             current.module?.let { builder.sessionName("${environment.runProfile.name} · $it") }
             val session = builder.startSession()
+            session.session.runWhenUiReady { ui -> HglGraphTab(session.session, current.graphInspection).attach(ui) }
             val stopped = AtomicBoolean()
             val listener = object : XDebugSessionListener {
                 override fun sessionStopped() {

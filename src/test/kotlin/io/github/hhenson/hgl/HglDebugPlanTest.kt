@@ -67,6 +67,10 @@ class HglDebugPlanTest : TestCase() {
             }
             val report = """{"version":1,"skipped":[],"launches":[${groups.joinToString(",")}]}"""
             assertEquals(listOf(commands, null), HglDebugPlan.parse(report, true).launches.map { it.arguments["initCommands"] })
+            Files.createFile(dir.resolve("hgraph_lldb_graph.py"))
+            val launches = HglDebugPlan.parse(report, true).launches
+            assertEquals(listOf(true, false), launches.map { it.graphInspection })
+            assertEquals(2, (launches.first().arguments["initCommands"] as List<*>).size)
         } finally {
             sdk.toFile().deleteRecursively()
         }

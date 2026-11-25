@@ -14,23 +14,33 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
+import com.intellij.openapi.wm.impl.IdeGlassPaneImpl
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
+import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.XDebuggerManager
 import com.intellij.xdebugger.XDebuggerUtil
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint
 import com.intellij.xdebugger.impl.XDebugSessionImpl
 import com.intellij.xdebugger.impl.XDebuggerUtilImpl
+import io.github.hhenson.hgl.debug.HglGraphTab
 import io.github.hhenson.hgl.debug.HglLineBreakpoint
 import io.github.hhenson.hgl.project.HglBuild
 import io.github.hhenson.hgl.project.HglBuildFile
 import io.github.hhenson.hgl.run.HglProjectTargets
 import io.github.hhenson.hgl.run.HglScopedTestConfiguration
 import io.github.hhenson.hgl.run.HglScopedTestType
+import java.awt.BorderLayout
+import java.awt.Component
+import java.awt.Container
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
+import javax.swing.JButton
+import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.JRootPane
 
 class HglDebugTestSuiteTest : HglEditorFixture() {
     private val descriptor = LightProjectDescriptor()
@@ -243,12 +253,83 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
                     locals.values.keys.containsAll(expected.keys)
                 }, 15)
                 assertEquals(expected, locals.values)
+                if (maybe == "null [modified]" && Files.isRegularFile(Path.of(sdk, "share/hgraph/debugger/hgraph_lldb_graph.py"))) {
+                    assertGraphNavigation(session, line)
+                }
                 session.resume()
             }
             PlatformTestUtil.waitWithEventsDispatching("HGL test did not finish", { manager.debugSessions.isEmpty() }, 30)
         } finally {
             manager.debugSessions.forEach { it.stop() }
             WriteCommandAction.runWriteCommandAction(project) { manager.breakpointManager.removeBreakpoint(breakpoint) }
+        }
+    }
+
+    private fun assertGraphNavigation(session: XDebugSession, line: Int) {
+        val stop = session.suspendContext
+        val ui = checkNotNull(session.ui)
+        val tab = checkNotNull(ui.findContent(HglGraphTab.ID))
+        // The headless IDE builds the session layout without mounting a native window.
+        val root = generateSequence<Component>(ui.component) { it.parent }.last()
+        val mount = if (root.isDisplayable) null else JPanel(BorderLayout()).apply {
+            val pane = JRootPane()
+            pane.glassPane = IdeGlassPaneImpl(pane)
+            pane.contentPane.add(root)
+            add(pane)
+            addNotify()
+        }
+        try {
+            ui.selectAndFocus(tab, false, false)
+            fun components(root: Container): List<Component> =
+                root.components.flatMap { child -> listOf(child) + if (child is Container) components(child) else emptyList() }
+            fun labels() = components(tab.component).filterIsInstance<JLabel>().map { it.text }
+            fun waitFor(name: String) {
+                try {
+                    PlatformTestUtil.waitWithEventsDispatching("Waiting for graph node $name", {
+                        labels().any { it?.startsWith("$name [") == true }
+                    }, 15)
+                } catch (failure: AssertionError) {
+                    throw AssertionError("$name: displayed=${labels()}", failure)
+                }
+                assertSame(stop, session.suspendContext)
+                assertEquals(line, session.currentPosition?.line)
+            }
+            fun clickLink(suffix: String) {
+                val button = components(tab.component).filterIsInstance<JButton>().single { it.text?.endsWith(suffix) == true }
+                button.doClick()
+            }
+            fun checkPort(name: String, value: String) {
+                val label = components(tab.component).filterIsInstance<JLabel>().single { it.text == name }
+                assertTrue("$name should show $value", label.parent.components.filterIsInstance<JLabel>().any { it.text == value })
+            }
+            waitFor("states::watch")
+            checkPort("price", "0 [modified]")
+            checkPort("maybe", "null [modified]")
+            checkPort("widened", "0 [modified]")
+            checkPort("out", "true")
+            fun followNode(qualifiedName: String) {
+                components(tab.component).filterIsInstance<JButton>().single {
+                    it.text?.startsWith("$qualifiedName [") == true
+                }.doClick()
+                waitFor(qualifiedName)
+            }
+            followNode("states::nullable")
+            checkPort("command", "0 [modified]")
+            checkPort("out", "null [modified]")
+            followNode("core::replay[i64]")
+            assertTrue("No time-series inputs" in labels())
+            followNode("states::scalar")
+            checkPort("out", "0 [modified]")
+            assertTrue(components(tab.component).filterIsInstance<JButton>().any { it.text?.endsWith("].price") == true })
+            clickLink("].widened")
+            waitFor("states::watch")
+            followNode("core::record[bool]")
+            checkPort("input", "true")
+            assertTrue("No output" in labels())
+            clickLink("Back")
+            waitFor("states::watch")
+        } finally {
+            mount?.removeNotify()
         }
     }
 
