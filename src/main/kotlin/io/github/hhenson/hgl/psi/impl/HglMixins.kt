@@ -14,8 +14,7 @@ import io.github.hhenson.hgl.reference.HglCallLabelReference
 import io.github.hhenson.hgl.reference.HglImportItemReference
 import io.github.hhenson.hgl.reference.HglModulePathReference
 import io.github.hhenson.hgl.reference.HglQualifiedNameReference
-import io.github.hhenson.hgl.reference.callParameters
-import io.github.hhenson.hgl.reference.declaredLabels
+import io.github.hhenson.hgl.reference.callArguments
 
 abstract class HglQualifiedNameMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
     override fun getReference(): PsiReference = HglQualifiedNameReference(this as HglQualifiedName)
@@ -32,11 +31,11 @@ abstract class HglImportItemMixin(node: ASTNode) : HglNamedElementImpl(node) {
 
 abstract class HglNamedArgumentMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
     override fun getReference(): PsiReference? {
-        val parameters = when (val owner = parent) {
-            is HglOperatorConfiguration -> owner.declaredLabels()
-            is HglArgument -> (owner.parent as? HglArguments)?.callParameters() ?: return null
+        val arguments = when (val owner = parent) {
+            is HglOperatorConfiguration -> owner.callArguments() ?: return null
+            is HglArgument -> owner.parent as? HglArguments ?: return null
             else -> return null
         }
-        return HglCallLabelReference(this as HglNamedArgument, parameters)
+        return HglCallLabelReference(this as HglNamedArgument, arguments, parent is HglOperatorConfiguration)
     }
 }

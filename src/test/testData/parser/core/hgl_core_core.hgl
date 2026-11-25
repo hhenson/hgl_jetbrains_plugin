@@ -841,6 +841,7 @@ Read the value under a key, of the run's store or of a dictionary, as a read tha
 | --- | --- | --- |
 | `GlobalState`, the run's store | A `str` fixed when the graph is built | `result<V, error>`, a failure with code `value.missing_key` where the key holds no value |
 | `dict<K, V>` | A `K` | `result<V, error>`, a failure with code `value.missing_key` where the dictionary has no such key |
+| `dict<K, V>` with a fallback | A `K` | The value at the key, or the fallback when the key is absent |
 
 The `result` takes its form from its place. Where a `result<V, error>`
 is expected it is given itself; where a `V`, the value, and a failure is
@@ -849,6 +850,11 @@ writes no type holds the result. Where `V` is itself nullable, a stored
 null is a success, told apart from an absent key. The strict read of a
 dictionary is `dictionary[key]`, which gives the value and fails with
 `value.missing_key` where the key is absent.
+
+A dictionary's fallback has exactly its value type `V` and is evaluated
+even where the key is present. A present zero or null is a value. A
+written `null` in the fallback position selects the two-argument read.
+An expression of nullable type that evaluates to null supplies that null.
 
 A key of the store keeps the type of its first use: a `get` of another
 type than an earlier use of the key is rejected with `store.key_type`
@@ -877,9 +883,15 @@ Args:
     store: The run's store, `global_state`, or a dictionary.
     key: The key read.
 
+Options:
+    - `fallback`: the value used for a missing dictionary key. Omit it
+      for the two-argument read. Write it as the third argument or as
+      `fallback: value`.
+
 Returns:
-    The value under the key as a success, or a failure where the key
-    holds none.
+    With a fallback, the value under the key or the supplied fallback.
+    The two-argument read gives the value as a success or a failure where
+    the key holds none.
 
 Raises:
     - `value.missing_key`: where a `V` is taken of a read whose key is absent
@@ -889,14 +901,16 @@ Raises:
 
 Ticks:
     A dictionary's read, given connections in a graph, is lifted: its
-    result ticks each time the dictionary or the key ticks with both
-    valid, the same value again included. The store's read in a graph
+    result ticks on a publication of the dictionary, key, or supplied
+    fallback with all its inputs valid, the same value again included.
+    The store's read in a graph
     is made once, where the graph is built, and is given no connection
     (`connection.as_constant`): the value it reads is a constant, which
     ticks once, when the graph starts, and the read is not made again.
 
 Validity:
-    A lifted dictionary's read needs the dictionary and the key valid.
+    A lifted dictionary's read needs the dictionary, key, and any supplied
+    fallback valid.
 
 Examples:
     A graph puts a limit in the store as it is built, and its node reads it.
@@ -964,6 +978,18 @@ Examples:
     assert raises("value.missing_key") { let price: f64 = get(prices, "z") }
     ~~~
 
+    A fallback gives a value directly. A present zero is kept.
+
+    ~~~hgl
+    let counts: dict<str, i64> = ["full": 10, "empty": 0]
+    assert get(counts, "full", 7) == 10
+    assert get(counts, "missing", 7) == 7
+    assert get(counts, "empty", 7) == 0
+    let samples: dict<str, i64?> = ["seen": 1]
+    let fallback: i64? = null
+    assert get(samples, "missing", fallback) == null
+    ~~~
+
     A dictionary's read in a graph ticks with the dictionary.
 
     ~~~hgl
@@ -976,6 +1002,22 @@ Rules:
     FN-12, ERR-6, ERR-15
 */
 export operator get<V, S, K>(store: S, key: K) -> result<V, error>
+
+/**
+Read a dictionary, giving the supplied value when the key is absent.
+
+The fallback is evaluated for every call and must have the dictionary's
+value type. The call gives that type directly, including a null value
+when the dictionary or fallback supplies one.
+
+Rules:
+    ERR-6
+*/
+impl const fn get<K, T>(store: dict<K, T>, key: K, fallback: T) -> T {
+    let found: result<T, error> = get<T>(store, key)
+    if is_ok(found) { return found.value }
+    return fallback
+}
 
 /**
 Whether a key of the run's store holds a value.

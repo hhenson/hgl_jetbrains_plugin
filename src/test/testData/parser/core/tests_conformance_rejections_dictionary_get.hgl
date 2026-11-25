@@ -1,0 +1,61 @@
+module conformance.rejections part dictionary_get
+
+/**
+A dictionary's fallback has its exact value type.
+
+Rules:
+    ERR-6
+
+Status:
+    agreed
+*/
+const fn dictionary_get_rejects_another_value_type(book: dict<str, i64>) -> i64 {
+    # expect-error(type, "lookup.default_type")
+    return get(book, "missing", "zero")
+}
+
+/**
+A nullable fallback expression does not supply the exact value type of
+a non-nullable dictionary.
+
+Rules:
+    ERR-6
+
+Status:
+    agreed
+*/
+const fn dictionary_get_rejects_a_nullable_fallback(book: dict<str, i64>, fallback: i64?) -> i64 {
+    # expect-error(type, "lookup.default_type")
+    return get(book, "missing", fallback)
+}
+
+/**
+A nullable dictionary requires a fallback of its nullable value type.
+
+Rules:
+    ERR-6
+
+Status:
+    agreed
+*/
+const fn dictionary_get_rejects_a_nonnullable_fallback(book: dict<str, i64?>, fallback: i64) -> i64? {
+    # expect-error(type, "lookup.default_type")
+    return get(book, "missing", fallback)
+}
+
+/**
+The exact fallback check uses the generic instance's dictionary value type.
+
+Rules:
+    ERR-6, GEN-7
+
+Status:
+    agreed
+*/
+test dictionary_get_rejects_a_wrong_instance_fallback {
+    const fn read<T>(book: dict<str, T>, fallback: T?) -> T => get(book, "missing", fallback)
+    let book: dict<str, i64> = ["held": 1]
+    let fallback: i64? = null
+    # expect-error(type, "lookup.default_type")
+    let value = read(book, fallback)
+}

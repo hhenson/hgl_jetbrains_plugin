@@ -140,7 +140,8 @@ object HglScope {
         }
 
     private fun moduleParts(file: HglFile): List<HglFile> =
-        (listOf(file) + file.modulePath?.let { HglModuleIndex.findFiles(file.project, it) }.orEmpty()).distinct()
+        listOf(file) + file.modulePath?.let { HglModuleIndex.findFiles(file.project, it) }.orEmpty()
+            .filter { it.originalFile != file.originalFile }
 
     /** Parts share declarations and test helpers. Imports and application bindings belong to their file. */
     private fun fileScopes(file: HglFile, useOffset: Int, inTests: Boolean): Sequence<List<HglNamedElement>> = sequence {

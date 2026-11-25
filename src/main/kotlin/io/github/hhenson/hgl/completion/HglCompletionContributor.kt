@@ -31,15 +31,14 @@ import io.github.hhenson.hgl.psi.HglFunctionType
 import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglOperatorConfiguration
-import io.github.hhenson.hgl.psi.HglParameter
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglType
 import io.github.hhenson.hgl.psi.HglTypes
 import io.github.hhenson.hgl.reference.callArguments
-import io.github.hhenson.hgl.reference.callParameters
-import io.github.hhenson.hgl.reference.declaredLabels
+import io.github.hhenson.hgl.reference.callLabels
+import io.github.hhenson.hgl.reference.configuration
 import io.github.hhenson.hgl.structure.HglPresentation
 
 /**
@@ -72,18 +71,18 @@ class HglCompletionContributor : CompletionContributor() {
             if (!PsiTreeUtil.isAncestor(named.memberName, position, false)) return false
             val configuration = named.parent as? HglOperatorConfiguration ?: return false
             val arguments = configuration.callArguments() ?: return false
-            val labels = configuration.declaredLabels()
+            val signature = arguments.callLabels(named) ?: return false
+            val labels = signature.configuration
             if (labels.isEmpty()) return false
             val used = configuration.namedArgumentList.filter { it != named }.map { it.memberName.text }.toSet()
             val given = arguments.argumentList
-            val namedInputs = given.mapNotNull { it.namedArgument?.memberName?.text }.toSet()
+            val namesInCall = given.mapNotNull { it.namedArgument?.memberName?.text }.toSet()
+            val namedInputs = signature.arguments.filter { it.name in namesInCall }.mapTo(mutableSetOf()) { it.parameter }
             val positional = given.count { it.namedArgument == null && it.ellipsis == null }
-            val boundInputs = arguments.callParameters().orEmpty().take(positional)
-            for (parameter in labels) {
-                if (parameter.name in used) continue
-                if (parameter is HglParameter && (parameter.name in namedInputs || parameter in boundInputs)) continue
-                addLabel(parameter, result)
+            val eligible = labels.filter { label ->
+                label.name !in used && label.parameter !in namedInputs && (label.slot == null || label.slot >= positional)
             }
+            eligible.distinctBy { it.name }.forEach { addLabel(it.parameter, result) }
             return true
         }
 
@@ -97,7 +96,7 @@ class HglCompletionContributor : CompletionContributor() {
             if (argument.ellipsis != null || !PsiTreeUtil.isAncestor(label, position, false)) return false
 
             val arguments = argument.parent as? HglArguments ?: return false
-            val parameters = arguments.callParameters() ?: return false
+            val signature = arguments.callLabels(argument) ?: return false
             var positional = 0
             val usedNames = mutableSetOf<String>()
             for (sibling in arguments.argumentList) {
@@ -109,19 +108,12 @@ class HglCompletionContributor : CompletionContributor() {
                     else -> return named != null // EXPR-2: positional arguments must precede labels.
                 }
             }
-            val configured = PsiTreeUtil.getChildrenOfTypeAsList(arguments.parent, HglOperatorConfiguration::class.java)
-                .filter { it.callArguments() == arguments }
-                .flatMap { configuration ->
-                    val names = configuration.namedArgumentList.map { it.memberName.text }.toSet()
-                    configuration.declaredLabels().filter { it.name in names }
-                }
-            for (parameter in parameters) {
-                if (positional > 0) {
-                    positional--
-                    continue
-                }
-                if (parameter !in configured && parameter.name !in usedNames) addLabel(parameter, result)
+            val optionNames = arguments.configuration()?.namedArgumentList.orEmpty().map { it.memberName.text }.toSet()
+            val configured = signature.configuration.filter { it.name in optionNames }.mapTo(mutableSetOf()) { it.parameter }
+            val eligible = signature.arguments.filter { label ->
+                (label.slot == null || label.slot >= positional) && label.name !in usedNames && label.parameter !in configured
             }
+            eligible.distinctBy { it.name }.forEach { addLabel(it.parameter, result) }
             return named != null
         }
 
