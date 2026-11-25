@@ -433,6 +433,7 @@ private primary_group ::= applied_constructor_expr
                         | eval_expr
                         | run_expr
                         | implied_member_expr
+                        | type_of_expr
                         | type_call_expr
                         | pack_loop_expr
                         | key_membership_expr
@@ -465,6 +466,7 @@ private index_suffix ::= <<adjacent>> LBRACKET nls <<inGroup expr>> nls RBRACKET
 field_expr ::= expr field_suffix
 private field_suffix ::= nls DOT member_name {pin=2}
 implied_member_expr ::= DOT member_name {pin=1}
+type_of_expr ::= &(IDENTIFIER LPAREN) <<kw "TYPE_KW">> <<adjacent>> LPAREN nls grouped_expr nls RPAREN {pin=4}
 type_call_expr ::= (STR_KW | BYTES_KW | ANY_KW | ERROR_KW) arguments {pin=1}
 
 literal_expr ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
@@ -497,10 +499,10 @@ applied_constructor_expr ::= <<appliedConstructorAhead>> qualified_name generic_
 delta_expr ::= DELTA_KW LT nls type nls GT arguments {pin=1}
 
 arguments ::= <<adjacent>> LPAREN nls <<list_of argument>>? nls RPAREN {pin=2}
-argument ::= named_argument | ELLIPSIS grouped_expr | argument_value
+argument ::= &(member_name COLON) named_argument | ELLIPSIS grouped_expr | argument_value
 private argument_value ::= function_reference | grouped_expr
 function_reference ::= <<functionReferenceAhead>> qualified_name generic_arguments
-named_argument ::= member_name COLON nls argument_value {pin=2}
+named_argument ::= member_name COLON nls argument_value {pin=1}
 
 // TYPE-7, CTRL-6, NATIVE-1, EXPR-10 and ERR-8.
 enum_decl ::= EXPORT_KW? ENUM_KW ident body_gap LBRACE nls <<list_of enum_member>>? nls RBRACE {pin=2}
@@ -508,7 +510,8 @@ enum_member ::= member_name (EQ nls size_expression)?
 native_type_decl ::= EXPORT_KW? <<kw "NATIVE_KW">> <<kw "TYPE_KW">> ident native_type_body? {pin=3}
 native_type_body ::= body_gap LBRACE nls (native_property (NEWLINE+ native_property)* nls)? RBRACE {pin=2}
 native_property ::= member_name COLON nls type {pin=2}
-operator_configuration ::= &(LBRACE nls member_name COLON) LBRACE nls <<list_of named_argument>> nls RBRACE {pin=2}
+// Recognize an unfinished label in a configured call so its declaration can supply completion.
+operator_configuration ::= &(LBRACE nls member_name (COLON | COMMA | RBRACE LPAREN)) LBRACE nls <<list_of named_argument>> nls RBRACE {pin=2}
 warning_annotation ::= AT <<kw "SUPPRESS_WARNING_KW">> <<adjacent>> LPAREN nls STRING_LITERAL nls RPAREN NEWLINE+ {pin=2}
 switch_stmt ::= SWITCH_KW continuation_gap <<header expr>> body_gap LBRACE nls switch_case* switch_default? RBRACE {pin=1}
 switch_case ::= <<kw "CASE_KW">> expr COLON nls switch_body {pin=1}

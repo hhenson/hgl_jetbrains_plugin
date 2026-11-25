@@ -13,6 +13,7 @@ native impl fn map<K, R, ...Ps, ...As, const key: str = "key">{
 }(f: fn(...{Ps}) -> R, args: ...{As for f without key}) -> dict<K, R>
     requires any arg in arg_keys(As) { As[arg] == dict<K, Ps[arg]> }
           && each arg in arg_keys(As) { As[arg] in {Ps[arg], dict<K, Ps[arg]>} }
+          && (!(key in arg_keys(Ps)) || Ps[key] == K)
 
 # By position: the same of a list.
 native impl fn map<R, ...Ps, ...As, const key: str = "key">{

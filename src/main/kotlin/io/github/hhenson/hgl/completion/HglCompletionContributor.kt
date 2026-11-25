@@ -27,15 +27,19 @@ import io.github.hhenson.hgl.psi.HglExpr
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
 import io.github.hhenson.hgl.psi.HglFunctionDecl
+import io.github.hhenson.hgl.psi.HglFunctionType
 import io.github.hhenson.hgl.psi.HglNamedArgument
+import io.github.hhenson.hgl.psi.HglNamedElement
+import io.github.hhenson.hgl.psi.HglOperatorConfiguration
+import io.github.hhenson.hgl.psi.HglParameter
 import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglTestDecl
-import io.github.hhenson.hgl.psi.HglTypes
-import io.github.hhenson.hgl.reference.callParameters
-import io.github.hhenson.hgl.reference.parameterPack
-import io.github.hhenson.hgl.psi.HglFunctionType
 import io.github.hhenson.hgl.psi.HglType
+import io.github.hhenson.hgl.psi.HglTypes
+import io.github.hhenson.hgl.reference.callArguments
+import io.github.hhenson.hgl.reference.callParameters
+import io.github.hhenson.hgl.reference.declaredLabels
 import io.github.hhenson.hgl.structure.HglPresentation
 
 /**
@@ -57,10 +61,30 @@ class HglCompletionContributor : CompletionContributor() {
             val previous = PsiTreeUtil.prevVisibleLeaf(position)?.node?.elementType
             if (previous == HglTypes.DOT || previous == HglTypes.COLONCOLON) return
 
-            if (addCallLabels(position, result)) return
+            if (addConfigurationLabels(position, result) || addCallLabels(position, result)) return
             for (word in contextKeywords(position, previous)) {
                 result.addElement(LookupElementBuilder.create(word).bold())
             }
+        }
+
+        private fun addConfigurationLabels(position: PsiElement, result: CompletionResultSet): Boolean {
+            val named = position.parentOfType<HglNamedArgument>() ?: return false
+            if (!PsiTreeUtil.isAncestor(named.memberName, position, false)) return false
+            val configuration = named.parent as? HglOperatorConfiguration ?: return false
+            val arguments = configuration.callArguments() ?: return false
+            val labels = configuration.declaredLabels()
+            if (labels.isEmpty()) return false
+            val used = configuration.namedArgumentList.filter { it != named }.map { it.memberName.text }.toSet()
+            val given = arguments.argumentList
+            val namedInputs = given.mapNotNull { it.namedArgument?.memberName?.text }.toSet()
+            val positional = given.count { it.namedArgument == null && it.ellipsis == null }
+            val boundInputs = arguments.callParameters().orEmpty().take(positional)
+            for (parameter in labels) {
+                if (parameter.name in used) continue
+                if (parameter is HglParameter && (parameter.name in namedInputs || parameter in boundInputs)) continue
+                addLabel(parameter, result)
+            }
+            return true
         }
 
         /** Returns true when the existing colon makes this a label-only position. */
@@ -85,28 +109,32 @@ class HglCompletionContributor : CompletionContributor() {
                     else -> return named != null // EXPR-2: positional arguments must precede labels.
                 }
             }
-            for (parameter in parameters) {
-                val pack = parameter.parameterPack
-                if (pack != null) {
-                    if (pack.lbrace == null) positional = 0 // The positional pack takes all remaining positional arguments.
-                    continue
+            val configured = PsiTreeUtil.getChildrenOfTypeAsList(arguments.parent, HglOperatorConfiguration::class.java)
+                .filter { it.callArguments() == arguments }
+                .flatMap { configuration ->
+                    val names = configuration.namedArgumentList.map { it.memberName.text }.toSet()
+                    configuration.declaredLabels().filter { it.name in names }
                 }
+            for (parameter in parameters) {
                 if (positional > 0) {
                     positional--
                     continue
                 }
-                val name = parameter.name ?: continue
-                if (name in usedNames) continue
-                val type = PsiTreeUtil.getChildOfAnyType(parameter, HglType::class.java, HglFunctionType::class.java)
-                result.addElement(
-                    LookupElementBuilder.create(parameter, name)
-                        .withIcon(HglPresentation.iconOf(parameter))
-                        .withTailText(": ", true)
-                        .withTypeText(type?.text, true)
-                        .withInsertHandler { context, _ -> insertLabel(context) },
-                )
+                if (parameter !in configured && parameter.name !in usedNames) addLabel(parameter, result)
             }
             return named != null
+        }
+
+        private fun addLabel(parameter: HglNamedElement, result: CompletionResultSet) {
+            val name = parameter.name ?: return
+            val type = PsiTreeUtil.getChildOfAnyType(parameter, HglType::class.java, HglFunctionType::class.java)
+            result.addElement(
+                LookupElementBuilder.create(parameter, name)
+                    .withIcon(HglPresentation.iconOf(parameter))
+                    .withTailText(": ", true)
+                    .withTypeText(type?.text, true)
+                    .withInsertHandler { context, _ -> insertLabel(context) },
+            )
         }
 
         private fun insertLabel(context: InsertionContext) {
@@ -116,8 +144,9 @@ class HglCompletionContributor : CompletionContributor() {
             if (identifierEnd > tail) context.document.deleteString(tail, identifierEnd)
             context.commitDocument()
             val named = context.file.findElementAt(context.startOffset)?.parentOfType<HglNamedArgument>()
-            val caret = if (named?.memberName?.textOffset == context.startOffset) {
-                var offset = named.colon.textRange.endOffset
+            val colon = named?.takeIf { it.memberName.textOffset == context.startOffset }?.colon
+            val caret = if (colon != null) {
+                var offset = colon.textRange.endOffset
                 val text = context.document.charsSequence
                 while (offset < text.length && (text[offset] == ' ' || text[offset] == '\t')) offset++
                 offset
@@ -198,13 +227,13 @@ class HglCompletionContributor : CompletionContributor() {
             "let", "var", "state", "cache", "inject", "return", "if", "else", "start", "when", "stop",
             "for", "while", "yield", "in", "assert", "switch", "case", "default",
         )
-        private val PRIMARY_KEYWORDS = listOf("fn", "true", "false", "null", "delta")
+        private val PRIMARY_KEYWORDS = listOf("fn", "true", "false", "null", "delta", "type")
         private val ARROW_EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + listOf("if", "str", "bytes", "any", "error")
         val EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + "const"
         val TYPE_KEYWORDS = listOf(
             "bool", "i64", "f64", "str", "date", "time", "datetime", "duration", "civil_datetime",
             "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling_window",
-            "endpoint", "tenor", "ref", "signal", "unbounded", "bytes", "any", "result", "error",
+            "Type", "endpoint", "tenor", "ref", "signal", "unbounded", "bytes", "any", "result", "error",
         )
         private val CONSTRAINT_OPERAND_KEYWORDS = (TYPE_KEYWORDS - "unbounded") + listOf("true", "false", "null")
     }

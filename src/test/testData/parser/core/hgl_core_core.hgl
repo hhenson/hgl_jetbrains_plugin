@@ -862,8 +862,9 @@ literals, enum members, constants, generic value parameters and the
 enclosing function's own `const` parameters. Reading the store wakes no node and is no temporal input: a node reads
 what was put before it is evaluated, and what it reads of a `put` by
 another node of the same rank in the same cycle is undefined. The key
-`"run.output"` is the run's: a program that names it is rejected when
-its graph is built, with `store.reserved_key`.
+`"run.output"` is the run's: a program that names it is rejected with
+`store.reserved_key`. Proposed, with the language's TIME-8: in source,
+when its graph is built, or as the call is evaluated.
 
 Type Args:
     V: The value's type. A call of the store's may write it,
@@ -986,8 +987,9 @@ before any node of that graph starts. The key is fixed when the graph is
 built: in a hook or a value function it is a constant expression, of
 literals, enum members, constants, generic value parameters and the
 enclosing function's own `const` parameters. Asking wakes no node and is no temporal input. The key `"run.output"` is
-the run's: a program that names it is rejected when its graph is built,
-with `store.reserved_key`.
+the run's: a program that names it is rejected with
+`store.reserved_key`. Proposed, with the language's TIME-8: in source,
+when its graph is built, or as the call is evaluated.
 
 Type Args:
     S: The type of `store`. It is inferred.
@@ -1044,8 +1046,9 @@ members, constants, generic value parameters and the enclosing
 function's own `const` parameters. A `put` wakes no node and is no
 temporal input: what another node of the same rank
 reads of it in the same cycle is undefined. The key `"run.output"` is the
-run's: a program that names it is rejected when its graph is built, with
-`store.reserved_key`.
+run's: a program that names it is rejected with `store.reserved_key`.
+Proposed, with the language's TIME-8: in source, when its graph is
+built, or as the call is evaluated.
 
 Type Args:
     S: The type of `store`. It is inferred.
@@ -2956,17 +2959,19 @@ Join strings in order with a separator between consecutive strings.
 | Input | Order |
 | --- | --- |
 | One `list<str>` | List order |
-| A positional pack of `str` (proposed trial) | Argument order |
+| A positional pack of `str` | Argument order |
 
-Pass `separator` by name in either form under the trial. With zero strings,
-the result is empty text. One string gives that string.
+With zero strings, the result is empty text. One string gives that string.
 
 Type Args:
     As: The fitted types of the pieces, inferred from the call.
 
 Args:
     pieces: A list of strings or the strings themselves.
-    separator: The text written between pieces.
+
+Options:
+    - `separator`: Text written between pieces. The default is one space.
+      Write `join{separator: ", "}(pieces)` to supply a separator.
 
 Returns:
     The joined string.
@@ -2980,17 +2985,17 @@ Validity:
 
 Examples:
     ~~~hgl
-    assert join(["a", "b"], separator: ", ") == "a, b"
-    assert join("one", "two", "three", separator: " ") == "one two three"
-    assert join(separator: "/") == ""
+    assert join{separator: ", "}(["a", "b"]) == "a, b"
+    assert join("one", "two", "three") == "one two three"
+    assert join{separator: "/"}() == ""
     ~~~
 
 Rules:
-    OPS-11, EXPR-2, FN-6, FN-8, GEN-6
+    OPS-11, EXPR-14, FN-6, FN-8, FN-18, GEN-6
 */
-export operator join<...As>(pieces: ...As, separator: str) -> str
+export operator join<...As>{separator: str = " "}(pieces: ...As) -> str
 
-impl const fn join(pieces: ...list<str>{1}, separator: str) -> str {
+impl const fn join{separator: str = " "}(pieces: ...list<str>{1}) -> str {
     var text = ""
     var prefix = ""
     for piece in pieces[0] {
@@ -3001,7 +3006,7 @@ impl const fn join(pieces: ...list<str>{1}, separator: str) -> str {
     return text
 }
 
-impl const fn join(pieces: ...str, separator: str) -> str {
+impl const fn join{separator: str = " "}(pieces: ...str) -> str {
     var text = ""
     var prefix = ""
     for piece in pieces {
