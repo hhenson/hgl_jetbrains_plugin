@@ -141,27 +141,33 @@ native impl const fn ne_{abs: f64 = 0.0, rel: f64 = 0.0}(lhs: i64, rhs: f64) -> 
 native impl const fn eq_(lhs: zoned_datetime, rhs: zoned_datetime, utc: bool = false) -> bool
 native impl const fn ne_(lhs: zoned_datetime, rhs: zoned_datetime, utc: bool = false) -> bool
 
-# OPS-2: the ordered types. NUM-6: numbers, an `i64` with an `f64` included.
+# OPS-2, TYPE-1: the ordered types, with unsigned octet ordering for bytes.
+# NUM-6: numbers, an `i64` with an `f64` included.
 native impl const fn lt_<T>(lhs: T, rhs: T) -> bool
     requires T in {i64, f64, str, bool, date, time, datetime, civil_datetime, duration}
+native impl const fn lt_(lhs: bytes, rhs: bytes) -> bool
 native impl const fn lt_(lhs: i64, rhs: f64) -> bool
 native impl const fn lt_(lhs: f64, rhs: i64) -> bool
 native impl const fn le_<T>(lhs: T, rhs: T) -> bool
     requires T in {i64, f64, str, bool, date, time, datetime, civil_datetime, duration}
+native impl const fn le_(lhs: bytes, rhs: bytes) -> bool
 native impl const fn le_(lhs: i64, rhs: f64) -> bool
 native impl const fn le_(lhs: f64, rhs: i64) -> bool
 native impl const fn gt_<T>(lhs: T, rhs: T) -> bool
     requires T in {i64, f64, str, bool, date, time, datetime, civil_datetime, duration}
+native impl const fn gt_(lhs: bytes, rhs: bytes) -> bool
 native impl const fn gt_(lhs: i64, rhs: f64) -> bool
 native impl const fn gt_(lhs: f64, rhs: i64) -> bool
 native impl const fn ge_<T>(lhs: T, rhs: T) -> bool
     requires T in {i64, f64, str, bool, date, time, datetime, civil_datetime, duration}
+native impl const fn ge_(lhs: bytes, rhs: bytes) -> bool
 native impl const fn ge_(lhs: i64, rhs: f64) -> bool
 native impl const fn ge_(lhs: f64, rhs: i64) -> bool
 
 # OPS-3: `<=>` returns the outcome.
 native impl const fn compare_<T>(lhs: T, rhs: T) -> CmpResult
     requires T in {i64, f64, str, bool, date, time, datetime, civil_datetime, duration}
+native impl const fn compare_(lhs: bytes, rhs: bytes) -> CmpResult
 native impl const fn compare_(lhs: i64, rhs: f64) -> CmpResult
 native impl const fn compare_(lhs: f64, rhs: i64) -> CmpResult
 
@@ -236,3 +242,15 @@ native impl const fn convert<const invalid: InvalidPolicy = .error>(value: bytes
     requires invalid == .error
 native impl const fn convert<const invalid: InvalidPolicy>(value: bytes) -> str
     requires invalid == .fail
+
+# TYPE-7, OPS-4, OPS-6: an enum's name and number are explicit conversions.
+native impl const fn convert<E>(value: E) -> str
+    requires E in enum
+native impl const fn convert<E>(value: E) -> i64
+    requires E in enum
+
+# TYPE-7, OPS-7, OPS-8: only a member's number converts to that enum.
+native impl const fn convert<E, const invalid: InvalidPolicy = .error>(value: i64) -> result<E, error>
+    requires E in enum && invalid == .error
+native impl const fn convert<E, const invalid: InvalidPolicy>(value: i64) -> E
+    requires E in enum && invalid == .fail

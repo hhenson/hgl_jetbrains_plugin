@@ -23,6 +23,7 @@
   mixin("named_argument")="io.github.hhenson.hgl.psi.impl.HglNamedArgumentMixin"
   mixin("import_item")="io.github.hhenson.hgl.psi.impl.HglImportItemMixin"
   mixin("qualified_name")="io.github.hhenson.hgl.psi.impl.HglQualifiedNameMixin"
+  mixin("member_name")="io.github.hhenson.hgl.psi.impl.HglMemberNameMixin"
   mixin("module_path")="io.github.hhenson.hgl.psi.impl.HglModulePathMixin"
 
   tokens=[
