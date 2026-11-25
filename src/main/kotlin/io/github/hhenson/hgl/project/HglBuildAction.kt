@@ -29,9 +29,11 @@ internal interface HglCompilationDatabaseImporter {
     fun load(database: VirtualFile)
 }
 
-class HglDebugBuildAction : HglBuildAction(true)
+class HglDebugBuildAction : HglBuildAction(debug = true)
+class HglRebuildAction : HglBuildAction(clean = true)
+class HglDebugRebuildAction : HglBuildAction(debug = true, clean = true)
 
-open class HglBuildAction(private val debug: Boolean = false) : DumbAwareAction() {
+open class HglBuildAction(private val debug: Boolean = false, private val clean: Boolean = false) : DumbAwareAction() {
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
@@ -47,10 +49,10 @@ open class HglBuildAction(private val debug: Boolean = false) : DumbAwareAction(
         FileDocumentManager.getInstance().saveAllDocuments()
         val selected = event.getData(CommonDataKeys.VIRTUAL_FILE)?.takeIf { it.fileType == HglFileType }?.path
         project.putUserData(running, true)
-        object : Task.Backgroundable(project, "Build HGL project", true) {
+        object : Task.Backgroundable(project, if (clean) "Clean and rebuild HGL project" else "Build HGL project", true) {
             private lateinit var database: VirtualFile
             override fun run(indicator: ProgressIndicator) {
-                database = build(project, selected, indicator, debug)
+                database = build(project, selected, indicator, debug, clean)
             }
             override fun onSuccess() {
                 project.getService(HglCompilationDatabaseImporter::class.java)?.load(database)
@@ -67,7 +69,10 @@ open class HglBuildAction(private val debug: Boolean = false) : DumbAwareAction(
         private val running = Key.create<Boolean>("hgl.build.running")
         private fun group() = NotificationGroupManager.getInstance().getNotificationGroup("HGL compiler")
 
-        internal fun build(project: Project, selected: String?, indicator: ProgressIndicator, debug: Boolean = false): VirtualFile {
+        internal fun build(
+            project: Project, selected: String?, indicator: ProgressIndicator,
+            debug: Boolean = false, clean: Boolean = false,
+        ): VirtualFile {
             val root = Path.of(requireNotNull(project.basePath))
             val settings = project.buildSettings()
             val sources = settings.sourceRoots.ifEmpty { listOfNotNull(selected) }
@@ -76,14 +81,25 @@ open class HglBuildAction(private val debug: Boolean = false) : DumbAwareAction(
             val out = if (debug) buildDir.resolve("debug") else buildDir
             val command = hglCommandLine(settings.compiler).withWorkDirectory(root.toFile())
                 .withParameters("build", "--target", "cpp")
-                .apply { if (debug) addParameter("--debug") }
+                .apply {
+                    if (debug) addParameter("--debug")
+                    if (clean) addParameter("--clean")
+                }
                 .withParameters("--compile-commands", "--out", out.toString(), "--")
                 .withParameters(sources)
             indicator.checkCanceled()
-            val result = CapturingProcessHandler(command).runProcessWithProgressIndicator(indicator)
+            val result = try {
+                CapturingProcessHandler(command).runProcessWithProgressIndicator(indicator)
+            } finally {
+                // A failed or cancelled clean can also remove previously indexed files.
+                if (clean) refreshWorkspace(out)
+            }
             indicator.checkCanceled()
             if (result.exitCode != 0) {
                 val detail = result.stderr.ifBlank { result.stdout }.trim()
+                if (clean && "unexpected argument '--clean'" in detail) {
+                    throw ExecutionException("Clean and Rebuild requires a compiler with hgl build --clean.\n$detail")
+                }
                 if ("unrecognized subcommand 'build'" in detail || "unexpected argument '--compile-commands'" in detail) {
                     throw ExecutionException("The configured compiler must support hgl build --compile-commands.\n$detail")
                 }
@@ -91,11 +107,16 @@ open class HglBuildAction(private val debug: Boolean = false) : DumbAwareAction(
             }
             val path = out.resolve("compile_commands.json")
             if (!Files.isRegularFile(path)) throw ExecutionException("hgl build succeeded but did not produce $path")
+            val workspace = if (clean) LocalFileSystem.getInstance().findFileByNioFile(out) else refreshWorkspace(out)
+            return workspace?.findChild(path.fileName.toString()) ?: throw ExecutionException("Cannot load $path")
+        }
+
+        private fun refreshWorkspace(out: Path): VirtualFile? {
             val workspace = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(out)
-                ?: throw ExecutionException("Cannot load $out")
+                ?: return null
             // A rebuild can rewrite generated C++ while leaving compile_commands.json unchanged.
             VfsUtil.markDirtyAndRefresh(false, true, true, workspace)
-            return workspace.findChild(path.fileName.toString()) ?: throw ExecutionException("Cannot load $path")
+            return workspace
         }
     }
 }

@@ -39,6 +39,17 @@
           "documentation": null
         },
         {
+          "name": "diagnostics",
+          "source": {
+            "module": "core",
+            "part": "diagnostics",
+            "file": "<core>/core/diagnostics.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
           "name": "endpoints",
           "source": {
             "module": "core",

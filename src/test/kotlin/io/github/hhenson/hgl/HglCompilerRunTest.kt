@@ -229,7 +229,9 @@ class HglCompilerRunTest : HglEditorFixture() {
         val initial = shared.read()!!
         val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
         shared.save(initial.copy(compiler = compiler, buildDir = "native output"), initial)
-        val database = HglBuildAction.build(project, null, EmptyProgressIndicator())
+        val retired = root.toNioPath().resolve("src/retired.hgl").toFile()
+        retired.writeText("application retired\nuse hello::{greeting}\neval greeting()\n")
+        var database = HglBuildAction.build(project, null, EmptyProgressIndicator())
         assertEquals(root.toNioPath().resolve("native output/compile_commands.json"), database.toNioPath())
         val units = JsonParser.parseString(database.toNioPath().toFile().readText()).asJsonArray
             .map { File(it.asJsonObject["file"].asString).name }.toSet()
@@ -239,6 +241,19 @@ class HglCompilerRunTest : HglEditorFixture() {
         val debugCommands = debugDatabase.toNioPath().toFile().readText()
         assertTrue(debugCommands, "-O0" in debugCommands && "-g" in debugCommands)
         assertEquals(releaseCommands, database.toNioPath().toFile().readText())
+        val release = database.toNioPath().parent
+        val debug = debugDatabase.toNioPath().parent
+        val stale = "applications/app-retired.cpp"
+        assertTrue(release.resolve(stale).toFile().isFile && debug.resolve(stale).toFile().isFile)
+        assertTrue(retired.delete())
+        database = HglBuildAction.build(project, null, EmptyProgressIndicator(), clean = true)
+        assertNull(database.parent.findFileByRelativePath(stale))
+        assertTrue(debug.resolve(stale).toFile().isFile)
+        val releaseAfterClean = database.toNioPath().toFile().readText()
+        val rebuiltDebug = HglBuildAction.build(project, null, EmptyProgressIndicator(), debug = true, clean = true)
+        assertNull(rebuiltDebug.parent.findFileByRelativePath(stale))
+        assertTrue("-O0" in rebuiltDebug.toNioPath().toFile().readText())
+        assertEquals(releaseAfterClean, database.toNioPath().toFile().readText())
         val expected = setOf("mod-hello.cpp", "app-hello-main.cpp")
         assertTrue(units.toString(), units.containsAll(expected))
         project.getService(HglCompilationDatabaseImporter::class.java)?.let { importer ->
@@ -246,7 +261,8 @@ class HglCompilerRunTest : HglEditorFixture() {
             ExternalProjectsManagerImpl.getInstance(project).init()
             importer.load(database)
             PlatformTestUtil.waitWithEventsDispatching("CLion did not import the starter's generated C++", {
-                importedCppFiles(project, database).containsAll(expected)
+                val imported = importedCppFiles(project, database)
+                imported.containsAll(expected) && "app-retired.cpp" !in imported
             }, 60)
         }
     }
