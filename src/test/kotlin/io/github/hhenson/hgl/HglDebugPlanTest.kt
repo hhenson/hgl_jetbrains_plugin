@@ -4,6 +4,8 @@ import com.intellij.execution.ExecutionException
 import io.github.hhenson.hgl.debug.HglDebugPlan
 import io.github.hhenson.hgl.debug.HglDebugResults
 import junit.framework.TestCase
+import com.google.gson.Gson
+import java.nio.file.Files
 import java.nio.file.Path
 
 class HglDebugPlanTest : TestCase() {
@@ -43,6 +45,31 @@ class HglDebugPlanTest : TestCase() {
         val tests = HglDebugPlan.parse(testReport, testRun = true)
         assertEquals(pairs, tests.launches.first().arguments["sourceMap"])
         assertFalse(tests.launches.last().arguments.containsKey("sourceMap"))
+    }
+
+    fun testFormatterIsLoadedOnlyFromTheSdkSelectedForEachLaunch() {
+        val sdk = Files.createTempDirectory("hgl SDK ")
+        try {
+            val dir = Files.createDirectories(sdk.resolve("share/hgraph/debugger"))
+            val script = Files.createFile(dir.resolve("hgraph_lldb.py"))
+            Files.createFile(dir.resolve("hgraph_debug_common.py"))
+            val program = """"executable":"app","arguments":[],"workingDirectory":".","environment":{}"""
+            fun launch(path: String) = """{$program,"hgraph":{"sdk":${Gson().toJson(path)}}}"""
+            fun application(path: String) = HglDebugPlan.parse(
+                launch(path).replaceFirst("{", """{"version":1,"""), false).launches.single().arguments
+            assertNull(application(sdk.toString())["initCommands"])
+            Files.createFile(dir.resolve("hgraph_lldb_endpoints.py"))
+            val commands = listOf("command script import \"" + script.toString().replace("\\", "\\\\") + "\"")
+            assertEquals(commands, application(sdk.toString())["initCommands"])
+            assertNull(application(".")["initCommands"])
+            val groups = listOf(sdk.toString(), sdk.resolve("missing").toString()).mapIndexed { i, path ->
+                launch(path).dropLast(1) + ""","module":"m$i","tests":[],"resultsFile":"r$i"}"""
+            }
+            val report = """{"version":1,"skipped":[],"launches":[${groups.joinToString(",")}]}"""
+            assertEquals(listOf(commands, null), HglDebugPlan.parse(report, true).launches.map { it.arguments["initCommands"] })
+        } finally {
+            sdk.toFile().deleteRecursively()
+        }
     }
 
     fun testMalformedNativeSourceMapIsReportedAsAnInvalidLaunch() {

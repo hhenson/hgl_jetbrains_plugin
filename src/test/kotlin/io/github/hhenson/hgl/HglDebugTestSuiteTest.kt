@@ -202,6 +202,56 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
         }
     }
 
+    fun testScalarAndNullableValuesInVariablesView() {
+        // The compiler pin can precede the first SDK release containing endpoint descriptors.
+        val sdk = System.getenv("HGL_HGRAPH_SDK") ?: return
+        if (!Files.isRegularFile(Path.of(sdk, "share/hgraph/debugger/hgraph_lldb_endpoints.py"))) return
+        VfsRootAccess.allowRootAccess(testRootDisposable, "/usr/include")
+        val dir = Files.createDirectory(Path.of(project.basePath!!, "src"))
+        val path = dir.resolve("states.hgl")
+        val code = Files.readString(Path.of("src/test/testData/debug/scalar-endpoints.hgl"))
+        Files.writeString(path, code)
+        val source = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
+        PsiTestUtil.addContentRoot(module, source.parent)
+        project.service<HglBuildFile>().save(HglBuild(compiler = System.getenv("HGL_TEST_CLI")), null)
+        myFixture.configureFromExistingVirtualFile(source)
+        val name = myFixture.file.findElementAt(code.indexOf("test states") + 5)!!
+        val line = code.lines().indexOfFirst { "return valid(price)" in it }
+        val manager = XDebuggerManager.getInstance(project)
+        val type = XDebuggerUtil.getInstance().findBreakpointType(HglLineBreakpoint::class.java)
+        val breakpoint = WriteCommandAction.writeCommandAction(project).compute<XLineBreakpoint<*>, RuntimeException> {
+            manager.breakpointManager.addLineBreakpoint(type, source.url, line, null)
+        }
+        val env = ExecutionEnvironmentBuilder.create(DefaultDebugExecutor.getDebugExecutorInstance(), runConfigurationAt(name)).build()
+        val invalid = "<invalid>"
+        val ticks = listOf(invalid to invalid, "7 [modified]" to "7 [modified]", "7" to "7",
+            "0 [modified]" to "null [modified]", "0" to "null", invalid to invalid,
+            invalid to invalid, "9 [modified]" to "9 [modified]")
+        try {
+            env.runner.execute(env)
+            var previous: com.intellij.xdebugger.frame.XSuspendContext? = null
+            for ((price, maybe) in ticks) {
+                PlatformTestUtil.waitWithEventsDispatching("Waiting for states.hgl breakpoint", {
+                    manager.debugSessions.any { it.isSuspended && it.suspendContext !== previous && it.currentPosition?.line == line }
+                }, 90)
+                val session = manager.debugSessions.single { it.isSuspended }
+                previous = session.suspendContext
+                val expected = mapOf("price" to price, "maybe" to maybe, "widened" to price)
+                val locals = DebuggerLocals(expected.keys)
+                previous!!.activeExecutionStack!!.topFrame!!.computeChildren(locals)
+                PlatformTestUtil.waitWithEventsDispatching("Waiting for scalar variable presentations", {
+                    locals.values.keys.containsAll(expected.keys)
+                }, 15)
+                assertEquals(expected, locals.values)
+                session.resume()
+            }
+            PlatformTestUtil.waitWithEventsDispatching("HGL test did not finish", { manager.debugSessions.isEmpty() }, 30)
+        } finally {
+            manager.debugSessions.forEach { it.stop() }
+            WriteCommandAction.runWriteCommandAction(project) { manager.breakpointManager.removeBreakpoint(breakpoint) }
+        }
+    }
+
     fun testStepIntoBundledCoreOpensHglSource() {
         VfsRootAccess.allowRootAccess(testRootDisposable, "/usr/include")
         val dir = Files.createDirectory(Path.of(project.basePath!!, "src"))

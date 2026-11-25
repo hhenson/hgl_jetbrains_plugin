@@ -1,0 +1,25 @@
+module states
+fn scalar(command: i64) -> i64 {
+    inject out
+    when {
+        if command < 0 { invalidate(out) }
+        else { return command }
+    }
+}
+fn nullable(command: i64) -> i64? {
+    inject out
+    when {
+        if command < 0 { invalidate(out) }
+        else if command == 0 { return null }
+        else { return command }
+    }
+}
+fn watch(probe: bool, price: i64, maybe: i64?, widened: i64?) -> bool {
+    when modified(probe) && valid([]) {
+        return valid(price) && valid(maybe) && valid(widened)
+    }
+}
+fn wired(command: i64, probe: bool) -> bool => watch(probe, scalar(command), nullable(command), scalar(command))
+test states {
+    assert eval wired(command: [_, 7, _, 0, _, -1, _, 9], probe: [true, true, true, true, true, true, true, true]) == [false,true,true,true,true,false,false,true]
+}

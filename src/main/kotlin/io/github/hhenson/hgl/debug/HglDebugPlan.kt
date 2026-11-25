@@ -3,6 +3,8 @@ package io.github.hhenson.hgl.debug
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.execution.ExecutionException
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 internal data class HglDebugLaunch(
@@ -61,6 +63,7 @@ internal data class HglDebugPlan(
             put("args", launch["arguments"].asJsonArray.map { it.asString })
             put("cwd", launch["workingDirectory"].asString)
             put("env", launch["environment"].asJsonObject.entrySet().associate { it.key to it.value.asString })
+            formatterCommand(launch)?.let { put("initCommands", listOf(it)) }
             launch["sourceMap"]?.let { mappings ->
                 // lldb-dap expects ordered [build root, installed root] pairs.
                 put("sourceMap", mappings.asJsonObject.entrySet().map { (from, to) ->
@@ -68,6 +71,21 @@ internal data class HglDebugPlan(
                     listOf(from, to.asString)
                 })
             }
+        }
+
+        private fun formatterCommand(launch: JsonObject): String? {
+            val sdk = launch.get("hgraph")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("sdk")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString ?: return null
+            if (sdk.any { it.isISOControl() || it == '`' }) return null
+            val root = try { Path.of(sdk) } catch (_: InvalidPathException) { return null }
+            if (!root.isAbsolute) return null
+            val directory = root.resolve("share/hgraph/debugger")
+            val script = directory.resolve("hgraph_lldb.py")
+            // Older SDKs have a printer but cannot resolve passive scalar inputs.
+            val files = listOf(script, directory.resolve("hgraph_lldb_endpoints.py"), directory.resolve("hgraph_debug_common.py"))
+            if (!files.all { Files.isRegularFile(it) }) return null
+            val path = script.toString().replace("\\", "\\\\").replace("\"", "\\\"")
+            return "command script import \"$path\""
         }
     }
 }
