@@ -148,6 +148,429 @@ test fixed_map_propagates_resultless_child_failure {
     assert raises("numeric.division_by_zero") { eval map_resultless_quotients(divisors: [[2, 0]]) }
 }
 
+fn keyed_counter(offset: i64, slot: i64, member: i64) -> i64 {
+    state visits: i64 = 0
+    when {
+        visits += 1
+        return slot * 1000 + visits * 100 + member * 10 + offset
+    }
+}
+
+fn map_one_dictionary(items: dict<i64, i64>, offset: i64) -> dict<i64, i64> =>
+    map{key: "slot"}(keyed_counter, offset, items)
+
+fn map_one_selected_dictionary(items: dict<i64, i64>, offset: i64, selected: set<i64>) -> dict<i64, i64> =>
+    map{keys: selected, key: "slot"}(keyed_counter, member: items, offset: offset)
+
+/**
+Each dictionary entry receives its key and the current whole argument.
+
+An update keeps the child's count. Removing the key and adding it in a
+later cycle starts the count again.
+
+Rules:
+    MAP-1, MAP-2, MAP-4, MAP-5, MAP-7, MAP-9
+
+Status:
+    agreed
+*/
+test keyed_map_keeps_child_state_until_a_key_leaves {
+    assert eval map_one_dictionary(
+        items: [
+            [1: 2, 2: 3],
+            delta<dict<i64, i64>>(updated: [1: 4]),
+            _,
+            delta<dict<i64, i64>>(removed: [1]),
+            delta<dict<i64, i64>>(updated: [1: 5]),
+        ],
+        offset: [1, _, 2],
+    ) == [
+        [1: 1121, 2: 2131],
+        delta<dict<i64, i64>>(updated: [1: 1241]),
+        delta<dict<i64, i64>>(updated: [1: 1342, 2: 2232]),
+        delta<dict<i64, i64>>(removed: [1]),
+        delta<dict<i64, i64>>(updated: [1: 1152]),
+    ]
+}
+
+/**
+An explicit key can start a child before its split input has an entry.
+
+That input stays invalid until the entry arrives. Removing the explicit
+key stops the child even if the dictionary still contains the entry.
+
+Rules:
+    MAP-2, MAP-5, MAP-7, MAP-8, MAP-9
+
+Status:
+    agreed
+*/
+test keyed_map_uses_explicit_keys_with_missing_entries {
+    assert eval map_one_selected_dictionary(
+        items: [
+            [1: 2],
+            delta<dict<i64, i64>>(updated: [2: 3]),
+            _,
+            delta<dict<i64, i64>>(updated: [1: 8]),
+            _,
+        ],
+        offset: [1],
+        selected: [[1, 2], _, delta<set<i64>>(removed: [1]), _, delta<set<i64>>(added: [1])],
+    ) == [
+        [1: 1121],
+        delta<dict<i64, i64>>(updated: [2: 2131]),
+        delta<dict<i64, i64>>(removed: [1]),
+        _,
+        delta<dict<i64, i64>>(updated: [1: 1181]),
+    ]
+}
+
+const fn key_plus_member(key: i64, member: i64) -> i64 => key * 100 + member
+
+fn map_with_null_keys(items: dict<i64, i64>) -> dict<i64, i64> =>
+    map{keys: null}(key_plus_member, items)
+
+fn map_with_delayed_keys(items: dict<i64, i64>, selected: set<i64>) -> dict<i64, i64> =>
+    map{keys: selected}(key_plus_member, items)
+
+/**
+A written null uses the single dictionary's keys.
+
+A written null is the option's default, so no key set is given. The
+callback receives the key under its default parameter name.
+
+Rules:
+    MAP-5, MAP-9
+
+Status:
+    agreed
+*/
+test keyed_map_infers_keys_from_a_written_null {
+    assert eval map_with_null_keys(items: [[2: 3]]) == [[2: 203]]
+}
+
+/**
+An explicit key set creates no children before it becomes valid.
+
+The dictionary already holds two entries. Only the selected key's
+child starts once the key set publishes.
+
+Rules:
+    MAP-5, MAP-7
+
+Status:
+    proposed
+*/
+test keyed_map_waits_for_its_explicit_key_set {
+    assert eval map_with_delayed_keys(
+        items: [[2: 3, 4: 5], _, delta<dict<i64, i64>>(updated: [2: 7, 4: 9])],
+        selected: [_, [2]],
+    ) == [_, [2: 203], delta<dict<i64, i64>>(updated: [2: 207])]
+}
+
+fn add_catalog_bonus(member: i64, catalog: dict<str, i64>) -> i64 {
+    when {
+        if valid(catalog["bonus"]) { return member + catalog["bonus"] }
+    }
+}
+
+fn keyed_map_with_catalog(items: dict<str, i64>, catalog: dict<str, i64>) -> dict<str, i64> =>
+    map(add_catalog_bonus, items, catalog)
+
+fn keyed_map_with_literals(items: dict<str, i64>) -> dict<str, i64> {
+    let catalog: dict<str, i64> = ["bonus": 5]
+    return map{keys: ["a"]}(add_catalog_bonus, items, catalog)
+}
+
+/**
+A whole dictionary is shared by every child.
+
+The whole input's keys do not determine membership. A written key set
+can select children with a literal dictionary as their whole input.
+
+Rules:
+    MAP-2, MAP-5, FN-3
+
+Status:
+    agreed
+*/
+test keyed_map_passes_a_whole_dictionary_to_each_child {
+    assert eval keyed_map_with_catalog(
+        items: [["a": 3, "b": 7]],
+        catalog: [["bonus": 1], delta<dict<str, i64>>(updated: ["bonus": 5])],
+    ) == [["a": 4, "b": 8], delta<dict<str, i64>>(updated: ["a": 8, "b": 12])]
+    assert eval keyed_map_with_literals(items: [["a": 3, "b": 7]]) == [["a": 8]]
+}
+
+fn keyed_map_with_captures(items: dict<str, i64>, offset: i64, const scale: i64) -> dict<str, i64> =>
+    map(fn(member: i64) => member * scale + offset, items)
+
+/**
+Each child receives the callback's enclosing values and connections.
+
+A change of the captured connection wakes the child.
+
+Rules:
+    MAP-7, FN-14, FN-17
+
+Status:
+    agreed
+*/
+test keyed_map_passes_lexical_captures {
+    assert eval keyed_map_with_captures(items: [["a": 3]], offset: [2, 5], scale: 2) ==
+        [["a": 8], delta<dict<str, i64>>(updated: ["a": 11])]
+}
+
+fn divide_mapped_member(member: i64) -> i64 {
+    when { return 12 // member }
+}
+
+fn keyed_map_divisions(items: dict<str, i64>) -> dict<str, i64> =>
+    map(divide_mapped_member, items)
+
+/**
+A failure leaving a keyed child leaves the map.
+
+Rules:
+    MAP-10, NUM-12
+
+Status:
+    agreed
+*/
+test keyed_map_propagates_a_child_failure {
+    assert raises("numeric.division_by_zero") { eval keyed_map_divisions(items: [["a": 0]]) }
+}
+
+fn keyed_add_offset(items: dict<str, i64>, offset: i64) -> dict<str, i64> =>
+    map(add_<i64, i64, i64>, items, offset)
+
+/**
+A selected operator receives each member and the whole offset.
+
+Rules:
+    MAP-2, FN-17
+
+Status:
+    agreed
+*/
+test keyed_map_calls_a_selected_operator {
+    assert eval keyed_add_offset(items: [["a": 3]], offset: [2, 5]) ==
+        [["a": 5], delta<dict<str, i64>>(updated: ["a": 8])]
+}
+
+fn replace_key_in_one_cycle(cycle: i64) -> dict<i64, i64> {
+    inject out
+    when {
+        if cycle == 1 { return [1: 2] }
+        out = delta<dict<i64, i64>>(removed: [1])
+        out = delta<dict<i64, i64>>(updated: [1: 5])
+    }
+}
+
+fn keyed_replacements(cycle: i64) -> dict<i64, i64> =>
+    map{key: "slot"}(keyed_counter, 1, replace_key_in_one_cycle(cycle))
+
+/**
+A key removed and added within one cycle keeps its child and state.
+
+Rules:
+    MAP-7
+
+Status:
+    agreed
+*/
+test keyed_map_keeps_state_after_replacement_within_one_cycle {
+    assert eval keyed_replacements(cycle: [1, 2]) ==
+        [[1: 1121], delta<dict<i64, i64>>(updated: [1: 1251])]
+}
+
+fn publish_positive_member(member: i64) -> i64 {
+    inject out
+    when {
+        if member < 0 { invalidate(out) }
+        if member > 0 { return member * 2 }
+    }
+}
+
+fn map_publishing_members(items: dict<i64, i64>, selected: set<i64>) -> dict<i64, i64> =>
+    map{keys: selected}(publish_positive_member, items)
+
+fn map_published_keys(items: dict<i64, i64>, selected: set<i64>) -> set<i64> =>
+    keys(map_publishing_members(items, selected))
+
+fn map_result_wakes(book: dict<i64, i64>) -> bool {
+    when valid([]) { return valid(book) }
+}
+
+fn map_publication_wakes(items: dict<i64, i64>, selected: set<i64>) -> bool =>
+    map_result_wakes(map_publishing_members(items, selected))
+
+/**
+Only a published entry changes the valid map result or its key set.
+
+The first empty result is valid. Keys 1 and 2 start in the next cycle,
+but key 1's child publishes nothing from zero and key 2 has no input
+entry. Key 1 becomes visible after it publishes. Removing key 2 wakes
+no subscriber because it never published.
+
+Rules:
+    MAP-7, MAP-8, MAP-10, SET-1, TIME-7
+
+Status:
+    agreed
+*/
+test keyed_map_ignores_unpublished_children {
+    assert eval map_publishing_members(items: [[1: 0]], selected: [[1, 2]]) == [[]]
+    assert eval map_published_keys(items: [[1: 0]], selected: [[1, 2]]) == [[]]
+    assert eval map_publishing_members(
+        items: [_, [1: 0], delta<dict<i64, i64>>(updated: [1: 2])],
+        selected: [[], delta<set<i64>>(added: [1, 2]), _, delta<set<i64>>(removed: [2])],
+    ) == [[], _, [1: 4], _]
+    assert eval map_published_keys(
+        items: [_, [1: 0], delta<dict<i64, i64>>(updated: [1: 2])],
+        selected: [[], delta<set<i64>>(added: [1, 2]), _, delta<set<i64>>(removed: [2])],
+    ) == [[], _, [1], _]
+    assert eval map_publication_wakes(
+        items: [_, [1: 0], delta<dict<i64, i64>>(updated: [1: 2])],
+        selected: [[], delta<set<i64>>(added: [1, 2]), _, delta<set<i64>>(removed: [2])],
+    ) == [true, _, true, _]
+}
+
+/**
+An invalidated child disappears from the result until it publishes again.
+
+The other entry stays valid when key 1's child invalidates its output.
+The child keeps its lifecycle key and can publish the entry again.
+
+Rules:
+    MAP-7, MAP-10, SET-1, END-4
+
+Status:
+    proposed
+*/
+test keyed_map_removes_a_child_result_on_invalidation {
+    assert eval map_publishing_members(
+        items: [
+            [1: 2, 2: 3],
+            delta<dict<i64, i64>>(updated: [1: -1]),
+            delta<dict<i64, i64>>(updated: [1: 9]),
+        ],
+        selected: [[1, 2]],
+    ) == [[1: 4, 2: 6], delta<dict<i64, i64>>(removed: [1]), delta<dict<i64, i64>>(updated: [1: 18])]
+    assert eval map_published_keys(
+        items: [
+            [1: 2, 2: 3],
+            delta<dict<i64, i64>>(updated: [1: -1]),
+            delta<dict<i64, i64>>(updated: [1: 9]),
+        ],
+        selected: [[1, 2]],
+    ) == [[1, 2], delta<set<i64>>(removed: [1]), delta<set<i64>>(added: [1])]
+}
+
+fn publish_book_member(step: i64) -> dict<str, i64> {
+    when {
+        if step == 1 { return ["x": 2, "y": 7] }
+        if step == 2 { return delta<dict<str, i64>>(updated: ["y": 9]) }
+        return delta<dict<str, i64>>(removed: ["x"])
+    }
+}
+
+fn map_books(steps: dict<i64, i64>) -> dict<i64, dict<str, i64>> =>
+    map(publish_book_member, steps)
+
+/**
+A keyed map forwards the changes within a child dictionary.
+
+The outer key stays present when the child updates one entry and later
+removes another.
+
+Rules:
+    MAP-10, TIME-7, TYPE-16
+
+Status:
+    agreed
+*/
+test keyed_map_keeps_nested_result_deltas {
+    assert eval map_books(steps: [[1: 1], [1: 2], [1: 3]]) == [
+        [1: ["x": 2, "y": 7]],
+        delta<dict<i64, dict<str, i64>>>(updated: [1: delta<dict<str, i64>>(updated: ["y": 9])]),
+        delta<dict<i64, dict<str, i64>>>(updated: [1: delta<dict<str, i64>>(removed: ["x"])]),
+    ]
+}
+
+fn shelf(member: i64) -> dict<str, i64> {
+    inject out
+    when {
+        if member < 0 { invalidate(out) }
+        else if member == 0 { return [] }
+        else { return ["a": member] }
+    }
+}
+
+fn shelves(items: dict<i64, i64>) -> dict<i64, dict<str, i64>> => map(shelf, items)
+
+/**
+An empty dictionary publication is a valid mapped entry.
+
+Rules:
+    MAP-10, TIME-7
+
+Status:
+    agreed
+*/
+test keyed_map_publishes_an_empty_child_dictionary {
+    assert eval shelves(items: [[5: 0]]) == [[5: []]]
+    assert eval shelves(items: [[5: 0, 6: 2]]) == [[5: [], 6: ["a": 2]]]
+}
+
+/**
+An invalidated child can return by publishing an empty dictionary.
+
+Rules:
+    MAP-10, TIME-7, END-4
+
+Status:
+    proposed
+*/
+test keyed_map_republishes_an_empty_child_dictionary {
+    assert eval shelves(items: [[5: 0], [5: -1], [5: 0]]) == [
+        [5: []],
+        delta<dict<i64, dict<str, i64>>>(removed: [5]),
+        delta<dict<i64, dict<str, i64>>>(updated: [5: delta<dict<str, i64>>(updated: [])]),
+    ]
+}
+
+fn echo_member(member: i64) -> i64 => member
+
+fn echo_selected_members(items: dict<i64, i64>) -> dict<i64, i64> =>
+    map{keys: [1, 2]}(echo_member, items)
+
+fn echo_published_keys(items: dict<i64, i64>) -> set<i64> =>
+    keys(echo_selected_members(items))
+
+/**
+A pass-through result is withdrawn when its input entry disappears.
+
+The explicit key keeps the child alive. The entry and its key return
+when the split dictionary again supplies a value to that child.
+
+Rules:
+    MAP-7, MAP-8, MAP-10, SET-1
+
+Status:
+    proposed
+*/
+test keyed_map_withdraws_a_pass_through_entry {
+    assert eval echo_selected_members(items: [
+        [1: 5, 2: 6], delta<dict<i64, i64>>(removed: [2]),
+        delta<dict<i64, i64>>(updated: [2: 8]),
+    ]) == [[1: 5, 2: 6], delta<dict<i64, i64>>(removed: [2]), delta<dict<i64, i64>>(updated: [2: 8])]
+    assert eval echo_published_keys(items: [
+        [1: 5, 2: 6], delta<dict<i64, i64>>(removed: [2]),
+        delta<dict<i64, i64>>(updated: [2: 8]),
+    ]) == [[1, 2], delta<set<i64>>(removed: [2]), delta<set<i64>>(added: [2])]
+}
+
 fn fixed_tree_sum(values: list<i64, 2>) -> i64 => reduce(add_, values)
 
 const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit

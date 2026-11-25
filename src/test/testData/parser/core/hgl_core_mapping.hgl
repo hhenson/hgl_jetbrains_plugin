@@ -114,10 +114,9 @@ Examples:
     assert eval scaled_pair(prices: [[2.0, 3.0]], factor: [4.0]) == [[8.0, 12.0]]
     ~~~
 
-    A keyed map with an explicit set selects only those keys. The
-    native keyed candidate has yet to be implemented.
+    A keyed map with an explicit set selects only those keys.
 
-    ~~~hgl no-run
+    ~~~hgl
     fn double_price(price: i64) -> i64 => price * 2
     fn selected_prices(prices: dict<str, i64>, selected: set<str>) -> dict<str, i64> =>
         map{keys: selected}(double_price, prices)

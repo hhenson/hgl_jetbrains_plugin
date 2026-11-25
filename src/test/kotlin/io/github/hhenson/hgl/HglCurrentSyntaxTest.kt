@@ -44,6 +44,18 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         assertEquals("const", PsiTreeUtil.findChildOfType(file, HglFunctionDecl::class.java)?.name)
     }
 
+    fun testTypeOfAcceptsOneExpressionAndPreservesOrdinaryNames() {
+        val file = accepted("""
+            module current
+            const fn reflected(values: list<i64, 2>) -> Type => type(values[0] + 1)
+            const fn ordinary(type: i64) -> i64 => type
+        """)
+        val node = PsiTreeUtil.findChildOfType(file, io.github.hhenson.hgl.psi.HglTypeOfExpr::class.java)
+        assertEquals("type(values[0] + 1)", node?.text)
+        rejected("const fn empty() -> Type => type()")
+        rejected("const fn two(x: i64) -> Type => type(x, x)")
+    }
+
     fun testOptionsInEval() {
         accepted("""
             module current

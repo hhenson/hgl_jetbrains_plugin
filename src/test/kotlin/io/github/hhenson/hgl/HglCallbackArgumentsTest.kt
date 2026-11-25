@@ -4,6 +4,8 @@ import com.intellij.codeInsight.TargetElementUtil
 import com.intellij.codeInsight.lookup.Lookup
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.psi.HglFunctionTypeParameter
+import io.github.hhenson.hgl.psi.HglConfigurationParameter
+import io.github.hhenson.hgl.psi.HglGenericParameter
 import io.github.hhenson.hgl.psi.HglParameter
 
 class HglCallbackArgumentsTest : HglEditorFixture() {
@@ -44,19 +46,43 @@ class HglCallbackArgumentsTest : HglEditorFixture() {
         assertDoesntContain(afterNamed, "end")
     }
 
-    fun testJoinCompletesAndNavigatesToItsPublicSeparatorAfterPackedStrings() {
+    fun testJoinConfiguresItsSeparatorOnlyInBraces() {
         val core = java.io.File("src/test/testData/parser/core/hgl_core_core.hgl")
         myFixture.addFileToProject("core.hgl", core.readText())
         val header = "const fn text() -> str => "
-        val labels = complete(header + """join("a", "b", <caret>)""")
-        assertContainsElements(labels, "separator")
-        assertDoesntContain(labels, "pieces")
-        assertDoesntContain(complete(header + """join(separator: "/", <caret>)"""), "separator")
-
-        configure(header + """join("a", "b", sepa<caret>rator: "/")""")
-        val parameter = myFixture.elementAtCaret as HglParameter
+        configure(header + """join{sep<caret>}("a", "b")""")
+        val variants = myFixture.completeBasic()
+        if (variants != null) {
+            val lookup = myFixture.lookup ?: error("expected join option")
+            lookup.currentItem = lookup.items.single { it.lookupString == "separator" }
+            myFixture.finishLookup(Lookup.NORMAL_SELECT_CHAR)
+        }
+        myFixture.checkResult("module callbacks\n" + header + """join{separator: <caret>}("a", "b")""")
+        configure(header + """join{sepa<caret>rator: "/"}("a", "b")""")
+        val parameter = myFixture.elementAtCaret as HglConfigurationParameter
         assertEquals("separator", parameter.name)
         assertEquals("join", parameter.parentOfType<io.github.hhenson.hgl.psi.HglOperatorDecl>()?.name)
+        assertDoesntContain(complete(header + """join("a", "b", <caret>)"""), "pieces", "separator")
+        configure(header + """join("a", sepa<caret>rator: "/")""")
+        assertNull(myFixture.file.findReferenceAt(myFixture.caretOffset)?.resolve())
+    }
+
+    fun testConfiguredCallLabelsUseThePublicSignatureAndOmitBoundInputs() {
+        myFixture.addFileToProject("lib.hgl", """
+            module lib
+            export operator pick<T, const key: str = "id">{limit: i64 = 1, strict: bool = true}(value: T) -> T
+        """.trimIndent())
+        val header = "use lib as l\nfn example() -> i64 => "
+        val names = complete(header + "l::pick<i64>{strict: true, <caret>}(1)")
+        assertContainsElements(names, "limit", "key")
+        assertDoesntContain(names, "strict", "value", "T")
+        configure(header + """l::pick{ke<caret>y: "code"}(1)""")
+        assertEquals("key", (myFixture.elementAtCaret as HglGenericParameter).name)
+        assertDoesntContain(complete(header + "l::pick{limit: 1}(<caret>)"), "limit", "strict")
+        val ordinary = "const fn pick(first: i64, second: i64) -> i64 => first\nconst fn use_it() -> i64 => "
+        assertDoesntContain(complete(ordinary + "pick{first: 1}(<caret>)"), "first")
+        configure(ordinary + "pick{fi<caret>rst: 1}(second: 2)")
+        assertEquals("first", (myFixture.elementAtCaret as HglParameter).name)
     }
 
     fun testQualifiedGenericCallUsesDeclaredLabels() {
@@ -69,13 +95,13 @@ class HglCallbackArgumentsTest : HglEditorFixture() {
         assertEquals("lib.hgl", (myFixture.elementAtCaret as HglParameter).containingFile.name)
     }
 
-    fun testNamedLabelsAfterAPositionalPackRemainAvailable() {
-        val header = "fn relay(f: fn(first: i64, ...i64, scale: i64, offset: i64) -> i64) -> i64 => "
-        assertContainsElements(complete(header + "f(<caret>)"), "first", "scale", "offset")
-        val labels = complete(header + "f(1, 2, 3, 4, <caret>, offset: 5)")
-        assertContainsElements(labels, "scale")
-        assertDoesntContain(labels, "first", "offset")
-        assertEquals("scale", navigationTarget(header + "f(1, 2, 3, 4, sc<caret>ale: 5)")?.name)
+    fun testFixedParametersEndAtTheFirstPack() {
+        val header = "fn relay(f: fn(first: i64, ...i64) -> i64) -> i64 => "
+        assertContainsElements(complete(header + "f(<caret>)"), "first")
+        assertDoesntContain(complete(header + "f(1, 2, 3, <caret>)"), "first")
+        val invalid = "fn relay(f: fn(...i64, former: i64) -> i64) -> i64 => "
+        assertDoesntContain(complete(invalid + "f(1, <caret>)"), "former")
+        assertNull(navigationTarget(invalid + "f(1, for<caret>mer: 2)"))
     }
 
     fun testSeparatorAndFollowingArgumentsConstrainCompletion() {

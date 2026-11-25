@@ -2,6 +2,22 @@ module conformance.rejections part mapping
 
 fn mapping_rejection_scale(price: f64, factor: f64) -> f64 => price * factor
 
+const fn keyed_callback_with_text_key(key: str, member: i64) -> i64 => member
+
+/**
+The injected key has the dictionary's key type.
+
+Rules:
+    MAP-4, MAP-9
+
+Status:
+    agreed
+*/
+fn keyed_map_with_a_wrong_key_type(items: dict<i64, i64>) -> dict<i64, i64> {
+    # expect-error(operator, "operator.no_candidate")
+    return map(keyed_callback_with_text_key, items)
+}
+
 const fn reduction_rejection_step(accumulated: i64, item: i64) -> i64 =>
     accumulated * 10 + item
 

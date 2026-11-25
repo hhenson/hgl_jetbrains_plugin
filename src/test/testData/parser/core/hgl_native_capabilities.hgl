@@ -364,7 +364,9 @@ key is fixed when the graph is built. The store has no property.
   else: the store of a test's `eval` starts empty. Nothing outside the
   program puts a value there.
 - The key `"run.output"` is the run's: a program that names it is
-  rejected when its graph is built.
+  rejected with `store.reserved_key`. Proposed, with the language's
+  TIME-8: in source, when its graph is built, or as the call is
+  evaluated.
 
 Examples:
     `start` gives the count a value where it has none, and each input
