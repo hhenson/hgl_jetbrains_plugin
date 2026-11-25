@@ -98,7 +98,7 @@ open class HglBuildAction(private val debug: Boolean = false, private val clean:
             if (result.exitCode != 0) {
                 val detail = result.stderr.ifBlank { result.stdout }.trim()
                 if (clean && "unexpected argument '--clean'" in detail) {
-                    throw ExecutionException("Clean and Rebuild requires a compiler with hgl build --clean.\n$detail")
+                    throw ExecutionException("Clean and Rebuild requires HGL 0.2.10 or later (hgl build --clean).\n$detail")
                 }
                 if ("unrecognized subcommand 'build'" in detail || "unexpected argument '--compile-commands'" in detail) {
                     throw ExecutionException("The configured compiler must support hgl build --compile-commands.\n$detail")

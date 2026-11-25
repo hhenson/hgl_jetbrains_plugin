@@ -1,0 +1,88 @@
+module core_conformance part type_values
+
+struct TypeSpellingPoint {
+    x: i64
+}
+
+const fn canonical_type_text<T>(value: T) -> str => convert<str>(type(value))
+
+const fn unsized_type_text(value: list<i64>) -> str => canonical_type_text(value)
+
+/**
+A type's text is its canonical spelling, retaining a fixed list's size.
+The generic helper observes the concrete type of its instance.
+
+Rules:
+    TYPE-18, FMT-5
+
+Status:
+    agreed
+*/
+test canonical_type_spelling {
+    let fixed: list<i64, 2> = [1, 2]
+    let optional: i64? = null
+    let dictionary: dict<str, f64> = ["a": 1.0]
+    assert canonical_type_text(fixed) == "list<i64, 2>"
+    assert unsized_type_text(fixed) == "list<i64>"
+    assert canonical_type_text(optional) == "i64?"
+    assert canonical_type_text(dictionary) == "dict<str, f64>"
+    assert canonical_type_text(TypeSpellingPoint(x: 1)) == "TypeSpellingPoint"
+    assert format("{}", type("a")) == "str"
+}
+
+/**
+Types compare by type identity and are set members and dictionary keys.
+A type held in an ordinary local keeps the same identity.
+
+Rules:
+    TYPE-18, GEN-13
+
+Status:
+    agreed
+*/
+test type_identity_and_keys {
+    let integer: Type = type(1)
+    let types: set<Type> = [integer, type(2), type(1.0)]
+    let names: dict<Type, str> = [type(1): "integer", type(1.0): "real"]
+    assert integer == type(2)
+    assert integer != type(1.0)
+    assert types == [type(1), type(1.0)]
+    assert names[integer] == "integer"
+    assert names[type(1.0)] == "real"
+}
+
+const fn unevaluated_type_operand() -> i64 => 1 // 0
+const BOXED_TYPE_QUERY: any = 1
+const COLD_TYPE: Type = type(unevaluated_type_operand())
+const fn default_type(value: Type = type(unevaluated_type_operand())) -> str => convert<str>(value)
+struct TypeDescriptor { kind: Type = type(unevaluated_type_operand()) }
+
+/**
+A Type constant and a parameter default query their operand without executing it.
+The operand would fail on division by zero if it were called.
+
+Rules:
+    TYPE-18, FMT-5
+
+Status:
+    agreed
+*/
+test cold_type_defaults {
+    assert convert<str>(COLD_TYPE) == "i64"
+    assert default_type() == "i64"
+    assert convert<str>(type(BOXED_TYPE_QUERY)) == "any"
+}
+
+/**
+An ordinary struct may store a Type value even though it has no temporal form.
+This uses the proposed Type-containing value rule.
+
+Rules:
+    TYPE-18, TYPE-16, FMT-5
+
+Status:
+    proposed
+*/
+test ordinary_type_field {
+    assert convert<str>(TypeDescriptor().kind) == "i64"
+}

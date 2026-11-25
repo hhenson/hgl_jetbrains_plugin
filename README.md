@@ -65,7 +65,7 @@ HGL sources to refresh the C++ model. RustRover reports the location of
 
 Choose **Clean and Rebuild Release** or **Clean and Rebuild Debug** in the same
 menu to remove stale generated files and rebuild that profile. These actions
-require a compiler with `hgl build --clean`. HGL 0.2.9 supports ordinary builds.
+require HGL 0.2.10 or later. HGL 0.2.9 supports ordinary builds.
 
 Click **Generate HGL Documentation** on the main toolbar or in **Build**.
 Choose **Open documentation** in the completion notification to read the site.

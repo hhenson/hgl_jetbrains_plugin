@@ -123,7 +123,7 @@ fails, the action stops before writing the IDE’s JSON model.
 Build runs `hgl build --target cpp --compile-commands --out <buildDir> -- <roots>` in
 the project directory for Release. Debug adds `--debug` and writes to
 `<buildDir>/debug`. On success the plugin refreshes the generated files under `buildDir`.
-Clean and Rebuild passes `--clean` on the same compiler invocation for the
+Clean and Rebuild (HGL 0.2.10+) passes `--clean` on the same compiler invocation for the
 selected profile. The compiler owns cleanup and the workspace lock. Both
 actions reuse the standard compilation database refresh on success.
 The optional CLion Compilation Database integration links that file to the current

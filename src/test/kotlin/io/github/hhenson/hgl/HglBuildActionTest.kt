@@ -76,7 +76,7 @@ class HglBuildActionTest : HglEditorFixture() {
         assertTrue(message, message.contains(diagnostic))
         driver.writeText(if (SystemInfo.isWindows) "@echo off\r\necho unexpected argument '--clean' found 1>&2\r\nexit /b 2\r\n"
             else "#!/bin/sh\necho \"unexpected argument '--clean' found\" >&2\nexit 2\n")
-        assertTrue(failure(clean = true).contains("Clean and Rebuild requires a compiler with hgl build --clean"))
+        assertTrue(failure(clean = true).contains("Clean and Rebuild requires HGL 0.2.10 or later"))
         assertEquals("int updated_module;", generated.readText())
 
         driver.writeText(if (SystemInfo.isWindows) "@echo off\r\ndel \"native output\\module.cpp\"\r\nexit /b 1\r\n"

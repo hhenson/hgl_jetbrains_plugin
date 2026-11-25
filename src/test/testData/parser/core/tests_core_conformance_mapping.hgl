@@ -24,6 +24,32 @@ test fixed_map_binds_positional_and_named_arguments {
     assert eval map_fixed_named(prices: [[2.0, 3.0]], factor: [4.0]) == [[8.0, 12.0]]
 }
 
+const fn take_second<B>(flag: bool, b: B) -> B => b
+
+fn map_member_results(flags: list<bool, 2>, xs: list<i64, 2>) -> list<i64, 2> =>
+    map(take_second, flags, xs)
+
+fn map_whole_results(flags: list<bool, 2>, xs: list<i64, 2>) -> list<list<i64, 2>, 2> =>
+    map(take_second, flags, xs)
+
+/**
+A bare callback selects member types where they fit its required result.
+
+The nested result requires the whole list for the second parameter. The flags
+input still splits, so there are two children in both calls.
+
+Rules:
+    MAP-2, MAP-3, FN-17, GEN-3
+
+Status:
+    agreed
+*/
+test fixed_map_selects_compatible_callback_arguments {
+    assert eval map_member_results(flags: [[true, false]], xs: [[3, 4]]) == [[3, 4]]
+    assert eval map_whole_results(flags: [[true, false]], xs: [[3, 4]]) ==
+        [[[3, 4], [3, 4]]]
+}
+
 fn with_mapped_key(key: i64, amount: i64, scale: i64 = 2) -> i64 => key + amount * scale
 fn with_renamed_position(position: i64, amount: i64) -> i64 => position + amount
 

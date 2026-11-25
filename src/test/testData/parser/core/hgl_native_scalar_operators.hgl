@@ -185,6 +185,31 @@ native impl const fn convert(value: str) -> bytes
 native impl const fn convert(value: date) -> datetime
 native impl const fn convert(value: datetime) -> date
 
+/**
+Write a type's canonical spelling, as a diagnostic writes it.
+
+The type of an expression is asked for by `type(value)`, which evaluates
+nothing of that expression. A fixed list keeps its size in the text;
+an unsized list has none. A struct is written by its name.
+
+Args:
+    value: The type to write.
+
+Returns:
+    The type's canonical spelling.
+
+Examples:
+    ~~~hgl
+    let values: list<i64, 2> = [1, 2]
+    assert convert<str>(type(values)) == "list<i64, 2>"
+    assert convert<str>(type(1)) == "i64"
+    ~~~
+
+Rules:
+    TYPE-18, FMT-5
+*/
+native impl const fn convert(value: Type) -> str
+
 # OPS-4, FMT-5: collection parts use their own text conversion, with
 # strings quoted and date, time, datetime and duration written as by format.
 native impl const fn convert<T>(value: list<T>) -> str

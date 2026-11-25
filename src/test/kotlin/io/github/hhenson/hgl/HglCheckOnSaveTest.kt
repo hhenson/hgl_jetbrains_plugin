@@ -127,8 +127,16 @@ class HglCheckOnSaveTest : HglEditorFixture() {
         }
     }
 
-    fun testFormatSpecifierDiagnosticUnderlinesTheWrittenSpecifier() {
-        val dir = Files.createDirectory(Path.of(project.basePath!!, "formatting"))
+    fun testFormatSpecifierDiagnosticUnderlinesTheWrittenSpecifier() = checkDiagnosticRange(
+        """const fn text() -> str => format("😀\n{price:x}", price: 2.5)""", "format.specifier", "x}", "x", "FMT-4"
+    )
+
+    fun testReservedDescriptorTypeDiagnosticUnderlinesOnlyTheDeclaredName() = checkDiagnosticRange(
+        "/*😀*/ struct Type { tag: i64 }", "name.reserved", "Type {", "Type", "TYPE-18"
+    )
+
+    private fun checkDiagnosticRange(source: String, code: String, anchor: String, underlined: String, rule: String) {
+        val dir = Files.createDirectory(Path.of(project.basePath!!, "diagnostic"))
         Files.writeString(dir.resolve("demo.hgl"), "module demo\n")
         val root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
         PsiTestUtil.addContentRoot(module, root)
@@ -141,16 +149,16 @@ class HglCheckOnSaveTest : HglEditorFixture() {
         try {
             settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), dir.fileName.toString()))
             WriteCommandAction.runWriteCommandAction(project) {
-                document.insertString(document.textLength, """const fn text() -> str => format("😀\n{price:x}", price: 2.5)""")
+                document.insertString(document.textLength, source)
             }
             FileDocumentManager.getInstance().saveDocument(document)
-            PlatformTestUtil.waitWithEventsDispatching("missing format diagnostic", {
-                service.diagnostics(file, document).any { "format.specifier" in it.message }
+            PlatformTestUtil.waitWithEventsDispatching("missing $code diagnostic", {
+                service.diagnostics(file, document).any { code in it.message }
             }, 15)
-            val error = myFixture.doHighlighting(HighlightSeverity.ERROR).single { "format.specifier" in it.description.orEmpty() }
-            assertEquals(document.text.indexOf("x}"), error.startOffset)
-            assertEquals("x", document.text.substring(error.startOffset, error.endOffset))
-            assertTrue(error.toolTip, "FMT-4" in error.toolTip.orEmpty())
+            val error = myFixture.doHighlighting(HighlightSeverity.ERROR).single { code in it.description.orEmpty() }
+            assertEquals(document.text.indexOf(anchor), error.startOffset)
+            assertEquals(underlined, document.text.substring(error.startOffset, error.endOffset))
+            assertTrue(error.toolTip, rule in error.toolTip.orEmpty())
         } finally {
             service.reset()
             settings.loadState(before)

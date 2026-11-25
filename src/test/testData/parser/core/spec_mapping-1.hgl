@@ -24,6 +24,14 @@ fn by_position(prices: list<f64>, factor: f64) -> list<f64> =>
 fn three_scaled(prices: list<f64, 3>, factor: f64) -> list<f64, 3> =>
     map(scaled, prices, factor)
 
+const fn take_second<B>(flag: bool, b: B) -> B => b
+
+fn members(flags: list<bool, 2>, xs: list<i64, 2>) -> list<i64, 2> =>
+    map(take_second, flags, xs)
+
+fn copies(flags: list<bool, 2>, xs: list<i64, 2>) -> list<list<i64, 2>, 2> =>
+    map(take_second, flags, xs)
+
 fn total(prices: dict<str, f64>) -> f64 => reduce(add_, prices, 0.0)
 
 struct Event { size: i64 }
