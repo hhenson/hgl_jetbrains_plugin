@@ -1,0 +1,43 @@
+module core_conformance part scalar_ordering
+
+/**
+Bytes compare lexicographically by unsigned octets.
+Equal prefixes compare by length.
+
+Rules:
+    TYPE-1, OPS-2, OPS-3
+
+Status:
+    agreed
+*/
+test bytes_use_unsigned_octet_order {
+    let low = convert<bytes>("\u{7f}")
+    let high = convert<bytes>("\u{80}")
+    assert low < high && high > low
+    assert low <= high && high >= low
+    assert low <= low && high >= high
+    assert !(high < low) && !(low > high)
+    assert (low <=> high) == .less
+    assert (high <=> high) == .equivalent
+    assert compare_(high, low) == .greater
+    let prefix = convert<bytes>("p")
+    assert (prefix <=> convert<bytes>("p\u{80}")) == .less
+    assert convert<bytes>("p\u{7f}z") < convert<bytes>("p\u{80}")
+}
+
+/**
+Text follows code point order, false comes before true, and durations
+compare by signed length.
+
+Rules:
+    TYPE-1, TYPE-2, OPS-2
+
+Status:
+    agreed
+*/
+test text_boolean_and_duration_order {
+    assert "B" < "a"
+    assert "\u{7f}" < "\u{80}"
+    assert false < true
+    assert -5m < 0s
+}

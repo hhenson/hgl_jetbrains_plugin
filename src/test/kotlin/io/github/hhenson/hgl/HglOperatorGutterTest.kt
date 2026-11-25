@@ -172,6 +172,20 @@ class HglOperatorGutterTest : HglEditorFixture() {
         assertTrue(reverse.all { targets(it).single() == add.element!!.parent.parent })
     }
 
+    fun testCoreByteOrderingAndEnumConversionCandidates() {
+        val fixtures = Path.of("src/test/testData/parser/core")
+        val core = source("core/core.hgl", fixtures.resolve("hgl_core_core.hgl").readText())
+        source("native/scalar_operators.hgl", fixtures.resolve("hgl_native_scalar_operators.hgl").readText())
+        val operators = markers(core).associateBy { it.element!!.text }
+        for (name in listOf("lt_", "le_", "gt_", "ge_", "compare_")) {
+            val candidates = targets(operators.getValue(name))
+            assertTrue(name, candidates.any { it.text.startsWith("native impl const fn $name(lhs: bytes, rhs: bytes)") })
+        }
+        val conversions = targets(operators.getValue("convert")).map(OperatorTargetRenderer::getElementText)
+        assertContainsElements(conversions, "native impl const fn convert<E>(value: E) -> i64 requires E in enum",
+            "native impl const fn convert<E>(value: E) -> str requires E in enum")
+    }
+
     fun testMapAndReduceGuttersFindFixedAndNativeCandidatesInCore() {
         val fixtures = Path.of("src/test/testData/parser/core")
         val fixed = source("core/mapping.hgl", fixtures.resolve("hgl_core_mapping.hgl").readText())

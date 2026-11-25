@@ -54,6 +54,10 @@ Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
 
+Completion and Go to Declaration on `Side.buy` use the enum named by the
+receiver, including `alias::Side.buy` (TYPE-7). Quick Documentation shows the
+member’s source comment or its compiler export when source is unavailable.
+
 Source comments can link to a public declaration or member through a visible
 file import (for example, `prices::Quote.bid`). A parameter that hides the
 alias leaves that span as plain code. Exported comments lack import metadata.

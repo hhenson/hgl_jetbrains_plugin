@@ -7,15 +7,20 @@ import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.psi.SmartPointerManager
 import io.github.hhenson.hgl.psi.*
 import io.github.hhenson.hgl.reference.HglModuleIndex
+import io.github.hhenson.hgl.reference.HglQualifiedNameReference
 import io.github.hhenson.hgl.reference.HglScope
 
 /** Consult the export only for modules whose HGL source is unavailable in the project. */
-internal fun exportTargets(file: HglFile, module: String, name: String, argument: String? = null): List<DocumentationTarget> {
+private fun exportedDeclarations(file: HglFile, module: String, name: String): List<ExportedDoc> {
     if (module == file.modulePath) return emptyList()
     val matches = HglDocModel.forFile(file).declarations("$module::$name")
         .filter { it.exported }
     if (matches.isEmpty() || HglModuleIndex.findFiles(file.project, module).isNotEmpty()) return emptyList()
-    return matches.mapNotNull { record ->
+    return matches
+}
+
+internal fun exportTargets(file: HglFile, module: String, name: String, argument: String? = null): List<DocumentationTarget> =
+    exportedDeclarations(file, module, name).mapNotNull { record ->
         when {
             argument == null || argument in record.arguments -> HglExportTarget(file, record, argument)
             record.kind == "struct" -> record.members.singleOrNull {
@@ -24,18 +29,31 @@ internal fun exportTargets(file: HglFile, module: String, name: String, argument
             else -> null
         }
     }
+
+private fun HglQualifiedName.exportModules(file: HglFile): List<String> {
+    val ids = identList
+    return when (ids.size) {
+        1 -> file.useDecls.filter { use -> use.importSet?.importItemList.orEmpty().any { it.name == ids[0].text } }
+            .mapNotNull { it.modulePath?.dottedName }.ifEmpty { listOf("core") }
+        2 -> listOfNotNull((HglScope.findAlias(this, ids[0].text)?.parent as? HglUseDecl)?.modulePath?.dottedName)
+        else -> emptyList()
+    }.distinct()
 }
 
 internal fun exportTargets(name: HglQualifiedName, argument: String? = null): List<DocumentationTarget> {
     val file = name.containingFile as? HglFile ?: return emptyList()
-    val ids = name.identList
-    val modules = when (ids.size) {
-        1 -> file.useDecls.filter { use -> use.importSet?.importItemList.orEmpty().any { it.name == ids[0].text } }
-            .mapNotNull { it.modulePath?.dottedName }.ifEmpty { listOf("core") }
-        2 -> listOfNotNull((HglScope.findAlias(name, ids[0].text)?.parent as? HglUseDecl)?.modulePath?.dottedName)
-        else -> return emptyList()
-    }
-    return modules.distinct().flatMap { exportTargets(file, it, ids.last().text, argument) }
+    return name.exportModules(file).flatMap { exportTargets(file, it, name.identList.last().text, argument) }
+}
+
+internal fun exportedEnumMemberTargets(field: HglFieldExpr): List<DocumentationTarget> {
+    val name = (field.expr as? HglReferenceExpr)?.qualifiedName ?: return emptyList()
+    val member = field.memberName ?: return emptyList()
+    val file = field.containingFile as? HglFile ?: return emptyList()
+    val reference = name.reference as? HglQualifiedNameReference ?: return emptyList()
+    if (reference.declarations(includeImplementations = false).any { it !is HglImportItem }) return emptyList()
+    val path = "${name.identList.last().text}.${member.text}"
+    return name.exportModules(file).flatMap { exportedDeclarations(file, it, path) }
+        .filter { it.kind == "enumMember" }.map { HglExportTarget(file, it) }
 }
 
 private class HglExportTarget(

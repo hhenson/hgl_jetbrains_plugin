@@ -16,8 +16,9 @@ The outcome of a full comparison, `a <=> b`: less, equivalent, greater or unorde
 
 `compare_`, which `<=>` stands for, returns one; `<`, `<=`, `>`, `>=`,
 `==` and `!=` return a bool. Only a numeric comparison and a tenor's give
-`unordered`. An outcome converts to no bool and no number: it is compared
-with a member, `(a <=> b) == CmpResult.less`.
+`unordered`. An outcome has no implicit bool or numeric conversion.
+Compare it with a member, `(a <=> b) == CmpResult.less`. An explicit
+`convert<i64>` gives the member's number.
 
 Of two numbers, each comparison that gives a bool is true for these
 outcomes:
@@ -36,6 +37,7 @@ Examples:
     assert (1.0 <=> 2.0) == CmpResult.less
     assert ("b" <=> "a") == CmpResult.greater
     assert (0.0 <=> -0.0) == CmpResult.equivalent
+    assert convert<i64>(CmpResult.unordered) == 3
     ~~~
 
     A NaN has no order, and nor have two tenors of different forms.
@@ -46,7 +48,7 @@ Examples:
     ~~~
 
 Rules:
-    OPS-2, OPS-3, NUM-6, TEN-3
+    OPS-2, OPS-3, OPS-6, NUM-6, TEN-3, TYPE-7
 */
 export enum CmpResult {
     /**
@@ -2296,6 +2298,7 @@ NaN, or two tenors that are not ordered, make all four false.
 | --- | --- |
 | Two `i64`, two `f64`, or an `i64` and an `f64` | By number. The `i64` is not rounded to an `f64` first. `0.0` and `-0.0` are neither below the other; a NaN is unordered with everything |
 | Two of one type among `date`, `time`, `datetime`, `civil_datetime` and `duration`, two `str`, or two `bool` | Their type's order |
+| Two `bytes` | Lexicographically by unsigned octets |
 | Two `tenor` | Count by count: one is below another of its form where no count of it is greater and one is less. Two of different forms, or where one count is less and another greater, are unordered |
 
 Type Args:
@@ -2334,13 +2337,14 @@ Examples:
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan < 1.0) && !(1.0 < nan)
 
+    assert convert<bytes>("\u{7f}") < convert<bytes>("\u{80}")
     assert 1M < 2M1D && !(1M < 1B) && !(1M3D < 2M)
 
     assert eval below(left: [1, _, 5], right: [2, _, _]) == [true, _, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, EXPR-1, TYPE-2, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, EXPR-1, TYPE-1, TYPE-2, FN-6, FN-11
 */
 export operator lt_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2348,7 +2352,7 @@ export operator lt_<L, R>(lhs: L, rhs: R) -> bool
 Whether the left operand is below or equal to the right: `a <= b` is
 `le_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2390,19 +2394,20 @@ Examples:
     assert -0.0 <= 0.0
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan <= nan) && !(nan > nan)
+    assert convert<bytes>("\u{7f}") <= convert<bytes>("\u{80}")
     assert 1M <= 1M1D && !(1M <= 1B)
     assert eval at_most(left: [2, 3], right: [2, _]) == [true, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, TYPE-1, FN-6, FN-11
 */
 export operator le_<L, R>(lhs: L, rhs: R) -> bool
 
 /**
 Whether the left operand is above the right: `a > b` is `gt_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2441,12 +2446,13 @@ Examples:
     assert count > price && !(price > count)
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan > 1.0) && !(1.0 > nan)
+    assert convert<bytes>("\u{80}") > convert<bytes>("\u{7f}")
     assert 2M > 1M && !(1M > 1B)
     assert eval above(left: [3.0, 1.0], right: [2.0, _]) == [true, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, TYPE-1, FN-6, FN-11
 */
 export operator gt_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2454,7 +2460,7 @@ export operator gt_<L, R>(lhs: L, rhs: R) -> bool
 Whether the left operand is above or equal to the right: `a >= b` is
 `ge_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2495,12 +2501,13 @@ Examples:
     assert price >= count && !(count >= price)
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan >= 1.0) && !(nan < 1.0)
+    assert convert<bytes>("\u{80}") >= convert<bytes>("\u{7f}")
     assert 2M1D >= 1M && !(1M3D >= 2M)
     assert eval at_least(left: [2, 1], right: [2, _]) == [true, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, TYPE-1, FN-6, FN-11
 */
 export operator ge_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2508,7 +2515,7 @@ export operator ge_<L, R>(lhs: L, rhs: R) -> bool
 The full outcome of comparing two values, a `CmpResult`: `a <=> b` is
 `compare_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2564,13 +2571,18 @@ Examples:
     assert (0.0 <=> -0.0) == .equivalent
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert (nan <=> nan) == .unordered
+    let low = convert<bytes>("\u{7f}")
+    let high = convert<bytes>("\u{80}")
+    assert (low <=> high) == .less
+    assert (high <=> high) == .equivalent
+    assert (high <=> low) == .greater
     assert (1M <=> 2M1D) == .less
     assert (1M <=> 1B) == .unordered
     assert eval order(left: [1.0, 3.0], right: [2.0, _]) == [CmpResult.less, .greater]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, OPS-3, NUM-5, NUM-6, NUM-7, TEN-3, EXPR-11, FN-6, FN-11
+    OPS-1, OPS-2, OPS-3, NUM-5, NUM-6, NUM-7, TEN-3, EXPR-11, TYPE-1, FN-6, FN-11
 */
 export operator compare_<L, R>(lhs: L, rhs: R) -> CmpResult
 
@@ -2589,7 +2601,8 @@ is written.
 
 | From | To |
 | --- | --- |
-| `i64` | `f64`, `bool`, `str` |
+| `i64` | `f64`, `bool`, `str`, an enum |
+| An enum | `i64`, `str` |
 | `f64` | `i64`, `bool`, `str` |
 | `bool` | `i64`, `f64`, `str` |
 | `str` | `i64`, `f64`, `bool`, `bytes` |
@@ -2603,7 +2616,8 @@ is written.
 A conversion can fail where its value has no `T`: an `f64` that is a
 NaN, an infinity, or outside `i64` once rounded; a text that is not what
 the table under `Returns:` reads as the type asked for; bytes that are
-not well-formed UTF-8.
+not well-formed UTF-8. Proposed (OPS-7): an integer that is no member's
+number fails its conversion to an enum.
 
 Type Args:
     T: The type to convert to. The call writes it.
@@ -2638,6 +2652,9 @@ Returns:
     | Conversion | Gives |
     | --- | --- |
     | `i64` to `f64` | The nearest `f64` |
+    | An enum to `str` | The member's name |
+    | An enum to `i64` | The member's number |
+    | `i64` to an enum | The member of that number |
     | `f64` to `i64` | The integer `rounding` selects |
     | `i64` or `f64` to `bool` | False for zero, true otherwise; a NaN is true |
     | `bool` to `i64` or `f64` | 0 or 1 |
@@ -2684,6 +2701,8 @@ Examples:
         radius: f64
     }
 
+    enum Side { buy = -2, sell = 7 }
+
     fn whole(value: f64) -> i64 => convert<i64>(value, invalid: .fail)
 
     assert convert<f64>(3) == 3.0
@@ -2722,6 +2741,9 @@ Examples:
     assert convert<str>(18M) == "1Y6M"
     assert convert<str>(1M - 1D) == "1M-1D"
 
+    assert convert<str>(Side.buy) == "buy"
+    assert convert<i64>(Side.sell) == 7
+
     let circles: list<Circle> = [Circle(radius: 1.0)]
     let shapes: list<Shape> = convert<list<Shape>>(circles)
     assert shapes == [Circle(radius: 1.0)]
@@ -2729,9 +2751,24 @@ Examples:
     assert eval whole(value: [2.9, -2.9]) == [2, -2]
     ~~~
 
+    Proposed (OPS-7): an integer-to-enum conversion uses the checked
+    result or the `.fail` form. A number with no member follows the
+    selected policy.
+
+    ~~~hgl
+    enum Side { buy = -2, sell = 7 }
+    let checked = convert<Side>(-2)
+    assert is_ok(checked)
+    if is_ok(checked) { assert checked.value == Side.buy }
+    assert convert<Side>(7, invalid: .fail) == Side.sell
+
+    assert is_err(convert<Stream>(2))
+    assert raises("convert.invalid") { convert<Stream>(2, invalid: .fail) }
+    ~~~
+
 Rules:
     OPS-4, OPS-6, OPS-7, OPS-8, NUM-10, TEN-9, FMT-5, EXPR-5, EXPR-12, ERR-11,
-    ERR-15, TYPE-3, FN-6, FN-11
+    ERR-15, TYPE-3, TYPE-7, FN-6, FN-11
 */
 export operator convert<T, V, O>(value: V) -> O
     requires O in {T, result<T, error>}

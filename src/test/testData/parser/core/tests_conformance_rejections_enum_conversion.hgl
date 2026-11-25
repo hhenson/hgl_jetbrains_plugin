@@ -1,0 +1,31 @@
+module conformance.rejections part enum_conversion
+
+enum EnumConversionRejection { left, right }
+
+/**
+An enum member does not convert to a floating point number.
+
+Rules:
+    TYPE-7, OPS-4
+
+Status:
+    agreed
+*/
+const fn enum_to_float(value: EnumConversionRejection) -> f64 {
+    # expect-error(operator, "operator.no_candidate")
+    return convert<f64>(value)
+}
+
+/**
+A string cannot be given to the conversion operator for an enum.
+
+Rules:
+    TYPE-7, OPS-4
+
+Status:
+    agreed
+*/
+const fn text_to_enum(value: str) -> EnumConversionRejection {
+    # expect-error(operator, "operator.no_candidate")
+    return convert<EnumConversionRejection>(value)
+}

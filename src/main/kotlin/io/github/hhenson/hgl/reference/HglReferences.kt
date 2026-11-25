@@ -6,11 +6,15 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementResolveResult
 import com.intellij.psi.PsiPolyVariantReferenceBase
+import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.ResolveResult
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.HglLanguage
+import io.github.hhenson.hgl.psi.HglElementFactory
+import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglImportItem
 import io.github.hhenson.hgl.psi.HglLifecycleStmt
+import io.github.hhenson.hgl.psi.HglMemberName
 import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglQualifiedName
@@ -106,4 +110,16 @@ class HglModulePathReference(element: HglModulePath) :
         val useDecl = element.parent as? HglUseDecl ?: return ResolveResult.EMPTY_ARRAY
         return PsiElementResolveResult.createResults(HglScope.targetFiles(useDecl))
     }
+}
+
+internal class HglEnumMemberReference(member: HglMemberName, private val owner: HglEnumDecl) :
+    PsiReferenceBase<HglMemberName>(member, TextRange(0, member.textLength)) {
+
+    override fun resolve(): PsiElement? = owner.enumMemberList.singleOrNull { it.name == element.text }
+
+    override fun getVariants(): Array<LookupElement> =
+        owner.enumMemberList.map(HglQualifiedNameReference::lookupFor).toTypedArray()
+
+    override fun handleElementRename(newElementName: String): PsiElement =
+        element.replace(HglElementFactory.createMemberName(element.project, newElementName))
 }
