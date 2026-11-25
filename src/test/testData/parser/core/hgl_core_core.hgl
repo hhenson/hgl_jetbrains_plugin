@@ -2949,3 +2949,65 @@ impl fn sub_<T, const invalid: InvalidInputPolicy>(lhs: T, rhs: T) -> T
     when valid(rhs) { return neg_(rhs) }
     when valid([]) { invalidate(out) }
 }
+
+/**
+Join strings in order with a separator between consecutive strings.
+
+| Input | Order |
+| --- | --- |
+| One `list<str>` | List order |
+| A positional pack of `str` (proposed trial) | Argument order |
+
+Pass `separator` by name in either form under the trial. With zero strings,
+the result is empty text. One string gives that string.
+
+Type Args:
+    As: The fitted types of the pieces, inferred from the call.
+
+Args:
+    pieces: A list of strings or the strings themselves.
+    separator: The text written between pieces.
+
+Returns:
+    The joined string.
+
+Ticks:
+    - A value call returns a string.
+    - A lifted call ticks when an input ticks and the call is admitted.
+
+Validity:
+    Each input connection of a lifted call must be valid.
+
+Examples:
+    ~~~hgl
+    assert join(["a", "b"], separator: ", ") == "a, b"
+    assert join("one", "two", "three", separator: " ") == "one two three"
+    assert join(separator: "/") == ""
+    ~~~
+
+Rules:
+    OPS-11, EXPR-2, FN-6, FN-8, GEN-6
+*/
+export operator join<...As>(pieces: ...As, separator: str) -> str
+
+impl const fn join(pieces: ...list<str>{1}, separator: str) -> str {
+    var text = ""
+    var prefix = ""
+    for piece in pieces[0] {
+        text += prefix
+        text += piece
+        prefix = separator
+    }
+    return text
+}
+
+impl const fn join(pieces: ...str, separator: str) -> str {
+    var text = ""
+    var prefix = ""
+    for piece in pieces {
+        text += prefix
+        text += piece
+        prefix = separator
+    }
+    return text
+}

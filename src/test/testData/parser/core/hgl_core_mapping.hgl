@@ -93,7 +93,7 @@ Options:
 
 Returns:
     One entry for each child that has published. A failure leaving a child
-    leaves the map.
+    leaves the map. A fixed-size map gives no result when its child gives none.
 
 Ticks:
     An entry ticks when its child publishes and is removed when its child stops.
@@ -155,6 +155,25 @@ impl fn map<R, N, ...Ps, ...As, const key: str = "key">{
             else if arg in arg_keys(As) { at_position<Ps[arg]>(args[arg], i) }})]
 }
 
+/**
+Run one child with no result for each fixed position.
+
+Rules:
+    MAP-7, MAP-10, GEN-6
+*/
+impl fn map<const N: i64, ...Ps, ...As, const key: str = "key">{
+    const join: Join = .inner,
+}(f: fn(...{Ps}), args: ...{As for f without key})
+    requires any arg in arg_keys(As) { As[arg] == list<Ps[arg], N> }
+          && each arg in arg_keys(As) { As[arg] in {Ps[arg], list<Ps[arg], N>} }
+{
+    for i in 0..<N {
+        f(...{for arg in arg_keys(Ps):
+            if arg == key { i }
+            else if arg in arg_keys(As) { at_position<Ps[arg]>(args[arg], i) }})
+    }
+}
+
 # One argument at one position: its entry where it is split, itself where
 # it is whole. The candidates are selected by type. Not exported.
 operator at_position<P, A>(arg: A, const at: i64) -> P
@@ -166,7 +185,7 @@ Combine a collection's valid members into one value.
 
 The tree form takes a function of one type and may group members in any
 order allowed by the collection and its laws. Over a fixed-size list it
-folds in position order from the first entry. The ordered form folds a
+folds in position order from the first valid entry. The ordered form folds a
 list from `zero`, in position order, and can accumulate a different type.
 
 | Items | Forms |
@@ -192,19 +211,26 @@ Options:
     - `commutative`: Required for sets and dictionaries. Defaults to the law declared for `f`.
 
 Returns:
-    The reduction. A growing list, set or dictionary with no valid members
-    gives `zero` when supplied and otherwise has no valid value. A fixed-size
-    reduction gives every position to `f`. Its tree form rejects a list of
-    size zero.
+    The reduction. With no members to combine, it gives `zero` when supplied
+    and otherwise has no valid value. The fixed-size tree form rejects a
+    list of size zero.
 
 Ticks:
     The result follows the publications of the inputs the reduction reads.
 
 Validity:
-    Over a fixed-size list, validity follows the composed calls. The result
-    is valid once every position is valid where `f` needs both inputs valid.
-    A function that takes and gives nullable values can reduce a list whose
-    positions come and go.
+    The ordered form waits for a valid `zero`. It carries the accumulator
+    past an invalid member. The tree form combines two valid sides and
+    forwards the one valid side of a pair. A withdrawn member leaves the
+    reduction of the members that remain. A step combines while its
+    accumulator and member are both valid. When a stopped step starts
+    again, its callback has fresh state.
+
+    Over a list of nonnullable members, a nullable combiner receives every
+    position, with null for an invalid endpoint. Over a list of nullable
+    members, a published null is a valid member and an invalid endpoint
+    is skipped. The nullable tree starts on the list's first publication
+    and takes no part of `zero`.
 
 Raises:
     - `operator.no_candidate`: An ordered reduction omits its zero or a set or dictionary lacks the required tree laws.
@@ -222,6 +248,30 @@ Examples:
     const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit
     fn pair_digits(digits: list<i64, 2>) -> i64 => reduce(append_digit, digits, 1)
     assert eval pair_digits(digits: [[2, 3], [4, 5]]) == [123, 145]
+    ~~~
+
+    An invalid position is skipped until it publishes.
+
+    ~~~hgl
+    fn live_sum(items: list<i64, 3>) -> i64 => reduce(add_, items, 0)
+    assert eval live_sum(items: [
+        delta<list<i64, 3>>(updated: [0: 2, 2: 7]),
+        delta<list<i64, 3>>(updated: [1: 4]),
+        delta<list<i64, 3>>(removed: [1]),
+    ]) == [9, 13, 9]
+    ~~~
+
+    A nullable combiner here uses five for a position that has not published.
+
+    ~~~hgl
+    const fn append_published(accumulated: i64, digit: i64?) -> i64 {
+        return accumulated * 10 + (if digit == null { 5 } else { digit })
+    }
+    fn nullable_digits(digits: list<i64, 2>) -> i64 => reduce(append_published, digits, 1)
+    assert eval nullable_digits(digits: [
+        delta<list<i64, 2>>(updated: [1: 7]),
+        delta<list<i64, 2>>(updated: [0: 2]),
+    ]) == [157, 127]
     ~~~
 
     The ordered form skips positions that are not valid, and an empty
@@ -269,22 +319,111 @@ export operator reduce<L, R, C,
     const commutative: bool = commutative(f),
 >(f: fn(L, R) -> L, items: C, zero: L? = null) -> L
 
-# Tree, over a list of a fixed size: written in HGL, from the first member.
+fn reduction_is_valid<V>(value: V) -> bool {
+    when valid([]) { return valid(value) }
+}
+
+fn reduction_pair_validity<V>(left: V, right: V) -> tuple<bool, bool> {
+    when valid([]) { return (valid(left), valid(right)) }
+}
+
+fn reduce_tree_pair<V>(f: fn(V, V) -> V, left: V, right: V) -> V {
+    let present = reduction_pair_validity(left, right)
+    return if present[0] {
+        if present[1] { f(left, right) } else { left }
+    } else { right }
+}
+
+fn tree_reduction_has_member<V>(accumulated: V, zero: signal) -> bool {
+    when valid([]) { return valid(accumulated) }
+}
+
+fn tree_reduction_zero<V>(zero: V?) -> V {
+    inject out
+    when valid([]) {
+        if valid(zero) && zero != null { return zero }
+        invalidate(out)
+    }
+}
+
+# A fixed-size tree keeps the first valid member and combines the rest.
 impl fn reduce<V, N, const associative: bool = associative(f)>(
     f: fn(V, V) -> V, items: list<V, N>, zero: V? = null) -> V
     requires associative && N != 0
 {
-    var acc = items[0]
-    for i in 1..<N { acc = f(acc, items[i]) }
-    return acc
+    var accumulated = items[0]
+    for i in 1..<N { accumulated = reduce_tree_pair(f, accumulated, items[i]) }
+    return if tree_reduction_has_member(accumulated, zero) {
+        accumulated
+    } else { tree_reduction_zero(zero) }
 }
 
-# Ordered, over a list of a fixed size: written in HGL, from the zero.
+fn ordered_reduction_ready<L, R>(accumulated: L, member: R) -> bool {
+    when valid([]) { return valid(accumulated) && valid(member) }
+}
+
+fn reduce_ordered_member<L, R>(f: fn(L, R) -> L, accumulated: L, member: R) -> L {
+    return if ordered_reduction_ready(accumulated, member) {
+        f(accumulated, member)
+    } else { accumulated }
+}
+
+# A fixed-size ordered fold starts at zero and skips invalid members.
 impl fn reduce<L, R, N, const associative: bool = associative(f)>(
     f: fn(L, R) -> L, items: list<R, N>, zero: L) -> L
     requires !associative
 {
-    var acc = zero
-    for item in items { acc = f(acc, item) }
-    return acc
+    var accumulated = zero
+    for member in items { accumulated = reduce_ordered_member(f, accumulated, member) }
+    return accumulated
+}
+
+fn reduce_ordered_nullable_member<L, R>(f: fn(L, R?) -> L, accumulated: L, member: R) -> L {
+    let value = nullable_reduction_member(member, accumulated)
+    return if reduction_is_valid(accumulated) { f(accumulated, value) } else { accumulated }
+}
+
+# A nullable combiner over nonnullable members receives every position.
+impl fn reduce<L, R, N, const associative: bool = associative(f)>(
+    f: fn(L, R?) -> L, items: list<R, N>, zero: L) -> L
+    requires !associative
+{
+    var accumulated = zero
+    for member in items {
+        accumulated = reduce_ordered_nullable_member(f, accumulated, member)
+    }
+    return accumulated
+}
+
+fn nullable_reduction_member<V>(member: V, wake: signal) -> V? {
+    state was_valid: bool = false
+    inject out
+    when valid([]) {
+        let present = valid(member)
+        # The other input can wake a position for its first publication.
+        # A later tick of that input alone leaves the member idle.
+        if !valid(out) || present != was_valid || (present && modified(member)) {
+            was_valid = present
+            if valid(member) { return member }
+            return null
+        }
+    }
+}
+
+fn reduce_tree_nullable_pair<V>(f: fn(V?, V?) -> V?, left: V?, right: V?) -> V? {
+    # The next pair waits for the preceding pair to publish, including null.
+    return if reduction_is_valid(left) { f(left, right) } else { left }
+}
+
+impl fn reduce<V, N, const associative: bool = associative(f)>(
+    f: fn(V?, V?) -> V?, items: list<V, N>, zero: V? = null
+) -> V?
+    requires associative && N != 0
+{
+    # A list tick supplies a null even for a position that has never published.
+    var accumulated = nullable_reduction_member(items[0], items)
+    for i in 1..<N {
+        accumulated = reduce_tree_nullable_pair(f, accumulated, nullable_reduction_member(items[i], items))
+    }
+    return accumulated
 }

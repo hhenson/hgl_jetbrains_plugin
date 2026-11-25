@@ -32,11 +32,14 @@ import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.psi.HglStructBody
 import io.github.hhenson.hgl.psi.HglTestDecl
 import io.github.hhenson.hgl.psi.HglTypes
-import io.github.hhenson.hgl.reference.callbackType
+import io.github.hhenson.hgl.reference.callParameters
+import io.github.hhenson.hgl.reference.parameterPack
+import io.github.hhenson.hgl.psi.HglFunctionType
+import io.github.hhenson.hgl.psi.HglType
 import io.github.hhenson.hgl.structure.HglPresentation
 
 /**
- * Keyword and callback label completion. Names in scope come from the qualified-name
+ * Keyword and call argument label completion. Names in scope come from the qualified-name
  * reference's variants, which the platform contributes on its own.
  */
 class HglCompletionContributor : CompletionContributor() {
@@ -54,14 +57,14 @@ class HglCompletionContributor : CompletionContributor() {
             val previous = PsiTreeUtil.prevVisibleLeaf(position)?.node?.elementType
             if (previous == HglTypes.DOT || previous == HglTypes.COLONCOLON) return
 
-            if (addCallbackLabels(position, result)) return
+            if (addCallLabels(position, result)) return
             for (word in contextKeywords(position, previous)) {
                 result.addElement(LookupElementBuilder.create(word).bold())
             }
         }
 
         /** Returns true when the existing colon makes this a label-only position. */
-        private fun addCallbackLabels(position: PsiElement, result: CompletionResultSet): Boolean {
+        private fun addCallLabels(position: PsiElement, result: CompletionResultSet): Boolean {
             val argument = position.parentOfType<HglArgument>() ?: return false
             val named = argument.namedArgument
             val label = named?.memberName
@@ -70,7 +73,7 @@ class HglCompletionContributor : CompletionContributor() {
             if (argument.ellipsis != null || !PsiTreeUtil.isAncestor(label, position, false)) return false
 
             val arguments = argument.parent as? HglArguments ?: return false
-            val signature = arguments.callbackType() ?: return false
+            val parameters = arguments.callParameters() ?: return false
             var positional = 0
             val usedNames = mutableSetOf<String>()
             for (sibling in arguments.argumentList) {
@@ -82,8 +85,8 @@ class HglCompletionContributor : CompletionContributor() {
                     else -> return named != null // EXPR-2: positional arguments must precede labels.
                 }
             }
-            for (parameter in signature.functionTypeParameterList) {
-                val pack = parameter.pack
+            for (parameter in parameters) {
+                val pack = parameter.parameterPack
                 if (pack != null) {
                     if (pack.lbrace == null) positional = 0 // The positional pack takes all remaining positional arguments.
                     continue
@@ -94,11 +97,12 @@ class HglCompletionContributor : CompletionContributor() {
                 }
                 val name = parameter.name ?: continue
                 if (name in usedNames) continue
+                val type = PsiTreeUtil.getChildOfAnyType(parameter, HglType::class.java, HglFunctionType::class.java)
                 result.addElement(
                     LookupElementBuilder.create(parameter, name)
                         .withIcon(HglPresentation.iconOf(parameter))
                         .withTailText(": ", true)
-                        .withTypeText(parameter.type?.text, true)
+                        .withTypeText(type?.text, true)
                         .withInsertHandler { context, _ -> insertLabel(context) },
                 )
             }

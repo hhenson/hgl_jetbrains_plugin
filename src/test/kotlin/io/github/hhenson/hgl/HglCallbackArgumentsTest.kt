@@ -44,6 +44,31 @@ class HglCallbackArgumentsTest : HglEditorFixture() {
         assertDoesntContain(afterNamed, "end")
     }
 
+    fun testJoinCompletesAndNavigatesToItsPublicSeparatorAfterPackedStrings() {
+        val core = java.io.File("src/test/testData/parser/core/hgl_core_core.hgl")
+        myFixture.addFileToProject("core.hgl", core.readText())
+        val header = "const fn text() -> str => "
+        val labels = complete(header + """join("a", "b", <caret>)""")
+        assertContainsElements(labels, "separator")
+        assertDoesntContain(labels, "pieces")
+        assertDoesntContain(complete(header + """join(separator: "/", <caret>)"""), "separator")
+
+        configure(header + """join("a", "b", sepa<caret>rator: "/")""")
+        val parameter = myFixture.elementAtCaret as HglParameter
+        assertEquals("separator", parameter.name)
+        assertEquals("join", parameter.parentOfType<io.github.hhenson.hgl.psi.HglOperatorDecl>()?.name)
+    }
+
+    fun testQualifiedGenericCallUsesDeclaredLabels() {
+        myFixture.addFileToProject("lib.hgl", "module lib\nexport const fn pick<T>(first: T, second: T) -> T => first")
+        val header = "use lib as l\nconst fn example() -> i64 => "
+        val labels = complete(header + "l::pick<i64>(1, <caret>)")
+        assertContainsElements(labels, "second")
+        assertDoesntContain(labels, "first")
+        configure(header + "l::pick(1, sec<caret>ond: 2)")
+        assertEquals("lib.hgl", (myFixture.elementAtCaret as HglParameter).containingFile.name)
+    }
+
     fun testNamedLabelsAfterAPositionalPackRemainAvailable() {
         val header = "fn relay(f: fn(first: i64, ...i64, scale: i64, offset: i64) -> i64) -> i64 => "
         assertContainsElements(complete(header + "f(<caret>)"), "first", "scale", "offset")

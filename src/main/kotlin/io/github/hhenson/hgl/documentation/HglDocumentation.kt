@@ -14,6 +14,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.hhenson.hgl.psi.*
 import io.github.hhenson.hgl.reference.HglQualifiedNameReference
+import io.github.hhenson.hgl.reference.calleeReference
 
 class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumentationTargetProvider {
     override fun documentationTarget(element: PsiElement, originalElement: PsiElement?): DocumentationTarget? {
@@ -66,13 +67,7 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumenta
     private fun argumentTargets(label: HglMemberName): List<DocumentationTarget> {
         val argument = label.parent.parent as? HglArgument ?: return emptyList()
         val arguments = argument.parent as? HglArguments ?: return emptyList()
-        val callee = when (val call = arguments.parent) {
-            is HglCallExpr -> (call.expr as? HglReferenceExpr)?.qualifiedName
-            is HglAppliedConstructorExpr -> call.qualifiedName
-            is HglHarnessTarget -> call.qualifiedName
-            else -> null
-        }
-        val reference = callee?.reference as? HglQualifiedNameReference ?: return emptyList()
+        val reference = arguments.calleeReference() ?: return emptyList()
         val name = label.text
         val declarations = reference.declarations(includeImplementations = false)
         if (declarations.all { it is HglImportItem }) return exportTargets(reference.element, name)
