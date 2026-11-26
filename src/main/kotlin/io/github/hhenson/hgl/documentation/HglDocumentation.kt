@@ -50,7 +50,7 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumenta
         val leaf = file.findElementAt(offset) ?: return emptyList()
         val label = leaf.parentOfType<HglMemberName>()
         val field = label?.parent as? HglFieldExpr
-        if (field != null) return exportedEnumMemberTargets(field)
+        if (field != null) return exportedFieldTargets(field)
         if (label?.parent is HglNamedArgument) {
             return argumentTargets(label)
         }
