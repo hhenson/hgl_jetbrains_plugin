@@ -14,7 +14,8 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.LabeledComponent
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.openapi.util.NotNullLazyValue
 import io.github.hhenson.hgl.HglIcons
 import java.nio.file.Path
@@ -66,7 +67,10 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
 
     override fun getConfigurationEditor() = object : SettingsEditor<HglRunConfiguration>() {
         private val selectorField = JTextField()
-        override fun createEditor() = LabeledComponent.create(selectorField, runType.selectorLabel)
+        override fun createEditor() = panel {
+            row(runType.selectorLabel) { cell(selectorField).align(AlignX.FILL) }
+            if (runType is HglTestType) row { link("Configure HGL Test Roots…") { HglTestRootsDialog.open(project) } }
+        }
         override fun resetEditorFrom(configuration: HglRunConfiguration) { selectorField.text = configuration.selector }
         override fun applyEditorTo(configuration: HglRunConfiguration) { configuration.selector = selectorField.text.trim() }
     }

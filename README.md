@@ -135,8 +135,8 @@ Integration Tests** for integration tests. A folder includes its subfolders.
 Both actions open **Test Results**. Rerun keeps the selected path and test kind.
 
 To include a library when running a test folder, right-click the folder and choose
-**Configure HGL Test Roots…**. Use **Browse…** to add HGL files or directories, or
-paste one path per line. For an `hgl-project` checkout:
+**Configure HGL Test Roots… → Add to tests**. Use **Browse…** under **Source roots**
+to add the library. You can also paste one path per line. For an `hgl-project` checkout:
 
 | Setting | Path |
 | --- | --- |
@@ -147,6 +147,10 @@ Running **Run HGL Tests** on `hgl_core/tests` then uses
 `hgl test --target cpp --test-path hgl_core/tests -- hgl_core/hgl hgl_core/tests`
 with the configured build directory. A file or subfolder narrows the selection.
 Leave **Test roots** empty for projects with inline tests.
+
+You can reopen **Configure HGL Test Roots…** from the Test Results options menu
+or from **Run → Edit Configurations…** in any HGL test configuration. The
+dialog updates `hgl.json` for everyone who uses the project.
 
 A selection within a source root requires `hgl test --test-path`.
 Integration-only runs require `hgl test --integration-only`.

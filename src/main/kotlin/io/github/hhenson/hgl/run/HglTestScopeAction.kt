@@ -11,7 +11,6 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FileTypeIndex
@@ -46,7 +45,7 @@ abstract class HglTestLocationAction : AnAction() {
 class HglConfigureTestRootsAction : HglTestLocationAction() {
     override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
-        ShowSettingsUtil.getInstance().showSettingsDialog(project, HglTestSettingsPage::class.java)
+        HglTestRootsDialog.open(project, selection(event))
     }
 }
 
