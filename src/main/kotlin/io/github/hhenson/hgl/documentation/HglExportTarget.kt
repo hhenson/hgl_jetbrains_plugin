@@ -9,6 +9,8 @@ import io.github.hhenson.hgl.psi.*
 import io.github.hhenson.hgl.reference.HglModuleIndex
 import io.github.hhenson.hgl.reference.HglQualifiedNameReference
 import io.github.hhenson.hgl.reference.HglScope
+import io.github.hhenson.hgl.reference.capabilityType
+import io.github.hhenson.hgl.reference.declaredValueType
 
 /** Consult the export only for modules whose HGL source is unavailable in the project. */
 private fun exportedDeclarations(file: HglFile, module: String, name: String): List<ExportedDoc> {
@@ -45,15 +47,27 @@ internal fun exportTargets(name: HglQualifiedName, argument: String? = null): Li
     return name.exportModules(file).flatMap { exportTargets(file, it, name.identList.last().text, argument) }
 }
 
-internal fun exportedEnumMemberTargets(field: HglFieldExpr): List<DocumentationTarget> {
+internal fun exportedFieldTargets(field: HglFieldExpr): List<DocumentationTarget> {
     val name = (field.expr as? HglReferenceExpr)?.qualifiedName ?: return emptyList()
-    val member = field.memberName ?: return emptyList()
+    val member = field.memberName?.text ?: return emptyList()
     val file = field.containingFile as? HglFile ?: return emptyList()
-    val reference = name.reference as? HglQualifiedNameReference ?: return emptyList()
-    if (reference.declarations(includeImplementations = false).any { it !is HglImportItem }) return emptyList()
-    val path = "${name.identList.last().text}.${member.text}"
-    return name.exportModules(file).flatMap { exportedDeclarations(file, it, path) }
-        .filter { it.kind == "enumMember" }.map { HglExportTarget(file, it) }
+    fun targets(module: String, owner: String, kind: String) =
+        exportedDeclarations(file, module, "$owner.$member").filter { it.kind == kind }.map { HglExportTarget(file, it) }
+
+    val bindings = (name.reference as? HglQualifiedNameReference)?.declarations(includeImplementations = false).orEmpty()
+    if (bindings.all { it is HglImportItem }) {
+        return name.exportModules(file).flatMap { targets(it, name.identList.last().text, "enumMember") }
+    }
+    val binding = bindings.singleOrNull() ?: return emptyList()
+    if (binding is HglInjectItem) {
+        val owner = binding.capabilityType ?: return emptyList()
+        return targets("core", owner, "nativeProperty")
+    }
+    val type = binding.declaredValueType() ?: return emptyList()
+    val typeReference = type.reference as? HglQualifiedNameReference ?: return emptyList()
+    if (typeReference.declarations(includeImplementations = false).any { it !is HglImportItem }) return emptyList()
+    val declaringFile = type.containingFile as? HglFile ?: return emptyList()
+    return type.exportModules(declaringFile).flatMap { targets(it, type.identList.last().text, "nativeProperty") }
 }
 
 private class HglExportTarget(

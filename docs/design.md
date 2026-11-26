@@ -57,6 +57,10 @@ matching entry from the owner's `Args:` or `Type Args:` section.
 Completion and Go to Declaration on `Side.buy` use the enum named by the
 receiver, including `alias::Side.buy` (TYPE-7). Quick Documentation shows the
 member’s source comment or its compiler export when source is unavailable.
+For native properties, the receiver’s declared type supplies the owner.
+An injected capability denotes its Core type even if a local type has the same
+name. Property completion and navigation use indexed source. Quick Documentation
+also reads native property records in the version 1 export.
 
 Source comments can link to a public declaration or member through a visible
 file import (for example, `prices::Quote.bid`). A parameter that hides the

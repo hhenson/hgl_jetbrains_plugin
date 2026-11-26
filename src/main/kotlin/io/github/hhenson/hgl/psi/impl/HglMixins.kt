@@ -5,21 +5,18 @@ import com.intellij.lang.ASTNode
 import com.intellij.psi.PsiReference
 import io.github.hhenson.hgl.psi.HglArgument
 import io.github.hhenson.hgl.psi.HglArguments
-import io.github.hhenson.hgl.psi.HglEnumDecl
-import io.github.hhenson.hgl.psi.HglFieldExpr
 import io.github.hhenson.hgl.psi.HglImportItem
 import io.github.hhenson.hgl.psi.HglMemberName
 import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglOperatorConfiguration
 import io.github.hhenson.hgl.psi.HglQualifiedName
-import io.github.hhenson.hgl.psi.HglReferenceExpr
 import io.github.hhenson.hgl.reference.HglCallLabelReference
-import io.github.hhenson.hgl.reference.HglEnumMemberReference
 import io.github.hhenson.hgl.reference.HglImportItemReference
 import io.github.hhenson.hgl.reference.HglModulePathReference
 import io.github.hhenson.hgl.reference.HglQualifiedNameReference
 import io.github.hhenson.hgl.reference.callArguments
+import io.github.hhenson.hgl.reference.fieldMemberReference
 
 abstract class HglQualifiedNameMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
     override fun getReference(): PsiReference = HglQualifiedNameReference(this as HglQualifiedName)
@@ -45,11 +42,6 @@ abstract class HglNamedArgumentMixin(node: ASTNode) : ASTWrapperPsiElement(node)
     }
 }
 
-/** TYPE-7: Side.buy and alias::Side.buy both select the member of the named enum. */
 abstract class HglMemberNameMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
-    override fun getReference(): PsiReference? {
-        val receiver = (parent as? HglFieldExpr)?.expr as? HglReferenceExpr ?: return null
-        val enum = receiver.qualifiedName.reference?.resolve() as? HglEnumDecl ?: return null
-        return HglEnumMemberReference(this as HglMemberName, enum)
-    }
+    override fun getReference(): PsiReference? = fieldMemberReference(this as HglMemberName)
 }

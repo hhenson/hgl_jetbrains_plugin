@@ -90,6 +90,10 @@ and tables. Quick Documentation labels HGL fences under `Examples:` as
 **Runnable example**. It labels `hgl no-run` fences and HGL fences elsewhere
 as **Shown example**. Fenced formulas and diagrams display their source.
 
+Hover over a capability property such as `clock.now` to read its documentation.
+With Core source in the project, completion lists the properties and Go to
+Declaration opens the selected one.
+
 To run one documentation example, paste its printed name, such as
 `demo::Box.value#example-1`, into an **HGL Test** run configuration with
 the project’s source roots.
