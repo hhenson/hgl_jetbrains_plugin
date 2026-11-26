@@ -180,6 +180,12 @@ keep their ordinary Run console.
 
 ## Grammar and PSI
 
+The parser distinguishes brace literals from statement blocks by a comma or
+colon after the first entry (EXPR-9). Nested delimiters and generic arguments
+keep their own separators. A keyed literal can represent a dictionary or a
+struct. The compiler owns contextual typing and GEN-5’s
+`operator.sequence_reading` warning.
+
 Newlines are explicit tokens. Whitespace and comments stay in the PSI.
 Contextual names are remapped only where the grammar consumes their spelling.
 Generic-call look-ahead preserves an application-shaped tree for editor use;

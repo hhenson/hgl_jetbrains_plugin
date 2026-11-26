@@ -192,6 +192,24 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
         return depth > 0;
     }
 
+    /** Reject ordinary blocks before speculatively parsing their contents as a collection. */
+    public static boolean hasBraceSeparator(PsiBuilder b, int level) {
+        RawCursor cursor = new RawCursor(b);
+        int depth = 0;
+        for (cursor.next(); cursor.type() != null; cursor.next()) {
+            IElementType token = cursor.type();
+            if (token == HglTypes.RBRACE || token == HglTypes.RBRACKET || token == HglTypes.RPAREN) {
+                if (depth == 0) return false;
+                depth--;
+            } else if (token == HglTypes.LBRACE || token == HglTypes.LBRACKET || token == HglTypes.LPAREN) {
+                depth++;
+            } else if (depth == 0 && (token == HglTypes.COMMA || token == HglTypes.COLON)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static final Key<Boolean> INTEGRATION_BODY = Key.create("hgl.test.body");
 
     public static boolean integrationBlock(PsiBuilder b, int level, Parser block) {
@@ -224,7 +242,7 @@ public final class HglParserUtil extends GeneratedParserUtilBase {
 
     /** Keep configured operands outside Grammar-Kit's expression-group expansion. */
     public static boolean operatorOptions(PsiBuilder b, int level) {
-        return HglParser.operator_configuration(b, level + 1);
+        return HglParser.symbol_options(b, level + 1);
     }
 
     /** Parse an expression at additive precedence and above (size_expression). */

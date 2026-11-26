@@ -240,23 +240,23 @@
             "module": "core",
             "part": "capabilities",
             "file": "<core>/native/capabilities.hgl",
-            "line": 120,
+            "line": 89,
             "column": 20
           },
           "documentation": {
-            "text": "The capability a node has by `inject clock`: the times of the run as the node is evaluated.\n\nA clock has properties and no operation. A node uses it in its hooks,\nand may give it to a parameter of type `Clock` of a `const fn`; it does\nnot retain it. Nothing in a program constructs one.\n\n| Property | Type | What it is |\n| --- | --- | --- |\n| `evaluation_time` | `datetime` | The logical time of the current cycle |\n| `now` | `datetime` | The engine's estimate of wall-clock time |\n| `cycle_time` | `duration` | Real elapsed time since the current cycle began |\n| `next_cycle_evaluation_time` | `datetime` | The earliest time a following cycle could have |\n\n`evaluation_time` is the same for every node in a cycle, and constant\nthroughout it; each cycle's is later than the one before by\n`smallest_step` or more. In `start` it is the run's start time, and\n`stop` retains the last cycle's.\n\n`now` is the computer's clock in UTC in a run in real time, and the\nevaluation time plus the cycle time in simulation. It may change between\nreads. A wake asked of a `Scheduler` with `on_wall_clock: true` is timed\non it in a run in real time.\n\n`next_cycle_evaluation_time` is the evaluation time plus `smallest_step`.\nReading it asks for no cycle.\n\nA property is read as an ordinary value and is not assigned.\n\nExamples:\n    The clock is given to a `const fn`, which reads the time of each\n    input tick. Each column of the trace is one microsecond.\n\n    ~~~hgl\n    const fn stamped(clock: Clock, value: i64) -> tuple<datetime, i64> =>\n        (clock.evaluation_time, value)\n\n    fn time_of_input(value: i64) -> tuple<datetime, i64> {\n        inject clock\n        when { return stamped(clock, value) }\n    }\n\n    let t = @2026-01-05T09:30:00Z\n    assert eval{start: t} time_of_input(value: [10, _, 20]) ==\n        [(t, 10), _, (t + 2us, 20)]\n    ~~~\n\n    In `start` the evaluation time is the run's start time. The node\n    keeps it in a `cache` and returns it at the input's first tick.\n\n    ~~~hgl\n    fn started_at(value: i64) -> datetime {\n        inject clock\n        cache first: datetime = never\n        start { first = clock.evaluation_time }\n        when { return first }\n    }\n\n    let t = @2026-01-05T09:30:00Z\n    assert eval{start: t} started_at(value: [_, 1]) == [_, t]\n    ~~~\n\n    The next cycle could come one smallest step later.\n\n    ~~~hgl\n    fn next_step(value: i64) -> bool {\n        inject clock\n        when {\n            return clock.next_cycle_evaluation_time ==\n                clock.evaluation_time + smallest_step\n        }\n    }\n    assert eval next_step(value: [1, _, 2]) == [true, _, true]\n    ~~~\n\nRules:\n    CAP-1, CAP-3, CAP-4, CAP-8, CRUN-3, TIME-8",
+            "text": "The capability a node has by `inject clock`: the times of the run as the node is evaluated.\n\nA clock has properties and no operation. A node uses it in its hooks,\nand may give it to a parameter of type `Clock` of a `const fn`; it does\nnot retain it. Nothing in a program constructs one.\n\nA property is read as an ordinary value and is not assigned.\n\nExamples:\n    The clock is given to a `const fn`, which reads the time of each\n    input tick. Each column of the trace is one microsecond.\n\n    ~~~hgl\n    const fn stamped(clock: Clock, value: i64) -> tuple<datetime, i64> =>\n        (clock.evaluation_time, value)\n\n    fn time_of_input(value: i64) -> tuple<datetime, i64> {\n        inject clock\n        when { return stamped(clock, value) }\n    }\n\n    let t = @2026-01-05T09:30:00Z\n    assert eval{start: t} time_of_input(value: [10, _, 20]) ==\n        [(t, 10), _, (t + 2us, 20)]\n    ~~~\n\nRules:\n    CAP-1, CAP-3, CAP-4, CAP-8, CRUN-3, TIME-8",
             "summary": "The capability a node has by `inject clock`: the times of the run as the node is evaluated.",
             "sections": [
               {
                 "heading": null,
                 "recognized": false,
-                "text": "A clock has properties and no operation. A node uses it in its hooks,\nand may give it to a parameter of type `Clock` of a `const fn`; it does\nnot retain it. Nothing in a program constructs one.\n\n| Property | Type | What it is |\n| --- | --- | --- |\n| `evaluation_time` | `datetime` | The logical time of the current cycle |\n| `now` | `datetime` | The engine's estimate of wall-clock time |\n| `cycle_time` | `duration` | Real elapsed time since the current cycle began |\n| `next_cycle_evaluation_time` | `datetime` | The earliest time a following cycle could have |\n\n`evaluation_time` is the same for every node in a cycle, and constant\nthroughout it; each cycle's is later than the one before by\n`smallest_step` or more. In `start` it is the run's start time, and\n`stop` retains the last cycle's.\n\n`now` is the computer's clock in UTC in a run in real time, and the\nevaluation time plus the cycle time in simulation. It may change between\nreads. A wake asked of a `Scheduler` with `on_wall_clock: true` is timed\non it in a run in real time.\n\n`next_cycle_evaluation_time` is the evaluation time plus `smallest_step`.\nReading it asks for no cycle.\n\nA property is read as an ordinary value and is not assigned.",
+                "text": "A clock has properties and no operation. A node uses it in its hooks,\nand may give it to a parameter of type `Clock` of a `const fn`; it does\nnot retain it. Nothing in a program constructs one.\n\nA property is read as an ordinary value and is not assigned.",
                 "entries": []
               },
               {
                 "heading": "Examples:",
                 "recognized": true,
-                "text": "The clock is given to a `const fn`, which reads the time of each\ninput tick. Each column of the trace is one microsecond.\n\n~~~hgl\nconst fn stamped(clock: Clock, value: i64) -> tuple<datetime, i64> =>\n    (clock.evaluation_time, value)\n\nfn time_of_input(value: i64) -> tuple<datetime, i64> {\n    inject clock\n    when { return stamped(clock, value) }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} time_of_input(value: [10, _, 20]) ==\n    [(t, 10), _, (t + 2us, 20)]\n~~~\n\nIn `start` the evaluation time is the run's start time. The node\nkeeps it in a `cache` and returns it at the input's first tick.\n\n~~~hgl\nfn started_at(value: i64) -> datetime {\n    inject clock\n    cache first: datetime = never\n    start { first = clock.evaluation_time }\n    when { return first }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} started_at(value: [_, 1]) == [_, t]\n~~~\n\nThe next cycle could come one smallest step later.\n\n~~~hgl\nfn next_step(value: i64) -> bool {\n    inject clock\n    when {\n        return clock.next_cycle_evaluation_time ==\n            clock.evaluation_time + smallest_step\n    }\n}\nassert eval next_step(value: [1, _, 2]) == [true, _, true]\n~~~",
+                "text": "The clock is given to a `const fn`, which reads the time of each\ninput tick. Each column of the trace is one microsecond.\n\n~~~hgl\nconst fn stamped(clock: Clock, value: i64) -> tuple<datetime, i64> =>\n    (clock.evaluation_time, value)\n\nfn time_of_input(value: i64) -> tuple<datetime, i64> {\n    inject clock\n    when { return stamped(clock, value) }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} time_of_input(value: [10, _, 20]) ==\n    [(t, 10), _, (t + 2us, 20)]\n~~~",
                 "entries": []
               },
               {
@@ -270,16 +270,6 @@
               {
                 "code": "const fn stamped(clock: Clock, value: i64) -> tuple<datetime, i64> =>\n    (clock.evaluation_time, value)\n\nfn time_of_input(value: i64) -> tuple<datetime, i64> {\n    inject clock\n    when { return stamped(clock, value) }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} time_of_input(value: [10, _, 20]) ==\n    [(t, 10), _, (t + 2us, 20)]\n",
                 "position": 1,
-                "runnable": true
-              },
-              {
-                "code": "fn started_at(value: i64) -> datetime {\n    inject clock\n    cache first: datetime = never\n    start { first = clock.evaluation_time }\n    when { return first }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} started_at(value: [_, 1]) == [_, t]\n",
-                "position": 2,
-                "runnable": true
-              },
-              {
-                "code": "fn next_step(value: i64) -> bool {\n    inject clock\n    when {\n        return clock.next_cycle_evaluation_time ==\n            clock.evaluation_time + smallest_step\n    }\n}\nassert eval next_step(value: [1, _, 2]) == [true, _, true]\n",
-                "position": 3,
                 "runnable": true
               }
             ]
@@ -306,10 +296,40 @@
                 "module": "core",
                 "part": "capabilities",
                 "file": "<core>/native/capabilities.hgl",
-                "line": 121,
+                "line": 115,
                 "column": 5
               },
-              "documentation": null,
+              "documentation": {
+                "text": "The logical time shared by every node throughout the current cycle.\n\nIn `start` it is the run's start time. In `stop` it retains the last\ncycle's time. Each cycle advances by at least `smallest_step`.\n\nExamples:\n    In `start` the evaluation time is the run's start time. The node\n    keeps it in a `cache` and returns it at the input's first tick.\n\n    ~~~hgl\n    fn started_at(value: i64) -> datetime {\n        inject clock\n        cache first: datetime = never\n        start { first = clock.evaluation_time }\n        when { return first }\n    }\n\n    let t = @2026-01-05T09:30:00Z\n    assert eval{start: t} started_at(value: [_, 1]) == [_, t]\n    ~~~\n\nRules:\n    CAP-3, CAP-8, CRUN-3, TIME-8",
+                "summary": "The logical time shared by every node throughout the current cycle.",
+                "sections": [
+                  {
+                    "heading": null,
+                    "recognized": false,
+                    "text": "In `start` it is the run's start time. In `stop` it retains the last\ncycle's time. Each cycle advances by at least `smallest_step`.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "In `start` the evaluation time is the run's start time. The node\nkeeps it in a `cache` and returns it at the input's first tick.\n\n~~~hgl\nfn started_at(value: i64) -> datetime {\n    inject clock\n    cache first: datetime = never\n    start { first = clock.evaluation_time }\n    when { return first }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} started_at(value: [_, 1]) == [_, t]\n~~~",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Rules:",
+                    "recognized": true,
+                    "text": "CAP-3, CAP-8, CRUN-3, TIME-8",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "fn started_at(value: i64) -> datetime {\n    inject clock\n    cache first: datetime = never\n    start { first = clock.evaluation_time }\n    when { return first }\n}\n\nlet t = @2026-01-05T09:30:00Z\nassert eval{start: t} started_at(value: [_, 1]) == [_, t]\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
               "genericParameters": [],
               "configurationParameters": [],
               "parameters": [],
@@ -334,10 +354,40 @@
                 "module": "core",
                 "part": "capabilities",
                 "file": "<core>/native/capabilities.hgl",
-                "line": 122,
+                "line": 136,
                 "column": 5
               },
-              "documentation": null,
+              "documentation": {
+                "text": "The engine's estimate of wall-clock time at the point of the read.\n\nIn real time this is the computer's UTC clock. In simulation it is\n`Clock.evaluation_time` plus `Clock.cycle_time`. It may change\nbetween reads. A scheduler wake with `on_wall_clock: true` uses\nthis clock in real time.\n\nExamples:\n    ~~~hgl\n    fn at_or_after_cycle(value: i64) -> bool {\n        inject clock\n        when { return clock.now >= clock.evaluation_time }\n    }\n    assert eval at_or_after_cycle(value: [1, _, 2]) == [true, _, true]\n    ~~~\n\nRules:\n    CAP-3, CAP-4, CAP-8, TIME-8",
+                "summary": "The engine's estimate of wall-clock time at the point of the read.",
+                "sections": [
+                  {
+                    "heading": null,
+                    "recognized": false,
+                    "text": "In real time this is the computer's UTC clock. In simulation it is\n`Clock.evaluation_time` plus `Clock.cycle_time`. It may change\nbetween reads. A scheduler wake with `on_wall_clock: true` uses\nthis clock in real time.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "~~~hgl\nfn at_or_after_cycle(value: i64) -> bool {\n    inject clock\n    when { return clock.now >= clock.evaluation_time }\n}\nassert eval at_or_after_cycle(value: [1, _, 2]) == [true, _, true]\n~~~",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Rules:",
+                    "recognized": true,
+                    "text": "CAP-3, CAP-4, CAP-8, TIME-8",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "fn at_or_after_cycle(value: i64) -> bool {\n    inject clock\n    when { return clock.now >= clock.evaluation_time }\n}\nassert eval at_or_after_cycle(value: [1, _, 2]) == [true, _, true]\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
               "genericParameters": [],
               "configurationParameters": [],
               "parameters": [],
@@ -362,10 +412,34 @@
                 "module": "core",
                 "part": "capabilities",
                 "file": "<core>/native/capabilities.hgl",
-                "line": 123,
+                "line": 152,
                 "column": 5
               },
-              "documentation": null,
+              "documentation": {
+                "text": "The real time elapsed since the current cycle began.\n\nExamples:\n    ~~~hgl\n    fn elapsed(value: i64) -> bool {\n        inject clock\n        when { return clock.cycle_time >= 0s }\n    }\n    assert eval elapsed(value: [1, _, 2]) == [true, _, true]\n    ~~~\n\nRules:\n    CAP-3, CAP-8, TIME-8",
+                "summary": "The real time elapsed since the current cycle began.",
+                "sections": [
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "~~~hgl\nfn elapsed(value: i64) -> bool {\n    inject clock\n    when { return clock.cycle_time >= 0s }\n}\nassert eval elapsed(value: [1, _, 2]) == [true, _, true]\n~~~",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Rules:",
+                    "recognized": true,
+                    "text": "CAP-3, CAP-8, TIME-8",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "fn elapsed(value: i64) -> bool {\n    inject clock\n    when { return clock.cycle_time >= 0s }\n}\nassert eval elapsed(value: [1, _, 2]) == [true, _, true]\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
               "genericParameters": [],
               "configurationParameters": [],
               "parameters": [],
@@ -390,10 +464,40 @@
                 "module": "core",
                 "part": "capabilities",
                 "file": "<core>/native/capabilities.hgl",
-                "line": 124,
+                "line": 176,
                 "column": 5
               },
-              "documentation": null,
+              "documentation": {
+                "text": "The earliest evaluation time the next cycle could have.\n\nIt is `Clock.evaluation_time` plus `smallest_step`. Reading it\ndoes not schedule a cycle.\n\nExamples:\n    The next cycle could come one smallest step later.\n\n    ~~~hgl\n    fn next_step(value: i64) -> bool {\n        inject clock\n        when {\n            return clock.next_cycle_evaluation_time ==\n                clock.evaluation_time + smallest_step\n        }\n    }\n    assert eval next_step(value: [1, _, 2]) == [true, _, true]\n    ~~~\n\nRules:\n    CAP-3, CAP-8, CRUN-3, TIME-8",
+                "summary": "The earliest evaluation time the next cycle could have.",
+                "sections": [
+                  {
+                    "heading": null,
+                    "recognized": false,
+                    "text": "It is `Clock.evaluation_time` plus `smallest_step`. Reading it\ndoes not schedule a cycle.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "The next cycle could come one smallest step later.\n\n~~~hgl\nfn next_step(value: i64) -> bool {\n    inject clock\n    when {\n        return clock.next_cycle_evaluation_time ==\n            clock.evaluation_time + smallest_step\n    }\n}\nassert eval next_step(value: [1, _, 2]) == [true, _, true]\n~~~",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Rules:",
+                    "recognized": true,
+                    "text": "CAP-3, CAP-8, CRUN-3, TIME-8",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "fn next_step(value: i64) -> bool {\n    inject clock\n    when {\n        return clock.next_cycle_evaluation_time ==\n            clock.evaluation_time + smallest_step\n    }\n}\nassert eval next_step(value: [1, _, 2]) == [true, _, true]\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
               "genericParameters": [],
               "configurationParameters": [],
               "parameters": [],

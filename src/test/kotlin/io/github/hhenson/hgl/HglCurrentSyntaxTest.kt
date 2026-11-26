@@ -4,6 +4,7 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.ParsingTestCase
 import io.github.hhenson.hgl.parser.HglParserDefinition
+import io.github.hhenson.hgl.psi.HglBraceLiteralExpr
 import io.github.hhenson.hgl.psi.HglConstraintRelation
 import io.github.hhenson.hgl.psi.HglEnumDecl
 import io.github.hhenson.hgl.psi.HglFunctionDecl
@@ -226,6 +227,67 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         val run = "run{length: 1s} ticks()"
         accepted("module demo\nintegration_test observed { if ($run) == [1] {} }")
         rejected("integration_test observed { if $run == [1] {} }")
+    }
+
+    fun testNullableTypesInConstraintSets() {
+        accepted("""
+            module bounds
+            struct Price { amount: i64 }
+            const fn guarded<T>(value: T) -> T
+                requires T in {i64?, Price?, list<Price>?, tuple<>?, dict<str, Price?>} => value
+        """)
+        rejected("const fn invalid<T>(x: T) -> T requires T in {3?} => x")
+    }
+
+    fun testCollectionBracesAndEmptyTuple() {
+        val file = accepted("""
+            module literals
+            struct Point { x: i64 }
+            struct Token { if: i64 }
+            const fn take(p: Point) -> i64 => p.x
+            const fn f(xs: tuple<> = ()) -> tuple<> => xs
+            const fn examples(x: i64) {
+                let empty: set<i64> = {,}
+                let prices: dict<str, i64> = {:}
+                let one = {x,}
+                let many = {x, x + 1,}
+                let keyed = {x + 1: ({x,}), x: {,},}
+                let point: Point = {x: 3}
+                let keyword_field: Token = {if: 1}
+                let entries = ["bid": 4, "ask": 7, "bid": 9]
+                let nested: list<dict<str, Point>> = [{:}, {"a": {x: 1}}]
+                let grouped = {x}
+                let block = {}
+                let unit: tuple<> = ()
+                f(())
+                f()
+                return take({x: 3})
+            }
+        """)
+        val literals = PsiTreeUtil.findChildrenOfType(file, HglBraceLiteralExpr::class.java)
+        assertSize(13, literals)
+        assertFalse(literals.any { it.text in listOf("{x}", "{}") })
+        for (invalid in listOf("{a, b: 2}", "{a: 1, b}", "{:,}", "{,a}", "{a:}")) {
+            rejected("const fn wrong() => $invalid")
+        }
+    }
+
+    fun testBraceOperandsPreserveOperatorOptionsAndControlHeaders() {
+        val file = accepted("""
+            module literals
+            struct Point { x: i64 }
+            const fn demo(p: Point, items: set<i64>, x: i64, price: f64) {
+                let s = items == {x,}
+                let same = p == ({x: 3})
+                let configured = price =={abs: 0.01} price
+                if ({x,} == {x,}) {}
+            }
+        """)
+        assertSize(4, PsiTreeUtil.findChildrenOfType(file, HglBraceLiteralExpr::class.java))
+        assertSize(1, PsiTreeUtil.findChildrenOfType(file, HglOperatorConfiguration::class.java))
+        accepted("module literals\nconst fn blocks() => { let x: i64 = 1\n f<A, B>(x) }")
+        accepted("module literals\nconst fn keys() => { f<A, B>(1): 2 }")
+        rejected("const fn cases() { if {1,} {} }")
     }
 
     fun testOneLineBreakBeforeBodies() {

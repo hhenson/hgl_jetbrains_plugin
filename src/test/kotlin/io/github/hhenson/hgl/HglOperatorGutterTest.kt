@@ -207,12 +207,13 @@ class HglOperatorGutterTest : HglEditorFixture() {
         val native = source("native/scalar_operators.hgl", fixtures.resolve("hgl_native_scalar_operators.hgl").readText())
         val operator = markers(core).single { it.element!!.text == "convert" }
         val candidates = targets(operator)
-        val expected = setOf("list<T>", "list<T, N>", "list<T?>", "list<T?, N>", "set<T>", "dict<K, V>", "dict<K, V?>")
+        val expected = setOf("list<T>", "list<T, N>", "list<T?>", "list<T?, N>", "set<T>", "dict<K, V>", "dict<K, V?>",
+            "tuple<T>", "tuple<Ts>")
         fun inputType(candidate: PsiElement) = candidate.text.substringAfter("(value: ").substringBefore(") -> str")
         assertEquals(expected, candidates.filter { it.containingFile == bodies }.map(::inputType).toSet())
         assertFalse(candidates.any { it.containingFile == native && inputType(it) in expected })
         val implementations = markers(bodies).filter { it.element!!.text == "convert" }
-        assertSize(7, implementations)
+        assertSize(9, implementations)
         assertTrue(implementations.all { targets(it).single() == operator.element!!.parent.parent })
     }
 

@@ -176,3 +176,64 @@ test nested_collection_text_composes_each_conversion {
     let outer: list<dict<str, list<set<i64>?, 2>>> = [entries]
     assert convert<str>(outer) == "[[\"orders\": [[9], null]]]"
 }
+
+/**
+Tuple text writes its members in order and preserves the singleton comma.
+
+Rules:
+    OPS-4, FMT-5, EXPR-8
+
+Status:
+    agreed
+*/
+test tuple_text_preserves_member_order_and_singleton_syntax {
+    let mixed = (CollectionOrderId(number: 42), "a\n\"b\\c", false)
+    assert convert<str>(mixed) == "(order 42, \"a\\n\\\"b\\\\c\", false)"
+    assert format("{}", mixed) == convert<str>(mixed)
+    assert convert<str>((3,)) == "(3,)"
+    assert format("{}", ("only",)) == "(\"only\",)"
+}
+
+/**
+A tuple writes nullable and compound members by their own conversions.
+
+Rules:
+    OPS-4, FMT-5, FMT-7
+
+Status:
+    agreed
+*/
+test tuple_text_composes_nullable_and_compound_members {
+    let absent: str? = null
+    let present: CollectionOrderId? = CollectionOrderId(number: 7)
+    let quiet = Marked<CollectionSample>(value: null, ticked: false)
+    let members: list<CustomTextMember> = [CustomTextMember(number: 3)]
+    let mixed = (absent, present, quiet, (members, true), @2026-11-22)
+    assert convert<str>(mixed) == "(null, order 7, quiet, (custom members, true), 2026-11-22)"
+    assert format("{}", mixed) == convert<str>(mixed)
+    let present_str: str? = "ready"
+    assert convert<str>((present_str,)) == "(\"ready\",)"
+    assert convert<str>((absent,)) == "(null,)"
+    let pairs: list<tuple<CollectionOrderId, str>> = [(CollectionOrderId(number: 7), "a")]
+    assert format("{}", pairs) == "[(order 7, \"a\")]"
+}
+
+/**
+Nested tuples have the same text through direct conversion and formatting.
+
+Rules:
+    OPS-4, FMT-5, EXPR-8
+
+Status:
+    agreed
+*/
+test nested_tuple_text_matches_format {
+    let singletons = ((((((((42,),),),),),),),)
+    assert convert<str>(singletons) == "((((((((42,),),),),),),),)"
+    assert format("{}", singletons) == "((((((((42,),),),),),),),)"
+
+    let listed = [(42, true)]
+    let mixed = [((listed,), true)]
+    assert convert<str>(mixed) == "[(([(42, true)],), true)]"
+    assert format("{}", mixed) == "[(([(42, true)],), true)]"
+}

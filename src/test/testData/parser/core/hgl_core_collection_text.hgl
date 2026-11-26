@@ -115,3 +115,34 @@ impl const fn convert<K, V>(value: dict<K, V?>) -> str
     text += "]"
     return text
 }
+
+# FMT-5: render each admitted member with the same quoting and nullable
+# handling as a list member.
+operator tuple_text_member<T>(value: T) -> str
+impl const fn tuple_text_member<T>(value: T) -> str => collection_text_member(value)
+impl const fn tuple_text_member<T>(value: T?) -> str => collection_text_nullable(value)
+
+# Each tuple checks its member conversions directly, including the ordinary
+# value read of a nullable member. The scalar formatter handles the listed
+# types and their nullable forms.
+# FMT-5, EXPR-8: the singleton keeps the comma of its tuple literal.
+impl const fn convert<T>(value: tuple<T>) -> str
+    requires T in {str, str?, date, date?, time, time?, datetime, datetime?, duration, duration?}
+        || convert(T) -> str {
+    var text = "("
+    text += tuple_text_member(value[0])
+    text += ",)"
+    return text
+}
+
+# FN-19, GEN-17: each pack entry indexes one tuple position in order.
+impl const fn convert<...Ts{2:*}>(value: tuple<Ts>) -> str
+    requires each T in types(Ts) {
+        T in {str, str?, date, date?, time, time?, datetime, datetime?, duration, duration?}
+            || convert(T) -> str
+    } {
+    var text = "("
+    text += join{separator: ", "}(...{for index in arg_keys(Ts): tuple_text_member(value[index])})
+    text += ")"
+    return text
+}
