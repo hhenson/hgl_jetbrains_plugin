@@ -6,16 +6,23 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
 import com.intellij.openapi.components.service
-import io.github.hhenson.hgl.project.HglBuild
-import io.github.hhenson.hgl.project.HglBuildFile
-import com.intellij.openapi.options.ConfigurationException
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.BoundConfigurable
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.Row
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
+import io.github.hhenson.hgl.HglFileType
 import io.github.hhenson.hgl.diagnostics.HglCheckService
+import io.github.hhenson.hgl.project.HglBuild
+import io.github.hhenson.hgl.project.HglBuildFile
+import java.nio.file.Path
+import kotlin.reflect.KMutableProperty0
 
 @Service(Service.Level.PROJECT)
 @State(name = "HglTestRunner", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
@@ -49,6 +56,7 @@ class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL
     private fun existing() = previous ?: HglBuild(compiler = local.executable, sourceRoots = local.sourceRoots())
     private var compiler = ""
     private var roots = ""
+    private var testRoots = ""
     private var buildDir = ""
     private var binDir = ""
     private var docsDir = ""
@@ -59,6 +67,7 @@ class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL
         val build = existing()
         compiler = build.compiler
         roots = build.sourceRoots.joinToString("\n")
+        testRoots = build.testRoots.joinToString("\n")
         buildDir = build.buildDir
         binDir = build.binDir
         docsDir = build.docsDir
@@ -68,8 +77,10 @@ class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL
 
     override fun apply() {
         super.apply()
-        val build = HglBuild(compiler.trim(), roots.lines().map(String::trim).filter(String::isNotEmpty),
-            buildDir.trim(), binDir.trim(), docsDir.trim())
+        val build = HglBuild(
+            compiler = compiler.trim(), sourceRoots = pathsIn(roots), testRoots = pathsIn(testRoots),
+            buildDir = buildDir.trim(), binDir = binDir.trim(), docsDir = docsDir.trim(),
+        )
         try {
             if (build != existing()) {
                 file.save(build, previous)
@@ -84,10 +95,35 @@ class HglTestSettingsPage(private val project: Project) : BoundConfigurable("HGL
         project.getServiceIfCreated(HglCheckService::class.java)?.reset()
     }
 
+    private fun pathsIn(text: String) = text.lines().map(String::trim).filter(String::isNotEmpty)
+
+    private fun Row.paths(value: KMutableProperty0<String>, title: String, hint: String) {
+        val field = textArea().bindText(value).align(AlignX.FILL).resizableColumn().comment(hint).component
+        field.rows = 3
+        button("Browse…") {
+            val base = project.basePath?.let(Path::of) ?: return@button
+            val descriptor = FileChooserDescriptor(true, true, false, false, false, true)
+                .withTitle(title).withFileFilter { it.fileType == HglFileType }
+            FileChooser.chooseFiles(descriptor, project, LocalFileSystem.getInstance().findFileByNioFile(base)) { files ->
+                val paths = pathsIn(field.text)
+                val added = files.map {
+                    val path = it.toNioPath()
+                    if (path.startsWith(base)) base.relativize(path).joinToString("/").ifEmpty { "." } else it.path
+                }
+                field.text = (paths + added).distinct().joinToString("\n")
+            }
+        }
+    }
+
     override fun createPanel() = panel {
         group("Project build settings (hgl.json)") {
             row("Compiler:") { textField().bindText(::compiler).align(AlignX.FILL) }
-            row("Source roots:") { textArea().bindText(::roots).align(AlignX.FILL).comment("One source file or directory per line.") }
+            row("Source roots:") {
+                paths(::roots, "Choose HGL Source Roots", "Modules to compile, including imports used by tests. One path per line.")
+            }
+            row("Test roots:") {
+                paths(::testRoots, "Choose HGL Test Roots", "Locations for test suites. Leave empty to discover tests in source roots.")
+            }
             row("Build directory:") { textField().bindText(::buildDir).align(AlignX.FILL) }
             row("Binary directory:") { textField().bindText(::binDir).align(AlignX.FILL) }
             row("Documentation directory:") { textField().bindText(::docsDir).align(AlignX.FILL) }

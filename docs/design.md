@@ -143,19 +143,22 @@ in an IDE Run configuration.
 
 The HGL Test configuration accepts the CLI’s documentation example identities,
 including module and part headers, members and numbered overloads. Each
-selector is passed to `--test` as one argument.
+selector is passed to `--test` as one argument. With configured roots, the
+gutter also passes the declaration file to `--test-path`.
 
 The Project and editor-tab menus offer separate ordinary and integration test
 actions. Each saves the selected file or recursive folder and its test kind
 in a rerunnable configuration. The compiler reads all configured roots for
-imports. `--test-path` selects cases by source location when the selection
+imports. `build.sourceRoots` supplies application and library inputs. Tests and
+check-on-save also load `build.testRoots`. When present, these roots select
+cases for project and module suites. `--test-path` selects cases by source location when the selection
 covers part of the program. A folder above multiple roots selects the roots
 it contains. `--integration-only` selects integration tests and their rejection
 cases. The IDE displays the compiler's outcomes in the same test tree as a gutter run.
 
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
-rejection cases in the supplied roots.
+rejection cases in the selected paths.
 
 Diagnostics and both run configurations share one compiler command builder.
 It uses the project’s executable setting and the IDE console environment.
@@ -211,14 +214,15 @@ The compiler diagnoses reserved type declarations.
 
 ## Toolbar targets
 
-The IDE discovers application and module headers in the configured source
-roots. With no configured roots it uses indexed HGL sources under the project
-directory. Saving a source file updates its header. A path or source-root
+The IDE discovers applications in the source roots and test modules in the
+test roots (source roots by default). With no configured roots it uses indexed
+HGL sources under the project directory. Saving a source file updates its header. A path or source-root
 change rebuilds the catalog. Generated Run/Debug configurations live in the
 IDE workspace. Removing a declaration retires its generated entry.
 
 A module selection passes one `--test-path` per module part. A project
-selection passes all source roots without a path filter. Both use the same
+selection passes one filter per configured test root, or includes inline
+tests across the source roots when test roots are empty. Both use the same
 runner as file and folder selections, preserving dependency roots and test kind.
 
 ## Application and test debugging

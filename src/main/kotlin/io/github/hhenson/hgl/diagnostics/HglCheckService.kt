@@ -64,7 +64,7 @@ class HglCheckService(private val project: Project, private val scope: Coroutine
             return null
         }
         val roots = try {
-            build.sourceRoots.map { directory.resolve(it).normalize() }.ifEmpty { listOf(file.toNioPath()) }
+            build.programRootsForTests.map { directory.resolve(it).normalize() }.ifEmpty { listOf(file.toNioPath()) }
         } catch (e: IllegalArgumentException) {
             warn(e.message ?: "Invalid HGL source root")
             return null

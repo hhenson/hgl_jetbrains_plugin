@@ -97,24 +97,18 @@ class HglScopedTestConfiguration(project: Project, type: HglScopedTestType) :
         val build = project.buildSettings()
         val base = Path.of(requireNotNull(project.basePath))
         val selected = base.resolve(testPath).normalize()
-        val rootPaths = build.sourceRoots.associateWith { base.resolve(it).normalize() }
-        val containedRoots = rootPaths.filterValues { it.startsWith(selected) }.keys
-        val withinRoot = rootPaths.values.any { selected.startsWith(it) }
-        // An explicitly selected HGL file outside configured roots can still import from them.
-        val roots = when {
-            allModules || moduleName.isNotEmpty() -> build.sourceRoots.ifEmpty { listOf(".") }
-            withinRoot || containedRoots.isNotEmpty() -> build.sourceRoots
-            else -> build.sourceRoots + testPath
-        }
+        val caseRoots = build.caseRoots.associateWith { base.resolve(it).normalize() }
+        val contained = caseRoots.filterValues { it.startsWith(selected) }.keys
+        val roots = if (allModules || moduleName.isNotEmpty()) build.testInputs(base, null).ifEmpty { listOf(".") }
+            else build.testInputs(base, testPath)
         val command = hglCommandLine(build.compiler).withWorkDirectory(base.toFile())
             .withParameters("test", "--target", "cpp")
-        // A project or group folder can contain several configured roots. Keep other roots for imports.
         val scopes = when {
-            allModules -> emptyList()
-            moduleName.isNotEmpty() -> project.service<HglProjectTargets>().moduleSources(moduleName, rootPaths.values.ifEmpty { listOf(base) })
-            rootPaths.isEmpty() || containedRoots.size == rootPaths.size -> emptyList()
-            withinRoot || containedRoots.isEmpty() -> listOf(testPath)
-            else -> containedRoots
+            allModules -> build.testRoots
+            moduleName.isNotEmpty() -> project.service<HglProjectTargets>().moduleSources(moduleName, caseRoots.values.ifEmpty { listOf(base) })
+            caseRoots.isEmpty() || (build.testRoots.isEmpty() && contained.size == caseRoots.size) -> emptyList()
+            caseRoots.values.any { selected.startsWith(it) } || contained.isEmpty() -> listOf(testPath)
+            else -> contained
         }
         for (path in scopes) command.addParameters("--test-path", path)
         if (integrationOnly) command.addParameter("--integration-only")

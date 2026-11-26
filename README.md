@@ -42,7 +42,7 @@ Run `application hello.main` from the gutter in `src/main.hgl` to publish
 in `src/hello.hgl`.
 
 **Settings → Build, Execution, Deployment → HGL** edits the `build` section
-of `hgl.json`. Commit this file to share the compiler command, source roots,
+of `hgl.json`. Commit this file to share the compiler command, source and test roots,
 and output paths. Paths are relative to the project or absolute. A workspace
 compiler override is private to your IDE. Existing projects retain their
 runner settings until they save shared build settings.
@@ -122,13 +122,27 @@ name. **HGL Tests** offers these selections for both Run and Debug.
 | --- | --- |
 | `prices — Tests` | Ordinary tests in every part of module `prices` |
 | `prices — Integration Tests` | Integration tests in every part of `prices` |
-| **All HGL Tests** | Ordinary tests across the project’s source roots |
+| **All HGL Tests** | Ordinary tests across the configured test roots (source roots by default) |
 | **All HGL Integration Tests** | Integration tests across the same roots |
 
 Right-click an HGL file or folder in the **Project** window, or right-click an
 HGL editor tab. Choose **Run HGL Tests** for ordinary tests or **Run HGL
 Integration Tests** for integration tests. A folder includes its subfolders.
 Both actions open **Test Results**. Rerun keeps the selected path and test kind.
+
+To include a library when running a test folder, right-click the folder and choose
+**Configure HGL Test Roots…**. Use **Browse…** to add HGL files or directories, or
+paste one path per line. For an `hgl-project` checkout:
+
+| Setting | Path |
+| --- | --- |
+| **Source roots** | `hgl_core/hgl` |
+| **Test roots** | `hgl_core/tests` |
+
+Running **Run HGL Tests** on `hgl_core/tests` then uses
+`hgl test --target cpp --test-path hgl_core/tests -- hgl_core/hgl hgl_core/tests`
+with the configured build directory. A file or subfolder narrows the selection.
+Leave **Test roots** empty for projects with inline tests.
 
 A selection within a source root requires `hgl test --test-path`.
 Integration-only runs require `hgl test --integration-only`.
@@ -163,10 +177,8 @@ bundled LLDB adapter.
 On Apple Silicon, install the compiler with `brew install hhenson/hgraph/hgl`.
 Both IDEs look for `hgl` on their console `PATH`, then in `/opt/homebrew/bin`
 on macOS. This also lets the C++ runner find Homebrew’s CMake and Ninja.
-The formula bundles the native SDK. The default source root is the selected file.
-For a multi-file program, enter its source roots, one per line. For the core
-conformance suite in `hgl-project`, use `hgl_core/hgl` and
-`hgl_core/tests/conformance`. Paths are relative to the project or absolute.
+The formula bundles the native SDK. With no roots configured, a file or folder
+run uses the selected location as its only input.
 
 ## Marketplace releases
 
