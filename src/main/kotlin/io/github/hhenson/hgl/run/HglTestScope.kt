@@ -67,6 +67,7 @@ class HglScopedTestConfiguration(project: Project, type: HglScopedTestType) :
             else if (moduleName.isEmpty()) row("File or folder:") { cell(path).resizableColumn().align(AlignX.FILL) }
             else row("Module:") { label(moduleName) }
             row("Run:") { cell(kinds) }
+            row { link("Configure HGL Test Roots…") { HglTestRootsDialog.open(project) } }
         }
         override fun resetEditorFrom(configuration: HglScopedTestConfiguration) {
             path.text = configuration.testPath

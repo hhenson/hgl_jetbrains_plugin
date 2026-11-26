@@ -5,9 +5,13 @@ import com.intellij.execution.process.NopProcessHandler
 import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil
 import com.intellij.execution.testframework.sm.runner.SMTestProxy
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.components.service
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.PlatformTestUtil
 import io.github.hhenson.hgl.run.HglTestConsole
+import io.github.hhenson.hgl.run.HglTestSettings
+import javax.swing.JPanel
 
 class HglTestConsoleTest : HglEditorFixture() {
     private class Process : NopProcessHandler() {
@@ -33,6 +37,15 @@ class HglTestConsoleTest : HglEditorFixture() {
         }
     }
 
+    fun testResultsOfferRootSettingsWithoutAProjectViewSelection() {
+        myFixture.configureByText("suite.hgl", "module suite\ntest <caret>selected { assert true }")
+        val config = runConfigurationAt(myFixture.file.findElementAt(myFixture.caretOffset)!!)
+        val properties = HglTestConsole(config, DefaultRunExecutor.getRunExecutorInstance())
+        val actions = DefaultActionGroup()
+        properties.appendAdditionalActions(actions, JPanel(), properties)
+        assertTrue(actions.getChildren(null).any { it.templatePresentation.text == "Configure HGL Test Roots…" })
+    }
+
     fun testPassFailAndSkipWithChunkedOutputAndRejectionCases() {
         results(listOf("passed   executable  demo::good\r", "\nFAILED   rejection   file with spaces.hgl:4 fn bad\n    expected ",
             "a diagnostic\nnot run  executable  demo::later\n    target unavailable"), 1) { cases ->
@@ -49,6 +62,24 @@ class HglTestConsoleTest : HglEditorFixture() {
             assertEquals("hgl test", cases.single().name)
             assertTrue(cases.single().isDefect)
             assertTrue(cases.single().errorMessage.orEmpty().contains("invalid source root"))
+        }
+    }
+
+    fun testFailureBeforeCasesPointsToSetupOnlyWhenSourceRootsAreEmpty() {
+        val diagnostic = "error[operator/operator.no_candidate]: no value candidate of operator `convert`"
+        val settings = project.service<HglTestSettings>().state
+        val previous = settings.roots
+        try {
+            settings.roots = ""
+            results(emptyList(), 1, diagnostic) {
+                val message = it.single().errorMessage.orEmpty()
+                assertTrue(message.startsWith(diagnostic))
+                assertTrue(message.contains("Configure HGL Test Roots…"))
+            }
+            settings.roots = "library"
+            results(emptyList(), 1, diagnostic) { assertEquals(diagnostic, it.single().errorMessage) }
+        } finally {
+            settings.roots = previous
         }
     }
 

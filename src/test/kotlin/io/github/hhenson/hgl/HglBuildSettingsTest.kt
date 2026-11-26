@@ -9,6 +9,7 @@ import com.intellij.util.ui.UIUtil
 import io.github.hhenson.hgl.project.HglBuild
 import io.github.hhenson.hgl.project.HglBuildFile
 import io.github.hhenson.hgl.run.HglTestSettings
+import io.github.hhenson.hgl.run.HglTestRootsDialog
 import io.github.hhenson.hgl.run.HglTestSettingsPage
 import io.github.hhenson.hgl.run.buildSettings
 import java.io.File
@@ -49,6 +50,33 @@ class HglBuildSettingsTest : HglEditorFixture() {
         } finally {
             settings.compilerOverride = previous
             page.disposeUIResources()
+        }
+    }
+
+    fun testTestRootsDialogAddsTheSelectionOnceAndRequiresOkToSave() {
+        val file = project.service<HglBuildFile>()
+        val build = HglBuild(compiler = "project-hgl", sourceRoots = listOf("library"), binDir = "custom bin")
+        file.save(build, null)
+        val folder = File(project.basePath!!, "cases with spaces").apply { mkdirs() }
+        val selected = VfsUtil.findFileByIoFile(folder, true)!!
+        fun dialog() = HglTestRootsDialog(project, file.read(), selected)
+        val cancelled = dialog()
+        try {
+            UIUtil.findComponentsOfType(cancelled.createCenterPanel(), JButton::class.java).single { it.text == "Add to sources" }.doClick()
+            assertTrue(UIUtil.findComponentsOfType(cancelled.createCenterPanel(), JTextArea::class.java).any { it.text == "library\ncases with spaces" })
+            cancelled.doCancelAction()
+            assertEquals(build, file.read())
+        } finally {
+            cancelled.disposeIfNeeded()
+        }
+        val saved = dialog()
+        try {
+            val add = UIUtil.findComponentsOfType(saved.createCenterPanel(), JButton::class.java).single { it.text == "Add to tests" }
+            repeat(2) { add.doClick() }
+            saved.performOKAction()
+            assertEquals(build.copy(testRoots = listOf("cases with spaces")), file.read())
+        } finally {
+            saved.disposeIfNeeded()
         }
     }
 

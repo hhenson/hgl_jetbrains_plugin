@@ -150,13 +150,15 @@ tasks.withType<Test>().configureEach {
         systemProperty("hglBenchmarkWorkspace", file(workspace.get()).absolutePath)
         outputs.upToDateWhen { false }
     } else exclude("**/HglPerformanceBaselineTest.class")
-    if (providers.environmentVariable("HGL_TEST_CLI").isPresent) {
+    val runsCompilerTests = providers.environmentVariable("HGL_TEST_CLI").isPresent
+    if (runsCompilerTests) {
         outputs.upToDateWhen { false }
     } else {
         exclude("**/HglCompilerRunTest.class", "**/HglCheckOnSaveTest.class",
             "**/HglDebugApplicationTest.class", "**/HglDebugTestSuiteTest.class")
     }
-    timeout = Duration.ofMinutes(5)
+    // Compiler tests also build native fixtures and run them under LLDB.
+    timeout = Duration.ofMinutes(if (runsCompilerTests) 10 else 5)
 }
 
 tasks.verifyPlugin {

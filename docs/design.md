@@ -110,7 +110,7 @@ CLion and RustRover use the same directory project generator. It copies the
 bundled module and application into `src/`, creates `build/`, `bin/` and
 `docs/`, and opens the application. Tests live alongside the code they
 exercise. The project tracks `hgl.json`. Its `build` object holds
-`compiler`, `sourceRoots`, `buildDir`, `binDir` and `docsDir`. The IDE
+`compiler`, `sourceRoots`, `testRoots`, `buildDir`, `binDir` and `docsDir`. The IDE
 edits this file and preserves unrelated JSON fields. The private workspace
 keeps compiler and documentation overrides and the check-on-save switch.
 
@@ -159,6 +159,10 @@ cases for project and module suites. `--test-path` selects cases by source locat
 covers part of the program. A folder above multiple roots selects the roots
 it contains. `--integration-only` selects integration tests and their rejection
 cases. The IDE displays the compiler's outcomes in the same test tree as a gutter run.
+
+The Project and editor-tab menus open the roots dialog with their selection.
+Test Results options and test configuration editors open it without a selection.
+The dialog shares its fields and project file with the HGL build settings.
 
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
