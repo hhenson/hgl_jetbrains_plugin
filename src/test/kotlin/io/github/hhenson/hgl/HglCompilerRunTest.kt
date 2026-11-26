@@ -45,16 +45,16 @@ class HglCompilerRunTest : HglEditorFixture() {
             integration_test live { assert true }
             test broken { assert false }
         """.trimIndent()
-        val root = FileUtil.createTempDirectory("case with spaces", null, true)
-        root.resolve("checks.hgl").writeText(source)
+        val root = File(project.basePath!!, "case with spaces").apply { mkdirs() }
+        val checks = root.resolve("checks.hgl").apply { writeText(source) }
         root.resolve("other.hgl").writeText("module other\ntest ordinary { assert false }\nintegration_test live { assert false }\n")
         val settings = project.service<HglTestSettings>()
         val before = settings.state
         try {
             settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), root.path))
+            myFixture.configureFromExistingVirtualFile(VfsUtil.findFileByIoFile(checks, true)!!)
             for (case in listOf("ordinary", "live", "broken")) {
-                myFixture.configureByText("checks.hgl", source.replace(" $case {", " <caret>$case {"))
-                val leaf = myFixture.file.findElementAt(myFixture.caretOffset)!!
+                val leaf = myFixture.file.findElementAt(source.indexOf(" $case {") + 1)!!
                 val output = runInConsole(runConfigurationAt(leaf)) { view ->
                     val root = view.resultsViewer.testsRootNode
                     PlatformTestUtil.waitWithEventsDispatching("missing test result", { root.isFinal && root.children.isNotEmpty() }, 10)
@@ -313,7 +313,7 @@ class HglCompilerRunTest : HglEditorFixture() {
         """)
         source("src/chosen/nested/cases.hgl", "module nested\ntest ordinary { assert true }\nintegration_test live { assert true }")
         val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
-        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("src", "support")), null)
+        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("support"), testRoots = listOf("src")), null)
         val selected = VfsUtil.findFileByIoFile(file, true)!!
         for (target in listOf(selected, selected.parent)) {
             for ((action, test) in listOf(HglRunTestsAction() to "ordinary", HglRunIntegrationTestsAction() to "live")) {
@@ -329,6 +329,34 @@ class HglCompilerRunTest : HglEditorFixture() {
                 }
                 assertEquals(output.stdout + output.stderr, 0, output.exitCode)
             }
+        }
+    }
+
+    fun testProjectSuiteLoadsLibraryAndRunsOnlyConfiguredTestRoots() {
+        val base = File(project.basePath!!)
+        val library = base.resolve("core/hgl").apply { mkdirs() }
+        library.resolve("operations.hgl").writeText("module library\nexport const fn one() -> i64 => 1\ntest unselected { assert false }")
+        val cases = base.resolve("core/tests").apply { mkdirs() }
+        cases.resolve("checks.hgl").writeText("module checks\nuse library::{one}\ntest selected { assert one() == 1 }")
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
+        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("core/hgl"),
+            testRoots = listOf("core/tests")), null)
+        val targets = project.service<HglProjectTargets>()
+        targets.start()
+        val manager = RunManager.getInstance(project)
+        PlatformTestUtil.waitWithEventsDispatching("Missing test module", {
+            manager.allSettings.any { it.name == "checks — Tests" }
+        }, 10)
+        assertFalse(manager.allSettings.any { it.name == "library — Tests" })
+        for (name in listOf("checks — Tests", "All HGL Tests")) {
+            val config = manager.allSettings.single { it.name == name }.configuration
+            val result = runInConsole(config) { view ->
+                val root = view.resultsViewer.testsRootNode
+                PlatformTestUtil.waitWithEventsDispatching("Missing selected test result", { root.isFinal && root.children.isNotEmpty() }, 10)
+                assertEquals("checks::selected", root.children.single().name)
+                assertTrue(root.children.single().isPassed)
+            }
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
         }
     }
 

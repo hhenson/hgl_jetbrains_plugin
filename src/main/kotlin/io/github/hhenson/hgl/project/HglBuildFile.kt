@@ -22,10 +22,26 @@ internal data class HglBuild(
     val buildDir: String = "build",
     val binDir: String = "bin",
     val docsDir: String = DEFAULT_DOCS_DIR,
+    val testRoots: List<String> = emptyList(),
 ) {
+    // Empty test roots retain inline test discovery in the production sources.
+    val caseRoots get() = testRoots.ifEmpty { sourceRoots }
+    val programRootsForTests get() = (sourceRoots + testRoots).distinct()
+
+    fun testInputs(base: Path, selected: String?): List<String> {
+        val roots = programRootsForTests.distinctBy { base.resolve(it).normalize() }
+        if (selected.isNullOrEmpty()) return roots
+        val path = base.resolve(selected).normalize()
+        val covered = roots.any {
+            val root = base.resolve(it).normalize()
+            path.startsWith(root) || root.startsWith(path)
+        }
+        return if (covered) roots else roots + selected
+    }
+
     fun validate() {
         require(compiler.isNotBlank()) { "Enter an HGL compiler command or path." }
-        for (path in sourceRoots + listOf(buildDir, binDir, docsDir)) {
+        for (path in programRootsForTests + listOf(buildDir, binDir, docsDir)) {
             require(path.isNotBlank()) { "Build paths must not be empty." }
             try {
                 Path.of(path)
@@ -87,12 +103,19 @@ internal class HglBuildFile(private val project: Project) {
                     require(value is JsonPrimitive && value.isString) { "Expected a string for build.$key." }
                     return value.asString
                 }
-                val roots = section.get("sourceRoots")
-                require(roots != null && roots.isJsonArray) { "Expected an array for build.sourceRoots." }
-                return HglBuild(string("compiler"), roots.asJsonArray.map {
-                    require(it is JsonPrimitive && it.isString) { "Expected a source path." }
-                    it.asString
-                }, string("buildDir"), string("binDir"), string("docsDir")).also { it.validate() }
+                fun paths(key: String): List<String> {
+                    val roots = section.get(key)
+                    require(roots != null && roots.isJsonArray) { "Expected an array for build.$key." }
+                    return roots.asJsonArray.map {
+                        require(it is JsonPrimitive && it.isString) { "Expected a path in build.$key." }
+                        it.asString
+                    }
+                }
+                return HglBuild(
+                    compiler = string("compiler"), sourceRoots = paths("sourceRoots"),
+                    testRoots = if (section.has("testRoots")) paths("testRoots") else emptyList(),
+                    buildDir = string("buildDir"), binDir = string("binDir"), docsDir = string("docsDir"),
+                ).also { it.validate() }
             } catch (error: RuntimeException) {
                 throw IllegalArgumentException("Invalid $NAME: ${error.message}", error)
             }

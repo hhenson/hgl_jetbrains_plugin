@@ -93,6 +93,8 @@ internal class HglProjectTargets(private val project: Project, private val corou
             }
         })
         coroutineScope.launch {
+            var appRoots = emptyList<Path>()
+            var caseRoots = emptyList<Path>()
             var installed = false
             changes.collect { revision ->
                 delay(150)
@@ -100,20 +102,23 @@ internal class HglProjectTargets(private val project: Project, private val corou
                     (rescan to edited.toList()).also { rescan = false; edited.clear() }
                 }
                 val next = if (full) {
-                    val roots = try { readAction { project.buildSettings().sourceRoots } }
+                    val build = try { readAction { project.buildSettings() } }
                         catch (_: IllegalArgumentException) { return@collect }
+                    appRoots = build.sourceRoots.map { base.resolve(it).normalize() }
+                    caseRoots = build.caseRoots.map { base.resolve(it).normalize() }
+                    val roots = build.programRootsForTests
                     watchedRoots = roots.map { base.resolve(it).normalize() }.ifEmpty { listOf(base) }
                     val files = sourceFiles(roots, base)
                     withContext(Dispatchers.IO) {
                         headers.keys.retainAll(files)
                         files.forEach(::readHeader)
-                        snapshot()
+                        snapshot(appRoots, caseRoots)
                     }
                 } else withContext(Dispatchers.IO) {
                     // A body edit reads only that file and leaves RunManager untouched.
                     var changed = false
                     for (path in paths) if (path in headers && readHeader(path)) changed = true
-                    if (changed) snapshot() else null
+                    if (changed) snapshot(appRoots, caseRoots) else null
                 }
                 if (next != null && (!installed || next != catalog)) {
                     withContext(Dispatchers.EDT) { install(next) }
@@ -153,13 +158,16 @@ internal class HglProjectTargets(private val project: Project, private val corou
         return headers.put(file, next) != next
     }
 
-    private fun snapshot(): Catalog {
+    private fun snapshot(appRoots: List<Path>, caseRoots: List<Path>): Catalog {
         val applications = sortedSetOf<String>()
         val modules = sortedMapOf<String, MutableList<String>>()
         for ((file, header) in headers.toSortedMap()) {
             if (header == null) continue
-            if (header.application) applications.add(header.name)
-            else modules.getOrPut(header.name) { mutableListOf() }.add(file.toString())
+            if (header.application) {
+                if ((appRoots.isEmpty() && caseRoots.isEmpty()) || appRoots.any(file::startsWith)) applications.add(header.name)
+            } else if (caseRoots.isEmpty() || caseRoots.any(file::startsWith)) {
+                modules.getOrPut(header.name) { mutableListOf() }.add(file.toString())
+            }
         }
         return Catalog(applications, modules)
     }

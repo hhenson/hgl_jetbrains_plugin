@@ -77,7 +77,8 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
             throw RuntimeConfigurationError(error.localizedMessage)
         }
         if (settings.compiler.isBlank()) throw RuntimeConfigurationError("Set the HGL executable in Settings | Build, Execution, Deployment | HGL.")
-        if (sourcePath.isBlank() && settings.sourceRoots.isEmpty()) {
+        val roots = if (runType is HglTestType) settings.programRootsForTests else settings.sourceRoots
+        if (sourcePath.isBlank() && roots.isEmpty()) {
             throw RuntimeConfigurationError("Run from a declaration or set source roots in Settings | Build, Execution, Deployment | HGL.")
         }
     }
@@ -85,11 +86,16 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
     internal fun commandLine(debugBuild: Path? = null): GeneralCommandLine {
         checkConfiguration()
         val settings = project.buildSettings()
-        val roots = settings.sourceRoots
+        val roots = if (runType is HglTestType) settings.testInputs(Path.of(requireNotNull(project.basePath)), sourcePath)
+            else settings.sourceRoots
         val command = hglCommandLine(settings.compiler)
             .withParameters(runType.command)
             .withParameters(selector, "--target", "cpp")
             .withWorkDirectory(project.basePath)
+        if (runType is HglTestType && settings.programRootsForTests.isNotEmpty()) {
+            val scopes = if (sourcePath.isNotBlank()) listOf(sourcePath) else settings.testRoots
+            for (path in scopes) command.addParameters("--test-path", path)
+        }
         if (debugBuild != null) command.addParameters("--debug-build", debugBuild.toString())
         else if (settings.buildDir.isNotBlank()) command.addParameters("--keep", settings.buildDir)
         command.addParameter("--")

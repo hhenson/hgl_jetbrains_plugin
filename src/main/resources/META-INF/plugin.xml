@@ -79,6 +79,11 @@
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="HGL.RunTests"/>
             <add-to-group group-id="EditorTabPopupMenu" anchor="after" relative-to-action="HGL.RunTests"/>
         </action>
+        <action id="HGL.ConfigureTestRoots" class="io.github.hhenson.hgl.run.HglConfigureTestRootsAction"
+                text="Configure HGL Test Roots…" description="Choose source dependencies and test locations">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="HGL.RunIntegrationTests"/>
+            <add-to-group group-id="EditorTabPopupMenu" anchor="after" relative-to-action="HGL.RunIntegrationTests"/>
+        </action>
         <group id="HGL.BuildModes" text="Build HGL Project" popup="true" icon="AllIcons.Actions.Compile">
             <action id="HGL.Build" class="io.github.hhenson.hgl.project.HglBuildAction"
                     text="Release" description="Build the project with the compiler's release settings"/>
