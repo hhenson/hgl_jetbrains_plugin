@@ -39,6 +39,17 @@
           "documentation": null
         },
         {
+          "name": "delta_text",
+          "source": {
+            "module": "core",
+            "part": "delta_text",
+            "file": "<core>/core/delta_text.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
           "name": "diagnostics",
           "source": {
             "module": "core",
