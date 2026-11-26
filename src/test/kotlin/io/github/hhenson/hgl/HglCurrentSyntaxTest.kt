@@ -209,6 +209,25 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         rejected("fn pick(x: i64) { if pred{limit: 2}(x) { return x } }")
     }
 
+    fun testConfiguredCallsInEachControlHeader() {
+        val call = "scaled{by: 1}(1)"
+        for (header in listOf("if %s == 1", "while %s == 1", "when %s == 1", "for item in %s", "switch %s")) {
+            fun statement(expr: String) = "fn pick() { " + header.format(expr) + " {} }"
+            accepted("module demo\n" + statement("($call)"))
+            rejected(statement(call))
+        }
+        accepted("module demo\nfn pick(x: i64) { if x /{zero: .ieee} 2 == 1 {} }")
+    }
+
+    fun testHarnessOptionsInControlHeadersRequireGrouping() {
+        val eval = "eval{length: 1us} ticks()"
+        accepted("module demo\ntest observed { if ($eval) == [1] {} }")
+        rejected("test observed { if $eval == [1] {} }")
+        val run = "run{length: 1s} ticks()"
+        accepted("module demo\nintegration_test observed { if ($run) == [1] {} }")
+        rejected("integration_test observed { if $run == [1] {} }")
+    }
+
     fun testOneLineBreakBeforeBodies() {
         for (source in listOf(
             "struct S|{ value: i64 }", "enum E|{ a, b }",
