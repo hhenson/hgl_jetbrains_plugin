@@ -31,12 +31,17 @@ internal class HglTestConsole(configuration: RunConfiguration, executor: Executo
 }
 
 /** hgl test prints one fixed-column outcome per case followed by indented diagnostic lines. */
-internal class HglTestEvents(framework: String, private val consoleProperties: TestConsoleProperties) :
-    OutputToGeneralTestEventsConverter(framework, consoleProperties) {
+internal class HglTestEvents(framework: String, properties: TestConsoleProperties) :
+    OutputToGeneralTestEventsConverter(framework, properties) {
     private val line = StringBuilder()
     private val stderr = StringBuilder()
     private var current: MatchResult? = null
     private val details = mutableListOf<String>()
+    private val noSourceRoots = try {
+        properties.project.buildSettings().sourceRoots.isEmpty()
+    } catch (_: IllegalArgumentException) {
+        false
+    }
     private var sawCase = false
     private var reportedFailure = false
     private var reportedSkip = false
@@ -99,7 +104,7 @@ internal class HglTestEvents(framework: String, private val consoleProperties: T
             val missingOption = listOf("--test-path", "--integration-only").firstOrNull { "unexpected argument '$it'" in diagnostic }
             val message = when {
                 missingOption != null -> "This test selection requires an HGL compiler with hgl test $missingOption. Check the compiler in HGL build settings.\n$diagnostic"
-                exitCode == 1 && !sawCase && noSourceRoots() ->
+                exitCode == 1 && !sawCase && noSourceRoots ->
                     "$diagnostic\n\nNo project source roots are configured. To include a library, open Test Results options → Configure HGL Test Roots…"
                 else -> diagnostic
             }
@@ -107,12 +112,6 @@ internal class HglTestEvents(framework: String, private val consoleProperties: T
             processor.onTestFailure(TestFailedEvent(name, message, null, true, null, null))
             processor.onTestFinished(TestFinishedEvent(name, null as Long?))
         }
-    }
-
-    private fun noSourceRoots() = try {
-        consoleProperties.project.buildSettings().sourceRoots.isEmpty()
-    } catch (_: IllegalArgumentException) {
-        false
     }
 
     companion object {

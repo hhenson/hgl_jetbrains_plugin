@@ -150,7 +150,8 @@ Leave **Test roots** empty for projects with inline tests.
 
 You can reopen **Configure HGL Test Roots…** from the Test Results options menu
 or from **Run → Edit Configurations…** in any HGL test configuration. The
-dialog updates `hgl.json` for everyone who uses the project.
+dialog updates `hgl.json` for everyone who uses the project. If compilation fails
+before any test runs and source roots are empty, the result points to this menu.
 
 A selection within a source root requires `hgl test --test-path`.
 Integration-only runs require `hgl test --integration-only`.

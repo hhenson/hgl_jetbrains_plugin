@@ -48,7 +48,7 @@ internal class HglRootFields(private val project: Project, private val selected:
         return if (path.startsWith(base)) base.relativize(path).joinToString("/").ifEmpty { "." } else file.path
     }
 
-    private fun paths(text: String) = text.lineSequence().map(String::trim).filter(String::isNotEmpty).distinct().toList()
+    private fun paths(text: String) = text.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
 
     private fun Row.pathsField(value: KMutableProperty0<String>, title: String, addLabel: String, hint: String) {
         val field = textArea().bindText(value).align(AlignX.FILL).resizableColumn().comment(hint).component
