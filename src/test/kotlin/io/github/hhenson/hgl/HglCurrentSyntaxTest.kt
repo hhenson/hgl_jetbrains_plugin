@@ -229,6 +229,16 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         rejected("integration_test observed { if $run == [1] {} }")
     }
 
+    fun testNullableTypesInConstraintSets() {
+        accepted("""
+            module bounds
+            struct Price { amount: i64 }
+            const fn guarded<T>(value: T) -> T
+                requires T in {i64?, Price?, list<Price>?, tuple<>?, dict<str, Price?>} => value
+        """)
+        rejected("const fn invalid<T>(x: T) -> T requires T in {3?} => x")
+    }
+
     fun testCollectionBracesAndEmptyTuple() {
         val file = accepted("""
             module literals

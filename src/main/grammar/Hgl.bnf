@@ -319,11 +319,10 @@ constraint_relation ::= (EQEQ | NEQ | IS_KW) constraint_operand
 constraint_each ::= (<<kw "EACH_KW">> | ANY_KW) for_binding <<kw "IN_KW">> constraint_operand LBRACE nls constraint nls RBRACE {pin=1}
 constraint_set ::= LBRACE nls <<list_of constraint_operand>> nls RBRACE {pin=1}
 constraint_call ::= &(ident (COLONCOLON ident)? LPAREN) qualified_name <<adjacent>> LPAREN nls <<list_of constraint_operand>>? nls RPAREN {pin=2}
-constraint_operand ::= pack_member | implied_member_expr | constraint_set
-                     | container_type
-                     | scalar_type
+constraint_operand ::= implied_member_expr | constraint_set
+                     | (pack_member | container_type | scalar_type) QUESTION?
                      | constraint_call
-                     | &(ident (LT | COLONCOLON)) named_type
+                     | &(ident (LT | COLONCOLON | QUESTION)) named_type QUESTION?
                      | &constraint_value_start size_expression
                      | constraint_name
 constraint_name ::= qualified_name
