@@ -1,0 +1,18 @@
+module conformance.rejections part delta_text
+
+struct DeltaUnrendered { value: i64 }
+
+/**
+A collection delta whose member delta has no text conversion is rejected
+where its text is requested, including for an empty delta.
+
+Rules:
+    FMT-5, GEN-5, TYPE-16
+
+Status:
+    agreed
+*/
+const fn delta_member_without_text() -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return convert<str>(delta<list<DeltaUnrendered>>())
+}

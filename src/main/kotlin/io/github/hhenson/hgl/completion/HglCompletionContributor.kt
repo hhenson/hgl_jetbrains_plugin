@@ -23,6 +23,7 @@ import io.github.hhenson.hgl.psi.HglBlock
 import io.github.hhenson.hgl.psi.HglConstraintOperand
 import io.github.hhenson.hgl.psi.HglConstraintRelation
 import io.github.hhenson.hgl.psi.HglConstraintTerm
+import io.github.hhenson.hgl.psi.HglDeltaExpr
 import io.github.hhenson.hgl.psi.HglExpr
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
@@ -100,6 +101,8 @@ class HglCompletionContributor : CompletionContributor() {
             if (argument.ellipsis != null || !PsiTreeUtil.isAncestor(label, position, false)) return false
 
             val arguments = argument.parent as? HglArguments ?: return false
+            val delta = arguments.parent as? HglDeltaExpr
+            if (delta != null && addCollectionDeltaLabels(delta, argument, result)) return true
             val signature = arguments.callLabels(argument) ?: return false
             var positional = 0
             val usedNames = mutableSetOf<String>()
@@ -121,16 +124,35 @@ class HglCompletionContributor : CompletionContributor() {
             return named != null
         }
 
+        /** TYPE-16 constructs collection deltas with named properties. */
+        private fun addCollectionDeltaLabels(delta: HglDeltaExpr, editing: HglArgument, result: CompletionResultSet): Boolean {
+            val type = delta.type ?: return false
+            if (type.question != null) return false
+            val labels = when {
+                type.listType != null -> listOf("updated", "removed", "size_modified")
+                type.dictType != null -> listOf("updated", "removed")
+                type.setType != null -> listOf("added", "removed")
+                else -> return false
+            }
+            val used = delta.arguments?.argumentList.orEmpty()
+                .filter { it != editing }
+                .mapNotNull { it.namedArgument?.memberName?.text }
+            for (name in labels - used) {
+                addLabel(LookupElementBuilder.create(name).withTypeText("delta property"), result)
+            }
+            result.stopHere()
+            return true
+        }
+
         private fun addLabel(parameter: HglNamedElement, result: CompletionResultSet) {
             val name = parameter.name ?: return
             val type = PsiTreeUtil.getChildOfAnyType(parameter, HglType::class.java, HglFunctionType::class.java)
-            result.addElement(
-                LookupElementBuilder.create(parameter, name)
-                    .withIcon(HglPresentation.iconOf(parameter))
-                    .withTailText(": ", true)
-                    .withTypeText(type?.text, true)
-                    .withInsertHandler { context, _ -> insertLabel(context) },
-            )
+            addLabel(LookupElementBuilder.create(parameter, name)
+                .withIcon(HglPresentation.iconOf(parameter)).withTypeText(type?.text, true), result)
+        }
+
+        private fun addLabel(label: LookupElementBuilder, result: CompletionResultSet) {
+            result.addElement(label.withTailText(": ", true).withInsertHandler { context, _ -> insertLabel(context) })
         }
 
         private fun insertLabel(context: InsertionContext) {
@@ -240,7 +262,7 @@ class HglCompletionContributor : CompletionContributor() {
         val TYPE_KEYWORDS = listOf(
             "bool", "i64", "f64", "str", "date", "time", "datetime", "duration", "civil_datetime",
             "zoned_datetime", "zoned_time", "timezone", "atomic", "tuple", "list", "set", "dict", "rolling_window",
-            "Type", "endpoint", "tenor", "ref", "signal", "unbounded", "bytes", "any", "result", "error",
+            "Type", "delta", "endpoint", "tenor", "ref", "signal", "unbounded", "bytes", "any", "result", "error",
         )
         private val CONSTRAINT_OPERAND_KEYWORDS = (TYPE_KEYWORDS - "unbounded") + listOf("true", "false", "null")
     }

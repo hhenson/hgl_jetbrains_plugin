@@ -1,0 +1,200 @@
+module core_conformance part delta_text
+
+/**
+A list delta writes only nonempty change properties and non-null sizes.
+Fixed sizes remain in the constructor, and zero and negative size changes
+are values rather than omitted properties.
+
+Rules:
+    FMT-5, TYPE-16, TYPE-18
+
+Status:
+    agreed
+*/
+test delta_list_constructor_text {
+    assert convert<str>(delta<list<i64, 0>>()) == "delta<list<i64, 0>>()"
+    assert convert<str>(delta<list<i64>>(updated: [], removed: [], size_modified: null)) == "delta<list<i64>>()"
+    assert convert<str>(delta<list<i64>>()) == "delta<list<i64>>()"
+    assert convert<str>(delta<list<i64, 2>>()) == "delta<list<i64, 2>>()"
+    assert convert<str>(delta<list<i64>>(updated: [0: 4])) == "delta<list<i64>>(updated: [0: 4])"
+    assert convert<str>(delta<list<i64, 2>>(updated: [1: 7], removed: [0])) == "delta<list<i64, 2>>(updated: [1: 7], removed: [0])"
+    assert convert<str>(delta<list<i64>>(removed: [1])) == "delta<list<i64>>(removed: [1])"
+    assert convert<str>(delta<list<i64>>(size_modified: 0)) == "delta<list<i64>>(size_modified: 0)"
+    assert convert<str>(delta<list<i64>>(size_modified: -1)) == "delta<list<i64>>(size_modified: -1)"
+}
+
+/**
+A set delta omits empty added and removed properties and writes both
+when both contain members.
+
+Rules:
+    FMT-5, TYPE-16, TYPE-18
+
+Status:
+    agreed
+*/
+test delta_set_constructor_text {
+    assert convert<str>(delta<set<i64>>()) == "delta<set<i64>>()"
+    assert convert<str>(delta<set<i64>>(added: [1])) == "delta<set<i64>>(added: [1])"
+    assert convert<str>(delta<set<i64>>(removed: [2])) == "delta<set<i64>>(removed: [2])"
+    assert convert<str>(delta<set<i64>>(added: [1], removed: [2])) == "delta<set<i64>>(added: [1], removed: [2])"
+}
+
+/**
+A dictionary delta writes updated entries and removed keys as its
+constructor; the default format place uses the same text.
+
+Rules:
+    FMT-5, TYPE-16, TYPE-18
+
+Status:
+    agreed
+*/
+test delta_dictionary_constructor_text {
+    assert convert<str>(delta<dict<str, i64>>()) == "delta<dict<str, i64>>()"
+    assert convert<str>(delta<dict<str, i64>>(updated: ["a": 1])) == "delta<dict<str, i64>>(updated: [\"a\": 1])"
+    assert convert<str>(delta<dict<str, i64>>(removed: ["b"])) == "delta<dict<str, i64>>(removed: [\"b\"])"
+    assert format("{}", delta<dict<str, i64>>(updated: ["a": 1], removed: ["b"])) == "delta<dict<str, i64>>(updated: [\"a\": 1], removed: [\"b\"])"
+}
+
+
+struct DeltaTextEntry { number: i64 }
+impl const fn convert(value: delta<DeltaTextEntry>) -> str => format("entry {}", value.number)
+enum DeltaTextSide { left, right }
+
+/**
+Nested collection deltas use their own constructor text, and a user
+conversion supplies the text of a nominal member delta.
+
+Rules:
+    FMT-5, OPS-4, GEN-5, TYPE-16, TYPE-18
+
+Status:
+    agreed
+*/
+test delta_nested_and_custom_text {
+    let nested = delta<list<list<i64>>>(updated: [0: delta<list<i64>>(updated: [1: 7])])
+    assert convert<str>(nested) == "delta<list<list<i64>>>(updated: [0: delta<list<i64>>(updated: [1: 7])])"
+    let mapped = delta<dict<str, list<i64>>>(updated: ["x": delta<list<i64>>(size_modified: 0)])
+    assert convert<str>(mapped) == "delta<dict<str, list<i64>>>(updated: [\"x\": delta<list<i64>>(size_modified: 0)])"
+    let custom = delta<list<DeltaTextEntry>>(updated: [0: delta<DeltaTextEntry>(number: 4)])
+    assert convert<str>(custom) == "delta<list<DeltaTextEntry>>(updated: [0: entry 4])"
+}
+
+/**
+Strings inside delta properties are quoted and escaped, durations keep
+their default units, and an enum member uses its name.
+
+Rules:
+    FMT-5, OPS-6, TYPE-16, TYPE-18
+
+Status:
+    agreed
+*/
+test delta_member_text {
+    let words = delta<list<str>>(updated: [0: "a\n\"b\\c"])
+    assert convert<str>(words) == "delta<list<str>>(updated: [0: \"a\\n\\\"b\\\\c\"])"
+    assert convert<str>(delta<dict<str, duration>>(updated: ["d": 90m])) == "delta<dict<str, duration>>(updated: [\"d\": 1h30m])"
+    assert convert<str>(delta<set<DeltaTextSide>>(added: [DeltaTextSide.left])) == "delta<set<DeltaTextSide>>(added: [left])"
+}
+
+/**
+Set members and dictionary entries in delta text follow the order
+a loop over each property visits, without imposing a sorted order.
+
+Rules:
+    FMT-5, CTRL-12, TYPE-16
+
+Status:
+    agreed
+*/
+test delta_text_uses_property_iteration_order {
+    let members = delta<set<str>>(added: ["z", "a"])
+    var parts = ""
+    var separator = ""
+    for member in members.added {
+        parts += separator
+        parts += format("{:?}", member)
+        separator = ", "
+    }
+    assert convert<str>(members) == "delta<set<str>>(added: [" + parts + "])"
+    let entries = delta<dict<str, str>>(updated: ["z": "last", "a": "first"])
+    parts = ""
+    separator = ""
+    for key, value in entries.updated {
+        parts += separator
+        parts += format("{:?}: {:?}", key, value)
+        separator = ", "
+    }
+    assert convert<str>(entries) == "delta<dict<str, str>>(updated: [" + parts + "])"
+}
+
+fn delta_text_fixed_source(slot: i64, reading: i64) -> list<i64, 2> {
+    when { return delta<list<i64, 2>>(updated: [slot: reading]) }
+}
+fn delta_text_fixed_render(values: list<i64, 2>) -> str {
+    when modified(values) {
+        let change: delta<list<i64, 2>> = delta_value(values)
+        return format("{}", change)
+    }
+}
+fn delta_text_fixed_view(slot: i64, reading: i64) -> str => delta_text_fixed_render(delta_text_fixed_source(slot, reading))
+
+fn delta_text_growing_source(step: i64) -> list<i64> {
+    when {
+        if step == 0 { return delta<list<i64>>(updated: [0: 4], size_modified: 1) }
+        if step == 1 { return delta<list<i64>>(updated: [0: 7]) }
+        return delta<list<i64>>(size_modified: 0)
+    }
+}
+fn delta_text_growing_render(values: list<i64>) -> str {
+    when modified(values) { return format("{}", delta_value(values)) }
+}
+fn delta_text_growing_view(step: i64) -> str => delta_text_growing_render(delta_text_growing_source(step))
+
+fn delta_text_set_source(step: i64) -> set<str> {
+    when {
+        if step == 0 { return delta<set<str>>(added: ["a"]) }
+        return delta<set<str>>(removed: ["a"])
+    }
+}
+fn delta_text_set_render(values: set<str>) -> str {
+    when modified(values) { return format("{}", delta_value(values)) }
+}
+fn delta_text_set_view(step: i64) -> str => delta_text_set_render(delta_text_set_source(step))
+
+fn delta_text_dict_source(step: i64) -> dict<str, i64> {
+    when {
+        if step == 0 { return delta<dict<str, i64>>(updated: ["a": 4]) }
+        return delta<dict<str, i64>>(removed: ["a"])
+    }
+}
+fn delta_text_dict_render(values: dict<str, i64>) -> str {
+    when modified(values) { return format("{}", delta_value(values)) }
+}
+fn delta_text_dict_view(step: i64) -> str => delta_text_dict_render(delta_text_dict_source(step))
+
+/**
+Formatting delta_value in a node reports the changes of that cycle.
+Fixed and growing lists, sets and dictionaries retain their constructor
+types; silence produces no text, and shrinking a list reports its removal
+and new size. These are ordinary node publications, not delta replay inputs.
+
+Rules:
+    FMT-5, FMT-8, END-3, TYPE-16, TYPE-18
+
+Status:
+    agreed
+*/
+test delta_text_from_collection_ticks {
+    assert eval delta_text_fixed_view(slot: [0, _, 1], reading: [3, _, 8]) == [
+        "delta<list<i64, 2>>(updated: [0: 3])", _, "delta<list<i64, 2>>(updated: [1: 8])"]
+    assert eval delta_text_growing_view(step: [0, 1, 2]) == [
+        "delta<list<i64>>(updated: [0: 4], size_modified: 1)",
+        "delta<list<i64>>(updated: [0: 7])",
+        "delta<list<i64>>(removed: [0], size_modified: 0)"]
+    assert eval delta_text_set_view(step: [0, 1]) == [
+        "delta<set<str>>(added: [\"a\"])", "delta<set<str>>(removed: [\"a\"])"]
+    assert eval delta_text_dict_view(step: [0, 1]) == [
+        "delta<dict<str, i64>>(updated: [\"a\": 4])", "delta<dict<str, i64>>(removed: [\"a\"])"]
+}

@@ -186,6 +186,20 @@ class HglOperatorGutterTest : HglEditorFixture() {
             "native impl const fn convert<E>(value: E) -> str requires E in enum")
     }
 
+    fun testCoreConversionLinksAllFourCollectionDeltaTextImplementations() {
+        val fixtures = Path.of("src/test/testData/parser/core")
+        val core = source("core/core.hgl", fixtures.resolve("hgl_core_core.hgl").readText())
+        val text = source("core/delta_text.hgl", fixtures.resolve("hgl_core_delta_text.hgl").readText())
+        val operator = markers(core).single { it.element!!.text == "convert" }
+        val candidates = targets(operator).filter { it.containingFile == text }
+        assertEquals(setOf("list<T>", "list<T, N>", "set<T>", "dict<K, V>"), candidates.map {
+            it.text.substringAfter("(value: delta<").substringBefore(">)")
+        }.toSet())
+        val implementations = markers(text).filter { it.element!!.text == "convert" }
+        assertSize(4, implementations)
+        assertTrue(implementations.all { targets(it).single() == operator.element!!.parent.parent })
+    }
+
     fun testMapAndReduceGuttersFindFixedAndNativeCandidatesInCore() {
         val fixtures = Path.of("src/test/testData/parser/core")
         val fixed = source("core/mapping.hgl", fixtures.resolve("hgl_core_mapping.hgl").readText())
