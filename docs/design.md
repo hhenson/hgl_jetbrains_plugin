@@ -210,7 +210,9 @@ Brace labels navigate to the public declaration. TYPE-18’s `type(e)` is an
 expression and accepts one operand. The descriptor spelling `Type` is contextual
 in annotations. A bare angle argument follows the declared parameter kind.
 When the call supplies the kind, a visible value takes precedence (GEN-14).
-The compiler diagnoses reserved type declarations.
+The compiler diagnoses reserved type declarations and candidate result guarantees (GEN-6).
+In a control header, a symbol operator can carry its brace options directly.
+The parser applies CTRL-9 to named calls and to options on `eval` and `run`.
 
 ## Toolbar targets
 

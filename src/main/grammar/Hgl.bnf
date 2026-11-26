@@ -461,7 +461,9 @@ private mul_op ::= nls (STAR | SLASH | FLOOR_SLASH | PERCENT) (<<operatorOptions
 // Grammar-Kit sees one operand and classifies the rule as postfix; written
 // inline it would be a binary operator and parse the index at index priority.
 call_expr ::= expr call_suffix
-private call_suffix ::= (&LBRACE <<braceInsideExpression>> operator_configuration)? arguments
+private call_suffix ::= call_options? arguments
+// CTRL-9: only a symbol operator may take a configuration brace at header depth zero.
+private call_options ::= &LBRACE <<braceInsideExpression>> operator_configuration
 index_expr ::= expr index_suffix
 private index_suffix ::= <<adjacent>> LBRACKET nls <<inGroup expr>> nls RBRACKET {pin=2}
 field_expr ::= expr field_suffix
@@ -489,7 +491,7 @@ if_expr ::= IF_KW <<header expr>> body_gap block (nls else_arm)? {pin=1}
 else_arm ::= ELSE_KW (if_expr | body_gap block) {pin=1}
 eval_expr ::= EVAL_KW harness_target {pin=1}
 run_expr ::= <<inIntegrationBody>> RUN_KW harness_target {pin=2}
-harness_target ::= operator_configuration? qualified_name generic_arguments? call_suffix
+harness_target ::= call_options? qualified_name generic_arguments? call_suffix
 key_membership_expr ::= simple_name <<kw "IN_KW">> &<<textIs "arg_keys">> qualified_name <<adjacent>> LPAREN nls simple_name nls RPAREN
 block_expr ::= &LBRACE <<braceInsideExpression>> block
 reference_expr ::= &IDENTIFIER qualified_name

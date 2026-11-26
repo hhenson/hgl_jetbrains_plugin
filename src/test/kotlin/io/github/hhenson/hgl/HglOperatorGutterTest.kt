@@ -200,6 +200,22 @@ class HglOperatorGutterTest : HglEditorFixture() {
         assertTrue(implementations.all { targets(it).single() == operator.element!!.parent.parent })
     }
 
+    fun testCoreConversionLinksCollectionTextToItsHglBodies() {
+        val fixtures = Path.of("src/test/testData/parser/core")
+        val core = source("core/core.hgl", fixtures.resolve("hgl_core_core.hgl").readText())
+        val bodies = source("core/collection_text.hgl", fixtures.resolve("hgl_core_collection_text.hgl").readText())
+        val native = source("native/scalar_operators.hgl", fixtures.resolve("hgl_native_scalar_operators.hgl").readText())
+        val operator = markers(core).single { it.element!!.text == "convert" }
+        val candidates = targets(operator)
+        val expected = setOf("list<T>", "list<T, N>", "list<T?>", "list<T?, N>", "set<T>", "dict<K, V>", "dict<K, V?>")
+        fun inputType(candidate: PsiElement) = candidate.text.substringAfter("(value: ").substringBefore(") -> str")
+        assertEquals(expected, candidates.filter { it.containingFile == bodies }.map(::inputType).toSet())
+        assertFalse(candidates.any { it.containingFile == native && inputType(it) in expected })
+        val implementations = markers(bodies).filter { it.element!!.text == "convert" }
+        assertSize(7, implementations)
+        assertTrue(implementations.all { targets(it).single() == operator.element!!.parent.parent })
+    }
+
     fun testMapAndReduceGuttersFindFixedAndNativeCandidatesInCore() {
         val fixtures = Path.of("src/test/testData/parser/core")
         val fixed = source("core/mapping.hgl", fixtures.resolve("hgl_core_mapping.hgl").readText())

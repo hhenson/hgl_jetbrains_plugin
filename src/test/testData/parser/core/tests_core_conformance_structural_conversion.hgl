@@ -107,3 +107,72 @@ test collection_conversion_preserves_selection {
     assert convert<str>(members) == "custom members"
     assert format("{}", members) == convert<str>(members)
 }
+
+/**
+Empty collections use brackets. Nullable dictionary values write null,
+and nested lists retain the conversion selected for the entire inner list.
+
+Rules:
+    OPS-4, FMT-5, GEN-5
+
+Status:
+    agreed
+*/
+test empty_and_nested_collection_text {
+    let empty: list<i64, 0> = []
+    let values: set<str> = []
+    let entries: dict<str, CollectionOrderId?> = ["next": null]
+    let inner: list<CustomTextMember> = [CustomTextMember(number: 3)]
+    let outer: list<list<CustomTextMember>> = [inner]
+    assert convert<str>(empty) == "[]"
+    assert format("{}", values) == "[]"
+    assert format("{}", entries) == "[\"next\": null]"
+    assert convert<str>(outer) == "[custom members]"
+}
+
+struct CollectionSample { number: i64 }
+
+impl const fn convert(value: Marked<CollectionSample>) -> str {
+    if value.ticked { return "changed" }
+    return "quiet"
+}
+
+/**
+A marked collection member uses its whole-value conversion, even when its
+payload is absent or the payload type has no text conversion.
+
+Rules:
+    OPS-4, FMT-5, FMT-7
+
+Status:
+    agreed
+*/
+test collection_text_uses_the_whole_marked_member {
+    let changed = Marked<CollectionSample>(value: CollectionSample(number: 8), ticked: true)
+    let quiet = Marked<CollectionSample>(value: null, ticked: false)
+    let members: list<Marked<CollectionSample>?, 3> = [changed, quiet, null]
+    let entries: dict<str, Marked<CollectionSample>> = ["sample": quiet]
+    assert convert<str>(members) == "[changed, quiet, null]"
+    assert format("{}", entries) == "[\"sample\": quiet]"
+}
+
+/**
+Nested collections compose their component conversions at every level.
+Fixed and growing lists, dictionary values and set members keep the same
+selection and traversal rules inside another collection.
+
+Rules:
+    OPS-4, FMT-5, GEN-5, GEN-16
+
+Status:
+    agreed
+*/
+test nested_collection_text_composes_each_conversion {
+    let levels: list<list<list<list<list<list<list<i64>>>>>>> = [[[[[[[17]]]]]]]
+    assert format("{}", levels) == "[[[[[[[17]]]]]]]"
+    let parts: set<i64> = [9]
+    let groups: list<set<i64>?, 2> = [parts, null]
+    let entries: dict<str, list<set<i64>?, 2>> = ["orders": groups]
+    let outer: list<dict<str, list<set<i64>?, 2>>> = [entries]
+    assert convert<str>(outer) == "[[\"orders\": [[9], null]]]"
+}

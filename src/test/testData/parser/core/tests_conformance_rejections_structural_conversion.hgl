@@ -18,3 +18,36 @@ const fn collection_without_part_conversion(value: list<UnwrittenCollectionPart?
     # expect-error(operator, "operator.no_candidate")
     return convert<str>(value)
 }
+
+struct FallibleTextPart { id: i64 }
+
+impl const fn convert(value: Marked<FallibleTextPart>) -> result<str, error> => ok("text")
+
+/**
+A fallible conversion cannot supply the text of a marked collection member.
+
+Rules:
+    OPS-4, FMT-5, FMT-7
+
+Status:
+    agreed
+*/
+const fn collection_with_fallible_marked_text(value: list<Marked<FallibleTextPart>>) -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return format("{}", value)
+}
+
+/**
+A missing component conversion rejects through nested collection layers.
+
+Rules:
+    OPS-4, FMT-5, GEN-16
+
+Status:
+    agreed
+*/
+const fn nested_collection_without_part_conversion(
+    value: list<dict<str, list<list<UnwrittenCollectionPart?>>>>) -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return format("{}", value)
+}

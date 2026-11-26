@@ -597,6 +597,129 @@ test keyed_map_withdraws_a_pass_through_entry {
     ]) == [[1, 2], delta<set<i64>>(removed: [2]), delta<set<i64>>(added: [2])]
 }
 
+fn join_label(key: i64, first: i64, second: str, third: bool) -> i64 => key
+
+fn inner_labels(a: dict<i64, i64>, b: dict<i64, str>, c: dict<i64, bool>) -> dict<i64, i64> =>
+    map(join_label, a, b, c)
+
+fn outer_labels(a: dict<i64, i64>, b: dict<i64, str>, c: dict<i64, bool>) -> dict<i64, i64> =>
+    map{join: .outer, keys: null}(join_label, a, b, c)
+
+fn left_labels(a: dict<i64, i64>, b: dict<i64, str>, c: dict<i64, bool>) -> dict<i64, i64> =>
+    map{join: .left}(join_label, third: c, second: b, first: a)
+
+fn selected_labels(
+    a: dict<i64, i64>, b: dict<i64, str>, c: dict<i64, bool>, wanted: set<i64>,
+) -> dict<i64, i64> =>
+    map{keys: wanted}(join_label, a, b, c)
+
+/**
+The join chooses children from all split dictionaries, unless keys are given.
+
+The left join follows callback parameter order even when named arguments
+are reordered. A written null uses the join. An explicit key can start
+a child even when no dictionary holds an entry for it.
+
+Rules:
+    MAP-2, MAP-4, MAP-5, MAP-8, MAP-9
+
+Status:
+    agreed
+*/
+test keyed_map_joins_three_split_dictionaries {
+    assert eval inner_labels(a: [[1: 10, 2: 20]], b: [[2: "two", 3: "three"]], c: [[2: true, 4: false]]) ==
+        [[2: 2]]
+    assert eval outer_labels(a: [[1: 10, 2: 20]], b: [[2: "two", 3: "three"]], c: [[2: true, 4: false]]) ==
+        [[1: 1, 2: 2, 3: 3, 4: 4]]
+    assert eval left_labels(a: [[1: 10, 2: 20]], b: [[2: "two", 3: "three"]], c: [[2: true, 4: false]]) ==
+        [[1: 1, 2: 2]]
+    assert eval selected_labels(a: [[1: 10]], b: [[2: "two"]], c: [[3: true]], wanted: [[4]]) ==
+        [[4: 4]]
+}
+
+fn count_joined_visits(left: i64, bias: i64, right: i64) -> i64 {
+    state visits: i64 = 0
+    when valid(bias) {
+        visits += 1
+        if valid(left) {
+            if valid(right) { return visits * 100 + left * 10 + right + bias }
+            return visits * 100 + left * 10 + bias
+        }
+        if valid(right) { return visits * 100 + right + bias }
+        return visits * 100 + bias
+    }
+}
+
+fn outer_visits(a: dict<str, i64>, b: dict<str, i64>, bias: i64) -> dict<str, i64> =>
+    map{join: .outer}(count_joined_visits, right: b, left: a, bias: bias)
+
+/**
+An outer-join child sees each missing split entry as invalid.
+
+It keeps its visit count when one entry arrives or leaves. Losing the
+key from the union stops the child. When the key returns, the child
+starts with a fresh count.
+
+Rules:
+    MAP-2, MAP-5, MAP-7, MAP-8, MAP-10
+
+Status:
+    agreed
+*/
+test keyed_outer_join_keeps_children_across_changes_to_one_input {
+    assert eval outer_visits(
+        a: [
+            ["a": 2],
+            _,
+            delta<dict<str, i64>>(removed: ["a"]),
+            _,
+            delta<dict<str, i64>>(updated: ["a": 5]),
+        ],
+        b: [
+            _,
+            ["a": 3, "b": 7],
+            _,
+            delta<dict<str, i64>>(removed: ["a"]),
+        ],
+        bias: [1],
+    ) == [
+        ["a": 121],
+        delta<dict<str, i64>>(updated: ["a": 224, "b": 108]),
+        delta<dict<str, i64>>(updated: ["a": 304]),
+        delta<dict<str, i64>>(removed: ["a"]),
+        delta<dict<str, i64>>(updated: ["a": 151]),
+    ]
+}
+
+fn join_sum(left: i64, right: i64) -> i64 => left + right
+
+fn inner_sums(a: dict<i64, i64>, b: dict<i64, i64>) -> dict<i64, i64> =>
+    map{join: .inner}(join_sum, a, b)
+
+/**
+An inner-join child exists while both dictionaries hold its key.
+
+A value-only tick changes the selected child's result. Removing the
+key from either input removes its entry even if the other input keeps it.
+
+Rules:
+    MAP-2, MAP-5, MAP-7, MAP-10
+
+Status:
+    agreed
+*/
+test keyed_inner_join_updates_members_and_removes_departing_keys {
+    assert eval inner_sums(
+        a: [[1: 2, 2: 3], delta<dict<i64, i64>>(updated: [2: 4])],
+        b: [[2: 7], _, delta<dict<i64, i64>>(updated: [1: 5]), delta<dict<i64, i64>>(removed: [2])],
+    ) == [
+        [2: 10],
+        delta<dict<i64, i64>>(updated: [2: 11]),
+        delta<dict<i64, i64>>(updated: [1: 7]),
+        delta<dict<i64, i64>>(removed: [2]),
+    ]
+}
+
 fn fixed_tree_sum(values: list<i64, 2>) -> i64 => reduce(add_, values)
 
 const fn append_digit(accumulated: i64, digit: i64) -> i64 => accumulated * 10 + digit

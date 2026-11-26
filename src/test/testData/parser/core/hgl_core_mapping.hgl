@@ -16,10 +16,9 @@ Examples:
     ~~~
 
     With different dictionary keys, the child can publish its own key
-    even when an entry is missing. The native keyed candidate has yet
-    to be implemented.
+    even when an entry is missing.
 
-    ~~~hgl no-run
+    ~~~hgl
     fn label_key(key: str, first_value: i64, second_value: i64) -> str => key
     fn inner_labels(first: dict<str, i64>, second: dict<str, i64>) -> dict<str, str> =>
         map{join: .inner}(label_key, first, second)
