@@ -51,3 +51,31 @@ const fn nested_collection_without_part_conversion(
     # expect-error(operator, "operator.no_candidate")
     return format("{}", value)
 }
+
+/**
+A tuple with a nullable member still requires text for the member's payload.
+
+Rules:
+    OPS-4, FMT-5, GEN-10, GEN-16
+
+Status:
+    agreed
+*/
+const fn tuple_without_part_conversion(value: tuple<i64, UnwrittenCollectionPart?>) -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return convert<str>(value)
+}
+
+/**
+A fallible conversion cannot supply the text of a marked tuple member.
+
+Rules:
+    OPS-4, FMT-5, FMT-7
+
+Status:
+    agreed
+*/
+const fn tuple_with_fallible_marked_text(value: tuple<str, Marked<FallibleTextPart>>) -> str {
+    # expect-error(operator, "operator.no_candidate")
+    return format("{}", value)
+}

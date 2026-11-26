@@ -436,6 +436,7 @@ private primary_group ::= applied_constructor_expr
                         | implied_member_expr
                         | type_of_expr
                         | type_call_expr
+                        | brace_literal_expr
                         | pack_loop_expr
                         | key_membership_expr
                         | block_expr
@@ -479,6 +480,14 @@ literal_expr ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
 // tuples. Grammar-Kit would pin a separate `'(' expr ')'` rule after the
 // opening parenthesis and never try the tuple alternative.
 tuple_or_group_expr ::= LPAREN nls <<list_of grouped_expr>>? nls RPAREN
+// EXPR-9: parse the first entry before choosing the tail. A generic argument's
+// comma or a block statement's colon does not itself make the brace a literal.
+brace_literal_expr ::= &LBRACE <<braceInsideExpression>> <<hasBraceSeparator>> LBRACE nls <<inGroup brace_entries>> nls RBRACE {pin=6}
+private brace_entries ::= COMMA | COLON | brace_key_or_value (set_tail | keyed_tail)
+private set_tail ::= comma_sep (<<list_of expr>>)?
+private keyed_tail ::= nls COLON nls expr (comma_sep keyed_entry)* trailing_comma? {pin=2}
+private keyed_entry ::= brace_key_or_value nls COLON nls expr
+private brace_key_or_value ::= &(member_name nls COLON) member_name | expr
 sequence_expr ::= LBRACKET nls <<inGroup sequence_content>>? nls RBRACKET {pin=1}
 private sequence_content ::= loop_entries | sequence_entries
 private sequence_entries ::= expr (COLON nls expr (comma_sep sequence_pair)* | (comma_sep expr)*) trailing_comma?
@@ -513,6 +522,8 @@ enum_member ::= member_name (EQ nls size_expression)?
 native_type_decl ::= EXPORT_KW? <<kw "NATIVE_KW">> <<kw "TYPE_KW">> ident native_type_body? {pin=3}
 native_type_body ::= body_gap LBRACE nls (native_property (NEWLINE+ native_property)* nls)? RBRACE {pin=2}
 native_property ::= member_name COLON nls type {pin=2}
+// After a symbol, {name,} is a set operand. A named configuration starts with a colon entry.
+private symbol_options ::= &(LBRACE nls member_name COLON) operator_configuration
 // Recognize an unfinished label in a configured call so its declaration can supply completion.
 operator_configuration ::= &(LBRACE nls member_name (COLON | COMMA | RBRACE LPAREN)) LBRACE nls <<list_of named_argument>> nls RBRACE {pin=2}
 warning_annotation ::= AT <<kw "SUPPRESS_WARNING_KW">> <<adjacent>> LPAREN nls STRING_LITERAL nls RPAREN NEWLINE+ {pin=2}
