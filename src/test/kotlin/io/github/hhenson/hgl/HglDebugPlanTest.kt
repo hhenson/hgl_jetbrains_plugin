@@ -67,10 +67,12 @@ class HglDebugPlanTest : TestCase() {
             }
             val report = """{"version":1,"skipped":[],"launches":[${groups.joinToString(",")}]}"""
             assertEquals(listOf(commands, null), HglDebugPlan.parse(report, true).launches.map { it.arguments["initCommands"] })
-            Files.createFile(dir.resolve("hgraph_lldb_graph.py"))
+            val inspector = Files.createFile(dir.resolve("hgraph_lldb_graph.py"))
             val launches = HglDebugPlan.parse(report, true).launches
             assertEquals(listOf(true, false), launches.map { it.graphInspection })
-            assertEquals(2, (launches.first().arguments["initCommands"] as List<*>).size)
+            val inspectorCommand = "command script import \"" + inspector.toString().replace("\\", "\\\\") + "\""
+            assertEquals(commands + inspectorCommand, launches.first().arguments["initCommands"])
+            assertNull(launches.last().arguments["initCommands"])
         } finally {
             sdk.toFile().deleteRecursively()
         }

@@ -277,7 +277,9 @@ graph instance. Selecting a link or Back keeps the breakpoint and evaluation
 time. The SDK’s LLDB command indexes wiring and reads the selected node’s
 endpoint values. The IDE passes the snapshot token with each navigation
 request and clears its navigation history when execution resumes or the
-frame changes. Older SDKs show an availability message in the tab.
+frame changes. The view discards superseded replies and checks the snapshot
+before displaying a linked node. Its reply and navigation tests run without
+LLDB. Older SDKs show an availability message in the tab.
 
 For a usable plan, LLDB starts each executable with the supplied arguments
 and environment. Debug launches omit integration test deadlines. The IDE
