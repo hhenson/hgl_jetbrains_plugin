@@ -272,6 +272,15 @@ source roots to LLDB as path pairs for that launch. With the matching
 
 For each debug launch the plugin imports the scalar endpoint formatter from the hgraph SDK named by the compiler. The SDK supplies the runtime-specific layouts. Older SDKs retain the native debugger display.
 
+The **Graph** debug tab follows predecessor and successor ports in the paused
+graph instance. Selecting a link or Back keeps the breakpoint and evaluation
+time. The SDK’s LLDB command indexes wiring and reads the selected node’s
+endpoint values. The IDE passes the snapshot token with each navigation
+request and clears its navigation history when execution resumes or the
+frame changes. The view discards superseded replies and checks the snapshot
+before displaying a linked node. Its reply and navigation tests run without
+LLDB. Older SDKs show an availability message in the tab.
+
 For a usable plan, LLDB starts each executable with the supplied arguments
 and environment. Debug launches omit integration test deadlines. The IDE
 reads the module’s results file at exit. Terminal outcomes allow the next

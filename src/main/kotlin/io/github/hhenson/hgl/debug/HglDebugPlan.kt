@@ -12,6 +12,7 @@ internal data class HglDebugLaunch(
     val module: String? = null,
     val tests: List<String> = emptyList(),
     val resultsFile: Path? = null,
+    val graphInspection: Boolean = false,
 )
 
 internal data class HglDebugPlan(
@@ -39,11 +40,9 @@ internal data class HglDebugPlan(
             try {
                 val data = JsonParser.parseString(report).asJsonObject
                 if (data["version"]?.asInt != 1) throw ExecutionException("Unsupported HGL debug launch version.")
-                if (!testRun) return HglDebugPlan(listOf(HglDebugLaunch(arguments(data))), emptyList(), emptyList())
+                if (!testRun) return HglDebugPlan(listOf(launch(data, false)), emptyList(), emptyList())
                 val launches = data["launches"].asJsonArray.map {
-                    val launch = it.asJsonObject
-                    HglDebugLaunch(arguments(launch), launch["module"].asString,
-                        launch["tests"].asJsonArray.map { name -> name.asString }, Path.of(launch["resultsFile"].asString))
+                    launch(it.asJsonObject, true)
                 }
                 val skipped = mutableListOf<String>()
                 val failed = mutableListOf<String>()
@@ -58,12 +57,24 @@ internal data class HglDebugPlan(
             }
         }
 
-        private fun arguments(launch: JsonObject): Map<String, Any> = buildMap {
+        private fun launch(data: JsonObject, test: Boolean): HglDebugLaunch {
+            val scripts = debuggerScripts(data)
+            val args = arguments(data, scripts)
+            val graph = scripts.any { it.fileName.toString() == "hgraph_lldb_graph.py" }
+            if (!test) return HglDebugLaunch(args, graphInspection = graph)
+            return HglDebugLaunch(args, data["module"].asString, data["tests"].asJsonArray.map { it.asString },
+                Path.of(data["resultsFile"].asString), graph)
+        }
+
+        private fun arguments(launch: JsonObject, scripts: List<Path>): Map<String, Any> = buildMap {
             put("program", launch["executable"].asString)
             put("args", launch["arguments"].asJsonArray.map { it.asString })
             put("cwd", launch["workingDirectory"].asString)
             put("env", launch["environment"].asJsonObject.entrySet().associate { it.key to it.value.asString })
-            formatterCommand(launch)?.let { put("initCommands", listOf(it)) }
+            if (scripts.isNotEmpty()) put("initCommands", scripts.map { script ->
+                val path = script.toString().replace("\\", "\\\\").replace("\"", "\\\"")
+                "command script import \"$path\""
+            })
             launch["sourceMap"]?.let { mappings ->
                 // lldb-dap expects ordered [build root, installed root] pairs.
                 put("sourceMap", mappings.asJsonObject.entrySet().map { (from, to) ->
@@ -73,19 +84,18 @@ internal data class HglDebugPlan(
             }
         }
 
-        private fun formatterCommand(launch: JsonObject): String? {
+        private fun debuggerScripts(launch: JsonObject): List<Path> {
             val sdk = launch.get("hgraph")?.takeIf { it.isJsonObject }?.asJsonObject
-                ?.get("sdk")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString ?: return null
-            if (sdk.any { it.isISOControl() || it == '`' }) return null
-            val root = try { Path.of(sdk) } catch (_: InvalidPathException) { return null }
-            if (!root.isAbsolute) return null
+                ?.get("sdk")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString ?: return emptyList()
+            if (sdk.any { it.isISOControl() || it == '`' }) return emptyList()
+            val root = try { Path.of(sdk) } catch (_: InvalidPathException) { return emptyList() }
+            if (!root.isAbsolute) return emptyList()
             val directory = root.resolve("share/hgraph/debugger")
             val script = directory.resolve("hgraph_lldb.py")
             // Older SDKs have a printer but cannot resolve passive scalar inputs.
             val files = listOf(script, directory.resolve("hgraph_lldb_endpoints.py"), directory.resolve("hgraph_debug_common.py"))
-            if (!files.all { Files.isRegularFile(it) }) return null
-            val path = script.toString().replace("\\", "\\\\").replace("\"", "\\\"")
-            return "command script import \"$path\""
+            if (!files.all { Files.isRegularFile(it) }) return emptyList()
+            return listOf(script, directory.resolve("hgraph_lldb_graph.py")).filter { Files.isRegularFile(it) }
         }
     }
 }
