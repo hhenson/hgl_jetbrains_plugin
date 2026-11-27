@@ -48,6 +48,14 @@ class HglDocModelTest : HglEditorFixture() {
         assertTrue(format, format.contains("args: ...As, kwargs: ...{Ks}"))
         assertTrue(format, format.contains("Fill the places in a constant format string."))
 
+        for (label in listOf("ar<caret>gs", "kw<caret>args")) {
+            val key = label.replace("<caret>", "")
+            assertEmpty(targets("module consumer\nconst fn text() => format(\"{$key}\", $label: 7)"))
+        }
+        val graph = HglDocModel.read(model).declarations("core::format").single().candidates.single { it.kind == "candidate" }
+        assertTrue(graph.signature, "const require_valid: bool" in graph.signature)
+        assertTrue(graph.sections.single { it.heading == "Options:" }.lines.any { "require_valid" in it })
+
         val flush = targets("""module consumer
             |const fn emit() { write("ready", flu<caret>sh: true) }
         """.trimMargin()).single().computeDocumentationHint()!!

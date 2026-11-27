@@ -52,7 +52,10 @@ An `hgl` fence under `Examples:` is labeled as runnable (SDOC-9). An
 The same Markdown renderer handles source and exported documentation.
 Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
-matching entry from the owner's `Args:` or `Type Args:` section.
+matching entry from the owner's `Args:` or `Type Args:` section. Quick
+Documentation on a configuration parameter also shows its defining declaration’s
+`Options:` list. Pack names appear in signatures. A caller-supplied named pack
+entry has no parameter documentation of its own (FN-8).
 
 Completion and Go to Declaration on `Side.buy` use the enum named by the
 receiver, including `alias::Side.buy` (TYPE-7). Quick Documentation shows the

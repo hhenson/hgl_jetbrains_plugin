@@ -1,26 +1,14 @@
-module examples.configuration_parameters
+module examples.borrowed_packs
 
-const fn rounded{places: i64 = 2}(value: f64) -> f64 {
-    var scale = 1.0
-    for step in [1, 2, 3, 4, 5, 6] {
-        if step <= places { scale = scale * 10.0 }
-    }
-    return convert<f64>(convert<i64>(value * scale)) / scale
-}
+native const fn count_ready<...As, ...Ks>(
+    const label: str, args: ...endpoint<As>, kwargs: ...{endpoint<Ks>},
+) -> i64
 
-const fn two_places() -> f64 => rounded(3.14159)
-
-const fn three_places() -> f64 => rounded{places: 3}(3.14159)
-
-fn sampled{const every: duration}(value: f64) -> f64 {
-    inject scheduler
-    state last: f64 = 0.0
-    start { schedule(scheduler, every) }
-    when modified(value) { last = value }
-    when scheduled() && valid([]) {
-        schedule(scheduler, every)
-        return last
+fn count_inputs<...As, ...Ks>(args: ...As, kwargs: ...{Ks}) -> i64 {
+    when valid([]) {
+        return count_ready("quote", ...args, ...kwargs)
     }
 }
 
-fn slow(price: f64) -> f64 => sampled{every: 1s}(price)
+fn quote(price: f64, open_size: i64) -> i64 =>
+    count_inputs(price, size: open_size, side: "bid")

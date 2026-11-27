@@ -3,6 +3,8 @@ package io.github.hhenson.hgl
 import com.intellij.codeInsight.TargetElementUtil
 import com.intellij.codeInsight.lookup.Lookup
 import com.intellij.psi.util.parentOfType
+import io.github.hhenson.hgl.documentation.HglDocumentation
+import io.github.hhenson.hgl.documentation.HglDocumentationTargetProvider
 import io.github.hhenson.hgl.psi.HglFunctionTypeParameter
 import io.github.hhenson.hgl.psi.HglConfigurationParameter
 import io.github.hhenson.hgl.psi.HglGenericParameter
@@ -65,6 +67,40 @@ class HglCallbackArgumentsTest : HglEditorFixture() {
         assertDoesntContain(complete(header + """join("a", "b", <caret>)"""), "pieces", "separator")
         configure(header + """join("a", sepa<caret>rator: "/")""")
         assertNull(myFixture.file.findReferenceAt(myFixture.caretOffset)?.resolve())
+    }
+
+    fun testGraphFormatOptionsResolveWithPositionalAndNamedInputs() {
+        for (name in listOf("hgl_native_formatting.hgl", "hgl_core_formatting.hgl")) {
+            myFixture.addFileToProject(name, java.io.File("src/test/testData/parser/core/$name").readText())
+        }
+        val header = "fn quote(bid: f64, ask: f64) -> str => "
+        val inputs = """("{*} / {*ask}", bid, ask: ask)"""
+        val options = complete(header + "format{<caret>}" + inputs)
+        assertContainsElements(options, "require_valid", "not_valid", "ticked")
+        assertDoesntContain(options, "args", "kwargs", "fmt_str")
+        configure(header + """format{require_valid: false, tic<caret>ked: "!"}""" + inputs)
+        val option = myFixture.elementAtCaret as HglConfigurationParameter
+        assertEquals("hgl_core_formatting.hgl", option.containingFile.name)
+        val html = HglDocumentation.html(option)!!
+        assertTrue(html, html.contains("<h4>Options:</h4>") && html.contains("Prefix for a modified input"))
+    }
+
+    fun testBorrowedEndpointPacksResolveTheirPayloadsAndKeepOnlyFixedLabels() {
+        val declaration = "native const fn count_ready<...As, ...Ks>(const label: str, args: ...endpoint<As>, kwargs: ...{endpoint<Ks>}) -> i64"
+        for (name in listOf("As", "Ks")) {
+            configure(declaration.replace("endpoint<$name>", "endpoint<<caret>$name>"))
+            assertEquals(name, (myFixture.elementAtCaret as HglGenericParameter).name)
+        }
+        val call = declaration + "\nfn count(x: i64) -> i64 { when valid([]) { return count_ready("
+        val end = ") } }"
+        val labels = complete(call + "<caret>, reading: x" + end)
+        assertContainsElements(labels, "label")
+        assertDoesntContain(labels, "args", "kwargs")
+        configure(call + "la<caret>bel: \"quote\", reading: x" + end)
+        assertEquals("label", (myFixture.elementAtCaret as HglParameter).name)
+        configure(call + "\"quote\", kwa<caret>rgs: x" + end)
+        val docs = HglDocumentationTargetProvider()
+        assertEmpty(docs.documentationTargets(myFixture.file, myFixture.caretOffset))
     }
 
     fun testConfiguredCallLabelsUseThePublicSignatureAndOmitBoundInputs() {

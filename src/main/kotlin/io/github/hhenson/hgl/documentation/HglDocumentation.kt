@@ -78,7 +78,7 @@ class HglDocumentationTargetProvider : DocumentationTargetProvider, PsiDocumenta
                 is HglParameter -> target.functionType?.functionTypeParameterList.orEmpty().filter { it.ident?.text == name }
                 is HglStructDecl -> target.structBody?.structMemberList.orEmpty().filter { it.name == name }
                 else -> PsiTreeUtil.getChildOfType(target, HglFunctionSignature::class.java)
-                    ?.parameterList.orEmpty().filter { it.name == name }
+                    ?.parameterList.orEmpty().takeWhile { it.pack == null }.filter { it.name == name }
             }
         }.distinct().mapNotNull { documentationTarget(it, label) }
     }
@@ -165,9 +165,12 @@ object HglDocumentation {
         }
         val owner = element.parent?.parent ?: return emptyList()
         val name = element.name ?: return emptyList()
-        val entry = attachedSections(owner).asSequence()
-            .filter { it.recognized && it.heading == heading }.firstNotNullOfOrNull { it.description(name) }
-        return listOfNotNull(entry)
+        val sections = attachedSections(owner)
+        val entry = sections.asSequence().filter { it.recognized && it.heading == heading }
+            .firstNotNullOfOrNull { it.description(name) }
+        val options = if (element is HglConfigurationParameter)
+            sections.filter { it.recognized && it.heading == "Options:" } else emptyList()
+        return listOfNotNull(entry) + options
     }
 
     fun html(element: PsiElement, brief: Boolean = false): String? {

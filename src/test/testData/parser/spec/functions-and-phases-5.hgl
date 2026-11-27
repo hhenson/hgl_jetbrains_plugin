@@ -1,14 +1,4 @@
-module examples.fixed_reads
+fn sampled(value: f64, tick: signal?) -> f64 => value
 
-struct Settings {
-    pattern: str
-    width: i64
-}
-
-const SETTINGS: Settings = Settings(pattern: "x", width: 3)
-const fn take(const p: str) -> str => p
-
-const fn from_parameter(const settings: Settings) -> str => take(settings.pattern)
-const fn from_pair(const pair: tuple<str, i64>) -> str => take(pair[0])
-const fn from_constant() -> str => take(SETTINGS.pattern)
-const fn from_nested(const pair: tuple<Settings, i64>) -> str => take(pair[0].pattern)
+fn omitted_tick(price: f64) -> f64 => sampled(price)
+fn written_null_tick(price: f64) -> f64 => sampled(price, null)

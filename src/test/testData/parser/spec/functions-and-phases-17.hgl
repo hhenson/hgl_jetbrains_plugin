@@ -1,1 +1,1 @@
-const fn keep_value(values: list<i64>) -> list<i64> => values
+const fn nullable_echo(value: f64? = 2.0) -> f64? => value
