@@ -143,7 +143,7 @@ class HglRunGutterTest : HglEditorFixture() {
             val cmd = restored.commandLine()
             assertEquals("tools/my compiler", cmd.exePath)
             assertEquals(listOf("test", "--test", "m::selected", "--target", "cpp",
-                "--", "core sources", "checks"), cmd.parametersList.list)
+                "--test-path", restored.sourcePath, "--", "core sources", "checks", restored.sourcePath), cmd.parametersList.list)
             assertEquals(configuration.sourcePath, restored.sourcePath)
             restored.selector = ""
             assertThrows(RuntimeConfigurationError::class.java) { restored.commandLine() }

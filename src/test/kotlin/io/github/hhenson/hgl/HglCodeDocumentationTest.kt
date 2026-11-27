@@ -136,6 +136,14 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         }
     }
 
+    fun testCoreValueDebugPrintDocumentsItsPositionalAndNamedPacks() {
+        val core = java.io.File("src/test/testData/parser/core/hgl_core_diagnostics.hgl")
+        myFixture.addFileToProject("diagnostics.hgl", core.readText())
+        val result = hint("module demo\nconst fn write_quote() { debug_pr<caret>int(\"{venue}\", venue: \"test\") }")
+        assertTrue(result.contains("process") && result.contains("standard output"))
+        assertTrue(result.contains("fmt_str"))
+    }
+
     fun testNamedArgumentsInCallsAndEvalShowTheTargetParameterDescription() {
         val source = """
             module docs
@@ -148,13 +156,14 @@ class HglCodeDocumentationTest : HglEditorFixture() {
         for (use in listOf(
             "fn graph(x: i64) -> i64 => echo(val<caret>ue: x)",
             "test replay { assert eval echo(val<caret>ue: [1]) == [1] }",
+            "fn graph(x: i64) -> i64 => echo{val<caret>ue: x}()",
         )) {
             val result = hint("$source\n$use")
             assertTrue(result.contains("value: i64"))
             assertTrue(result.contains("The published value."))
         }
         assertEmpty(targets("$source\nfn graph(x: i64) -> i64 => echo(oth<caret>er: x)"))
-        assertEmpty(targets("$source\nfn graph(x: i64) -> i64 => echo{val<caret>ue: 2}(x)"))
+        assertEmpty(targets("$source\nfn graph(x: i64) -> i64 => echo{oth<caret>er: 2}(x)"))
     }
 
     fun testCallbackSlotDoesNotInheritAnOuterArgumentDescription() {

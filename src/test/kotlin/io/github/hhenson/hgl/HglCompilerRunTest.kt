@@ -45,16 +45,16 @@ class HglCompilerRunTest : HglEditorFixture() {
             integration_test live { assert true }
             test broken { assert false }
         """.trimIndent()
-        val root = FileUtil.createTempDirectory("case with spaces", null, true)
-        root.resolve("checks.hgl").writeText(source)
+        val root = File(project.basePath!!, "case with spaces").apply { mkdirs() }
+        val checks = root.resolve("checks.hgl").apply { writeText(source) }
         root.resolve("other.hgl").writeText("module other\ntest ordinary { assert false }\nintegration_test live { assert false }\n")
         val settings = project.service<HglTestSettings>()
         val before = settings.state
         try {
             settings.loadState(HglTestSettings.Options(System.getenv("HGL_TEST_CLI"), root.path))
+            myFixture.configureFromExistingVirtualFile(VfsUtil.findFileByIoFile(checks, true)!!)
             for (case in listOf("ordinary", "live", "broken")) {
-                myFixture.configureByText("checks.hgl", source.replace(" $case {", " <caret>$case {"))
-                val leaf = myFixture.file.findElementAt(myFixture.caretOffset)!!
+                val leaf = myFixture.file.findElementAt(source.indexOf(" $case {") + 1)!!
                 val output = runInConsole(runConfigurationAt(leaf)) { view ->
                     val root = view.resultsViewer.testsRootNode
                     PlatformTestUtil.waitWithEventsDispatching("missing test result", { root.isFinal && root.children.isNotEmpty() }, 10)
@@ -229,7 +229,9 @@ class HglCompilerRunTest : HglEditorFixture() {
         val initial = shared.read()!!
         val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
         shared.save(initial.copy(compiler = compiler, buildDir = "native output"), initial)
-        val database = HglBuildAction.build(project, null, EmptyProgressIndicator())
+        val retired = root.toNioPath().resolve("src/retired.hgl").toFile()
+        retired.writeText("application retired\nuse hello::{greeting}\neval greeting()\n")
+        var database = HglBuildAction.build(project, null, EmptyProgressIndicator())
         assertEquals(root.toNioPath().resolve("native output/compile_commands.json"), database.toNioPath())
         val units = JsonParser.parseString(database.toNioPath().toFile().readText()).asJsonArray
             .map { File(it.asJsonObject["file"].asString).name }.toSet()
@@ -239,6 +241,19 @@ class HglCompilerRunTest : HglEditorFixture() {
         val debugCommands = debugDatabase.toNioPath().toFile().readText()
         assertTrue(debugCommands, "-O0" in debugCommands && "-g" in debugCommands)
         assertEquals(releaseCommands, database.toNioPath().toFile().readText())
+        val release = database.toNioPath().parent
+        val debug = debugDatabase.toNioPath().parent
+        val stale = "applications/app-retired.cpp"
+        assertTrue(release.resolve(stale).toFile().isFile && debug.resolve(stale).toFile().isFile)
+        assertTrue(retired.delete())
+        database = HglBuildAction.build(project, null, EmptyProgressIndicator(), clean = true)
+        assertNull(database.parent.findFileByRelativePath(stale))
+        assertTrue(debug.resolve(stale).toFile().isFile)
+        val releaseAfterClean = database.toNioPath().toFile().readText()
+        val rebuiltDebug = HglBuildAction.build(project, null, EmptyProgressIndicator(), debug = true, clean = true)
+        assertNull(rebuiltDebug.parent.findFileByRelativePath(stale))
+        assertTrue("-O0" in rebuiltDebug.toNioPath().toFile().readText())
+        assertEquals(releaseAfterClean, database.toNioPath().toFile().readText())
         val expected = setOf("mod-hello.cpp", "app-hello-main.cpp")
         assertTrue(units.toString(), units.containsAll(expected))
         project.getService(HglCompilationDatabaseImporter::class.java)?.let { importer ->
@@ -246,7 +261,8 @@ class HglCompilerRunTest : HglEditorFixture() {
             ExternalProjectsManagerImpl.getInstance(project).init()
             importer.load(database)
             PlatformTestUtil.waitWithEventsDispatching("CLion did not import the starter's generated C++", {
-                importedCppFiles(project, database).containsAll(expected)
+                val imported = importedCppFiles(project, database)
+                imported.containsAll(expected) && "app-retired.cpp" !in imported
             }, 60)
         }
     }
@@ -297,7 +313,7 @@ class HglCompilerRunTest : HglEditorFixture() {
         """)
         source("src/chosen/nested/cases.hgl", "module nested\ntest ordinary { assert true }\nintegration_test live { assert true }")
         val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
-        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("src", "support")), null)
+        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("support"), testRoots = listOf("src")), null)
         val selected = VfsUtil.findFileByIoFile(file, true)!!
         for (target in listOf(selected, selected.parent)) {
             for ((action, test) in listOf(HglRunTestsAction() to "ordinary", HglRunIntegrationTestsAction() to "live")) {
@@ -313,6 +329,34 @@ class HglCompilerRunTest : HglEditorFixture() {
                 }
                 assertEquals(output.stdout + output.stderr, 0, output.exitCode)
             }
+        }
+    }
+
+    fun testProjectSuiteLoadsLibraryAndRunsOnlyConfiguredTestRoots() {
+        val base = File(project.basePath!!)
+        val library = base.resolve("core/hgl").apply { mkdirs() }
+        library.resolve("operations.hgl").writeText("module library\nexport const fn one() -> i64 => 1\ntest unselected { assert false }")
+        val cases = base.resolve("core/tests").apply { mkdirs() }
+        cases.resolve("checks.hgl").writeText("module checks\nuse library::{one}\ntest selected { assert one() == 1 }")
+        val compiler = requireNotNull(System.getenv("HGL_TEST_CLI"))
+        project.service<HglBuildFile>().save(HglBuild(compiler = compiler, sourceRoots = listOf("core/hgl"),
+            testRoots = listOf("core/tests")), null)
+        val targets = project.service<HglProjectTargets>()
+        targets.start()
+        val manager = RunManager.getInstance(project)
+        PlatformTestUtil.waitWithEventsDispatching("Missing test module", {
+            manager.allSettings.any { it.name == "checks — Tests" }
+        }, 10)
+        assertFalse(manager.allSettings.any { it.name == "library — Tests" })
+        for (name in listOf("checks — Tests", "All HGL Tests")) {
+            val config = manager.allSettings.single { it.name == name }.configuration
+            val result = runInConsole(config) { view ->
+                val root = view.resultsViewer.testsRootNode
+                PlatformTestUtil.waitWithEventsDispatching("Missing selected test result", { root.isFinal && root.children.isNotEmpty() }, 10)
+                assertEquals("checks::selected", root.children.single().name)
+                assertTrue(root.children.single().isPassed)
+            }
+            assertEquals(result.stdout + result.stderr, 0, result.exitCode)
         }
     }
 

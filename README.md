@@ -42,7 +42,7 @@ Run `application hello.main` from the gutter in `src/main.hgl` to publish
 in `src/hello.hgl`.
 
 **Settings → Build, Execution, Deployment → HGL** edits the `build` section
-of `hgl.json`. Commit this file to share the compiler command, source roots,
+of `hgl.json`. Commit this file to share the compiler command, source and test roots,
 and output paths. Paths are relative to the project or absolute. A workspace
 compiler override is private to your IDE. Existing projects retain their
 runner settings until they save shared build settings.
@@ -62,6 +62,10 @@ compiler with `hgl build --compile-commands`. CLion loads the generated C++
 and its compiler flags into the open project. Build again after changing the
 HGL sources to refresh the C++ model. RustRover reports the location of
 `compile_commands.json` in the configured build directory.
+
+Choose **Clean and Rebuild Release** or **Clean and Rebuild Debug** in the same
+menu to remove stale generated files and rebuild that profile. These actions
+require HGL 0.2.10 or later. HGL 0.2.9 supports ordinary builds.
 
 Click **Generate HGL Documentation** on the main toolbar or in **Build**.
 Choose **Open documentation** in the completion notification to read the site.
@@ -85,6 +89,10 @@ to see its own entry from `Args:` or `Type Args:`. The IDE renders CommonMark
 and tables. Quick Documentation labels HGL fences under `Examples:` as
 **Runnable example**. It labels `hgl no-run` fences and HGL fences elsewhere
 as **Shown example**. Fenced formulas and diagrams display their source.
+
+Hover over a capability property such as `clock.now` to read its documentation.
+With Core source in the project, completion lists the properties and Go to
+Declaration opens the selected one.
 
 To run one documentation example, paste its printed name, such as
 `demo::Box.value#example-1`, into an **HGL Test** run configuration with
@@ -118,13 +126,32 @@ name. **HGL Tests** offers these selections for both Run and Debug.
 | --- | --- |
 | `prices — Tests` | Ordinary tests in every part of module `prices` |
 | `prices — Integration Tests` | Integration tests in every part of `prices` |
-| **All HGL Tests** | Ordinary tests across the project’s source roots |
+| **All HGL Tests** | Ordinary tests across the configured test roots (source roots by default) |
 | **All HGL Integration Tests** | Integration tests across the same roots |
 
 Right-click an HGL file or folder in the **Project** window, or right-click an
 HGL editor tab. Choose **Run HGL Tests** for ordinary tests or **Run HGL
 Integration Tests** for integration tests. A folder includes its subfolders.
 Both actions open **Test Results**. Rerun keeps the selected path and test kind.
+
+To include a library when running a test folder, right-click the folder and choose
+**Configure HGL Test Roots… → Add to tests**. Use **Browse…** under **Source roots**
+to add the library. You can also paste one path per line. For an `hgl-project` checkout:
+
+| Setting | Path |
+| --- | --- |
+| **Source roots** | `hgl_core/hgl` |
+| **Test roots** | `hgl_core/tests` |
+
+Running **Run HGL Tests** on `hgl_core/tests` then uses
+`hgl test --target cpp --test-path hgl_core/tests -- hgl_core/hgl hgl_core/tests`
+with the configured build directory. A file or subfolder narrows the selection.
+Leave **Test roots** empty for projects with inline tests.
+
+You can reopen **Configure HGL Test Roots…** from the Test Results options menu
+or from **Run → Edit Configurations…** in any HGL test configuration. The
+dialog updates `hgl.json` for everyone who uses the project. If compilation fails
+before any test runs and source roots are empty, the result points to this menu.
 
 A selection within a source root requires `hgl test --test-path`.
 Integration-only runs require `hgl test --integration-only`.
@@ -159,10 +186,8 @@ bundled LLDB adapter.
 On Apple Silicon, install the compiler with `brew install hhenson/hgraph/hgl`.
 Both IDEs look for `hgl` on their console `PATH`, then in `/opt/homebrew/bin`
 on macOS. This also lets the C++ runner find Homebrew’s CMake and Ninja.
-The formula bundles the native SDK. The default source root is the selected file.
-For a multi-file program, enter its source roots, one per line. For the core
-conformance suite in `hgl-project`, use `hgl_core/hgl` and
-`hgl_core/tests/conformance`. Paths are relative to the project or absolute.
+The formula bundles the native SDK. With no roots configured, a file or folder
+run uses the selected location as its only input.
 
 ## Marketplace releases
 

@@ -1,0 +1,62 @@
+module core_conformance part diagnostics
+
+const fn diagnostic_line<T>(const pattern: str, value: T) {
+    debug_print(pattern, value, label: "score")
+}
+
+/**
+Value calls write each formatted line, in execution order. The process
+writes ready, quote 100.00 / 102.00, and score: 07, each on its own line.
+
+Rules:
+    DBG-1, DBG-3, DBG-9, FMT-2, FMT-3
+
+Status:
+    agreed
+*/
+test debug_print_writes_value_lines {
+    debug_print("ready")
+    debug_print("quote {:.2f} / {ask:.2f}", 100.0, ask: 102.0)
+    diagnostic_line("{label}: {:02}", 7)
+}
+
+/**
+Explicit `Marked` arguments retain the formatting exception in value code.
+The process writes *7 and 7, then wall and the wall clock's year.
+
+Rules:
+    DBG-3, DBG-9, FMT-9
+
+Status:
+    agreed
+*/
+test debug_print_uses_explicit_marks_and_wall_time {
+    debug_print("{*}", Marked<i64>(value: 7, ticked: true))
+    debug_print("{*}", Marked<i64>(value: 7, ticked: false))
+    debug_print("wall {wall_time:%Y}")
+}
+
+fn diagnostic_counted(value: i64) -> i64 {
+    state seen: i64 = 0
+    when {
+        seen += 1
+        debug_print("tick {} is {}", seen, value)
+        debug_print("count {seen}", seen: seen)
+        return seen
+    }
+}
+
+/**
+Calls in a handler write each line when executed, while the trace holds
+its publications. The process writes tick 1 is 10, count 1, tick 2 is 40,
+and count 2, each on its own line.
+
+Rules:
+    DBG-1, DBG-3, DBG-7, DBG-9
+
+Status:
+    agreed
+*/
+test debug_print_writes_in_a_handler {
+    assert eval diagnostic_counted(value: [10, 40]) == [1, 2]
+}

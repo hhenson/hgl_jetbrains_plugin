@@ -1,0 +1,148 @@
+module core part collection_text
+
+# FMT-5: quote strings inside a collection. Other parts use the same
+# scalar text or selected conversion as a whole value in a format place.
+operator collection_text_member<T>(value: T) -> str
+impl const fn collection_text_member(value: str) -> str => format("{:?}", value)
+# FMT-7 unwraps a Marked argument once. Give it the whole member as the
+# payload so FMT-5 selects and checks the member's own str conversion.
+impl const fn collection_text_member<T>(value: Marked<T>) -> str =>
+    format("{}", Marked<Marked<T>>(value: value, ticked: false))
+impl const fn collection_text_member<T>(value: T) -> str => format("{}", value)
+
+const fn collection_text_nullable<T>(value: T?) -> str {
+    if value != null { return collection_text_member(value) }
+    return "null"
+}
+
+# OPS-4, FMT-5: every body traverses its original collection and appends
+# directly to the output string, including for fixed lists. The candidates
+# require their component conversions directly so nested values need one
+# conversion requirement at each collection level.
+impl const fn convert<T>(value: list<T>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str {
+    var text = "["
+    var separator = ""
+    for item in value {
+        text += separator
+        text += collection_text_member(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+impl const fn convert<T, N>(value: list<T, N>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str {
+    var text = "["
+    var separator = ""
+    for item in value {
+        text += separator
+        text += collection_text_member(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+impl const fn convert<T>(value: list<T?>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str {
+    var text = "["
+    var separator = ""
+    for item in value {
+        text += separator
+        text += collection_text_nullable(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+impl const fn convert<T, N>(value: list<T?, N>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str {
+    var text = "["
+    var separator = ""
+    for item in value {
+        text += separator
+        text += collection_text_nullable(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+impl const fn convert<T>(value: set<T>) -> str
+    requires T in {str, date, time, datetime, duration} || convert(T) -> str {
+    var text = "["
+    var separator = ""
+    for item in value {
+        text += separator
+        text += collection_text_member(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+impl const fn convert<K, V>(value: dict<K, V>) -> str
+    requires (K in {str, date, time, datetime, duration} || convert(K) -> str)
+        && (V in {str, date, time, datetime, duration} || convert(V) -> str) {
+    var text = "["
+    var separator = ""
+    for key, item in value {
+        text += separator
+        text += collection_text_member(key)
+        text += ": "
+        text += collection_text_member(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+impl const fn convert<K, V>(value: dict<K, V?>) -> str
+    requires (K in {str, date, time, datetime, duration} || convert(K) -> str)
+        && (V in {str, date, time, datetime, duration} || convert(V) -> str) {
+    var text = "["
+    var separator = ""
+    for key, item in value {
+        text += separator
+        text += collection_text_member(key)
+        text += ": "
+        text += collection_text_nullable(item)
+        separator = ", "
+    }
+    text += "]"
+    return text
+}
+
+# FMT-5: render each admitted member with the same quoting and nullable
+# handling as a list member.
+operator tuple_text_member<T>(value: T) -> str
+impl const fn tuple_text_member<T>(value: T) -> str => collection_text_member(value)
+impl const fn tuple_text_member<T>(value: T?) -> str => collection_text_nullable(value)
+
+# Each tuple checks its member conversions directly, including the ordinary
+# value read of a nullable member. The scalar formatter handles the listed
+# types and their nullable forms.
+# FMT-5, EXPR-8: the singleton keeps the comma of its tuple literal.
+impl const fn convert<T>(value: tuple<T>) -> str
+    requires T in {str, str?, date, date?, time, time?, datetime, datetime?, duration, duration?}
+        || convert(T) -> str {
+    var text = "("
+    text += tuple_text_member(value[0])
+    text += ",)"
+    return text
+}
+
+# FN-19, GEN-17: each pack entry indexes one tuple position in order.
+impl const fn convert<...Ts{2:*}>(value: tuple<Ts>) -> str
+    requires each T in types(Ts) {
+        T in {str, str?, date, date?, time, time?, datetime, datetime?, duration, duration?}
+            || convert(T) -> str
+    } {
+    var text = "("
+    text += join{separator: ", "}(...{for index in arg_keys(Ts): tuple_text_member(value[index])})
+    text += ")"
+    return text
+}

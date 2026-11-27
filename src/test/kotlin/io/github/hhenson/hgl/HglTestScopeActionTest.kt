@@ -29,8 +29,9 @@ class HglTestScopeActionTest : HglEditorFixture() {
     fun testProjectAndTabMenusExposeSeparateActionsForAnHglSelection() {
         val file = myFixture.addFileToProject("nested/cases.hgl", "module sample\ntest one { assert true }").virtualFile
         val other = myFixture.addFileToProject("plain/readme.txt", "text").virtualFile
-        for ((id, label) in mapOf("HGL.RunTests" to "Run HGL Tests", "HGL.RunIntegrationTests" to "Run HGL Integration Tests")) {
-            val action = action(id)
+        for ((id, label) in mapOf("HGL.RunTests" to "Run HGL Tests", "HGL.RunIntegrationTests" to "Run HGL Integration Tests",
+            "HGL.ConfigureTestRoots" to "Configure HGL Test Roots…")) {
+            val action = manager.getAction(id)
             assertEquals(label, action.templatePresentation.text)
             for (menu in listOf("ProjectViewPopupMenu", "EditorTabPopupMenu")) {
                 assertTrue(menu, action in (manager.getAction(menu) as DefaultActionGroup).getChildren(null))

@@ -526,7 +526,7 @@ class HglPlatformTest : HglEditorFixture() {
 
     fun testArrowCompletionInsideImplementationAndAnonymousFunction() {
         val operand = completionsInModule("impl fn echo(input: i64) -> i64 => # on the next line\n input + <caret>")
-        assertContainsElements(operand, "if", "null", "input")
+        assertContainsElements(operand, "if", "null", "input", "type")
         assertDoesntContain(operand, "module", "return", "i64")
 
         val argument = completionsInModule("""

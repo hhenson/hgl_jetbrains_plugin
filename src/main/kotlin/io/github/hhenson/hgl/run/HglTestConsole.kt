@@ -11,10 +11,21 @@ import com.intellij.execution.testframework.sm.runner.events.TestFailedEvent
 import com.intellij.execution.testframework.sm.runner.events.TestFinishedEvent
 import com.intellij.execution.testframework.sm.runner.events.TestIgnoredEvent
 import com.intellij.execution.testframework.sm.runner.events.TestStartedEvent
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.util.Key
+import javax.swing.JComponent
 
 internal class HglTestConsole(configuration: RunConfiguration, executor: Executor) :
     SMTRunnerConsoleProperties(configuration, "HGL", executor), SMCustomMessagesParsing {
+    override fun appendAdditionalActions(group: DefaultActionGroup, parent: JComponent, properties: TestConsoleProperties) {
+        super.appendAdditionalActions(group, parent, properties)
+        group.add(object : DumbAwareAction("Configure HGL Test Roots…", "Choose source dependencies and test locations", null) {
+            override fun actionPerformed(event: AnActionEvent) = HglTestRootsDialog.open(project)
+        })
+    }
+
     override fun createTestEventsConverter(framework: String, properties: TestConsoleProperties) =
         HglTestEvents(framework, properties)
 }
@@ -26,6 +37,12 @@ internal class HglTestEvents(framework: String, properties: TestConsolePropertie
     private val stderr = StringBuilder()
     private var current: MatchResult? = null
     private val details = mutableListOf<String>()
+    private val noSourceRoots = try {
+        properties.project.buildSettings().sourceRoots.isEmpty()
+    } catch (_: IllegalArgumentException) {
+        false
+    }
+    private var sawCase = false
     private var reportedFailure = false
     private var reportedSkip = false
 
@@ -52,7 +69,10 @@ internal class HglTestEvents(framework: String, properties: TestConsolePropertie
         }
         finishCase()
         current = header.matchEntire(text)
-        current?.let { processor.onTestStarted(TestStartedEvent(it.groupValues[2], null)) }
+        current?.let {
+            sawCase = true
+            processor.onTestStarted(TestStartedEvent(it.groupValues[2], null))
+        }
     }
 
     private fun finishCase() {
@@ -82,8 +102,12 @@ internal class HglTestEvents(framework: String, properties: TestConsolePropertie
             val name = "hgl test"
             val diagnostic = stderr.toString().trim().ifBlank { "Compiler exited with code $exitCode. See the console output." }
             val missingOption = listOf("--test-path", "--integration-only").firstOrNull { "unexpected argument '$it'" in diagnostic }
-            val message = if (missingOption == null) diagnostic else
-                "This test selection requires an HGL compiler with hgl test $missingOption. Check the compiler in HGL build settings.\n$diagnostic"
+            val message = when {
+                missingOption != null -> "This test selection requires an HGL compiler with hgl test $missingOption. Check the compiler in HGL build settings.\n$diagnostic"
+                exitCode == 1 && !sawCase && noSourceRoots ->
+                    "$diagnostic\n\nNo project source roots are configured. To include a library, open Test Results options → Configure HGL Test Roots…"
+                else -> diagnostic
+            }
             processor.onTestStarted(TestStartedEvent(name, null))
             processor.onTestFailure(TestFailedEvent(name, message, null, true, null, null))
             processor.onTestFinished(TestFinishedEvent(name, null as Long?))

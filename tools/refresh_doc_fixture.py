@@ -17,7 +17,7 @@ export = subprocess.check_output([
 ])
 model = json.loads(export)
 names = {"extraction_check::describe_value", "extraction_check::prose_example",
-         "core::format", "core::write", "core::smallest_step", "demo.documentation_examples::twice", "examples.apidoc::Box", "examples.apidoc::Side",
+         "core::Clock", "core::format", "core::write", "core::smallest_step", "demo.documentation_examples::twice", "examples.apidoc::Box", "examples.apidoc::Side",
          "examples.apidoc::identity", "examples.apidoc::shifted", "examples.apidoc::internal", "examples.properties::Meter",
          "demo.test_local_declarations::classify", "demo.test_local_declarations::local_candidate::classify",
          "demo.test_local_declarations::with_a_type::Closed",

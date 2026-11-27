@@ -23,6 +23,7 @@
   mixin("named_argument")="io.github.hhenson.hgl.psi.impl.HglNamedArgumentMixin"
   mixin("import_item")="io.github.hhenson.hgl.psi.impl.HglImportItemMixin"
   mixin("qualified_name")="io.github.hhenson.hgl.psi.impl.HglQualifiedNameMixin"
+  mixin("member_name")="io.github.hhenson.hgl.psi.impl.HglMemberNameMixin"
   mixin("module_path")="io.github.hhenson.hgl.psi.impl.HglModulePathMixin"
 
   tokens=[
@@ -318,11 +319,10 @@ constraint_relation ::= (EQEQ | NEQ | IS_KW) constraint_operand
 constraint_each ::= (<<kw "EACH_KW">> | ANY_KW) for_binding <<kw "IN_KW">> constraint_operand LBRACE nls constraint nls RBRACE {pin=1}
 constraint_set ::= LBRACE nls <<list_of constraint_operand>> nls RBRACE {pin=1}
 constraint_call ::= &(ident (COLONCOLON ident)? LPAREN) qualified_name <<adjacent>> LPAREN nls <<list_of constraint_operand>>? nls RPAREN {pin=2}
-constraint_operand ::= pack_member | implied_member_expr | constraint_set
-                     | container_type
-                     | scalar_type
+constraint_operand ::= implied_member_expr | constraint_set
+                     | (pack_member | container_type | scalar_type) QUESTION?
                      | constraint_call
-                     | &(ident (LT | COLONCOLON)) named_type
+                     | &(ident (LT | COLONCOLON | QUESTION)) named_type QUESTION?
                      | &constraint_value_start size_expression
                      | constraint_name
 constraint_name ::= qualified_name
@@ -433,7 +433,9 @@ private primary_group ::= applied_constructor_expr
                         | eval_expr
                         | run_expr
                         | implied_member_expr
+                        | type_of_expr
                         | type_call_expr
+                        | brace_literal_expr
                         | pack_loop_expr
                         | key_membership_expr
                         | block_expr
@@ -459,12 +461,15 @@ private mul_op ::= nls (STAR | SLASH | FLOOR_SLASH | PERCENT) (<<operatorOptions
 // Grammar-Kit sees one operand and classifies the rule as postfix; written
 // inline it would be a binary operator and parse the index at index priority.
 call_expr ::= expr call_suffix
-private call_suffix ::= (&LBRACE <<braceInsideExpression>> operator_configuration)? arguments
+private call_suffix ::= call_options? arguments
+// CTRL-9: only a symbol operator may take a configuration brace at header depth zero.
+private call_options ::= &LBRACE <<braceInsideExpression>> operator_configuration
 index_expr ::= expr index_suffix
 private index_suffix ::= <<adjacent>> LBRACKET nls <<inGroup expr>> nls RBRACKET {pin=2}
 field_expr ::= expr field_suffix
 private field_suffix ::= nls DOT member_name {pin=2}
 implied_member_expr ::= DOT member_name {pin=1}
+type_of_expr ::= &(IDENTIFIER LPAREN) <<kw "TYPE_KW">> <<adjacent>> LPAREN nls grouped_expr nls RPAREN {pin=4}
 type_call_expr ::= (STR_KW | BYTES_KW | ANY_KW | ERROR_KW) arguments {pin=1}
 
 literal_expr ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
@@ -474,6 +479,14 @@ literal_expr ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
 // tuples. Grammar-Kit would pin a separate `'(' expr ')'` rule after the
 // opening parenthesis and never try the tuple alternative.
 tuple_or_group_expr ::= LPAREN nls <<list_of grouped_expr>>? nls RPAREN
+// EXPR-9: parse the first entry before choosing the tail. A generic argument's
+// comma or a block statement's colon does not itself make the brace a literal.
+brace_literal_expr ::= &LBRACE <<braceInsideExpression>> <<hasBraceSeparator>> LBRACE nls <<inGroup brace_entries>> nls RBRACE {pin=6}
+private brace_entries ::= COMMA | COLON | brace_key_or_value (set_tail | keyed_tail)
+private set_tail ::= comma_sep (<<list_of expr>>)?
+private keyed_tail ::= nls COLON nls expr (comma_sep keyed_entry)* trailing_comma? {pin=2}
+private keyed_entry ::= brace_key_or_value nls COLON nls expr
+private brace_key_or_value ::= &(member_name nls COLON) member_name | expr
 sequence_expr ::= LBRACKET nls <<inGroup sequence_content>>? nls RBRACKET {pin=1}
 private sequence_content ::= loop_entries | sequence_entries
 private sequence_entries ::= expr (COLON nls expr (comma_sep sequence_pair)* | (comma_sep expr)*) trailing_comma?
@@ -486,7 +499,7 @@ if_expr ::= IF_KW <<header expr>> body_gap block (nls else_arm)? {pin=1}
 else_arm ::= ELSE_KW (if_expr | body_gap block) {pin=1}
 eval_expr ::= EVAL_KW harness_target {pin=1}
 run_expr ::= <<inIntegrationBody>> RUN_KW harness_target {pin=2}
-harness_target ::= operator_configuration? qualified_name generic_arguments? call_suffix
+harness_target ::= call_options? qualified_name generic_arguments? call_suffix
 key_membership_expr ::= simple_name <<kw "IN_KW">> &<<textIs "arg_keys">> qualified_name <<adjacent>> LPAREN nls simple_name nls RPAREN
 block_expr ::= &LBRACE <<braceInsideExpression>> block
 reference_expr ::= &IDENTIFIER qualified_name
@@ -497,10 +510,10 @@ applied_constructor_expr ::= <<appliedConstructorAhead>> qualified_name generic_
 delta_expr ::= DELTA_KW LT nls type nls GT arguments {pin=1}
 
 arguments ::= <<adjacent>> LPAREN nls <<list_of argument>>? nls RPAREN {pin=2}
-argument ::= named_argument | ELLIPSIS grouped_expr | argument_value
+argument ::= &(member_name COLON) named_argument | ELLIPSIS grouped_expr | argument_value
 private argument_value ::= function_reference | grouped_expr
 function_reference ::= <<functionReferenceAhead>> qualified_name generic_arguments
-named_argument ::= member_name COLON nls argument_value {pin=2}
+named_argument ::= member_name COLON nls argument_value {pin=1}
 
 // TYPE-7, CTRL-6, NATIVE-1, EXPR-10 and ERR-8.
 enum_decl ::= EXPORT_KW? ENUM_KW ident body_gap LBRACE nls <<list_of enum_member>>? nls RBRACE {pin=2}
@@ -508,7 +521,10 @@ enum_member ::= member_name (EQ nls size_expression)?
 native_type_decl ::= EXPORT_KW? <<kw "NATIVE_KW">> <<kw "TYPE_KW">> ident native_type_body? {pin=3}
 native_type_body ::= body_gap LBRACE nls (native_property (NEWLINE+ native_property)* nls)? RBRACE {pin=2}
 native_property ::= member_name COLON nls type {pin=2}
-operator_configuration ::= &(LBRACE nls member_name COLON) LBRACE nls <<list_of named_argument>> nls RBRACE {pin=2}
+// After a symbol, {name,} is a set operand. A named configuration starts with a colon entry.
+private symbol_options ::= &(LBRACE nls member_name COLON) operator_configuration
+// Recognize an unfinished label in a configured call so its declaration can supply completion.
+operator_configuration ::= &(LBRACE nls member_name (COLON | COMMA | RBRACE LPAREN)) LBRACE nls <<list_of named_argument>> nls RBRACE {pin=2}
 warning_annotation ::= AT <<kw "SUPPRESS_WARNING_KW">> <<adjacent>> LPAREN nls STRING_LITERAL nls RPAREN NEWLINE+ {pin=2}
 switch_stmt ::= SWITCH_KW continuation_gap <<header expr>> body_gap LBRACE nls switch_case* switch_default? RBRACE {pin=1}
 switch_case ::= <<kw "CASE_KW">> expr COLON nls switch_body {pin=1}

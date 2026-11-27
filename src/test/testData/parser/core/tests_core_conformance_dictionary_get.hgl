@@ -1,0 +1,68 @@
+module core_conformance
+
+/**
+A dictionary read uses the fallback only for an absent key, and accepts
+it as a positional or named argument.
+
+Rules:
+    ERR-6
+
+Status:
+    agreed
+*/
+test dictionary_get_keeps_a_present_value {
+    const fn read<S>(book: S, fallback: i64) -> i64 requires S in {dict<str, i64>} {
+        return get<i64>(book, "missing", fallback)
+    }
+    let counts: dict<str, i64> = ["full": 10, "empty": 0]
+    let present = get<i64>(counts, "full", 7)
+    let absent = get(counts, "missing", fallback: 7)
+    assert present == 10
+    assert absent == 7
+    assert get(counts, "empty", 7) == 0
+    assert get<i64>(["full": 10], "missing", 7) == 7
+    assert read(counts, 7) == 7
+    let plain = get<i64>(["full": 10], "missing", null)
+    assert is_err(plain)
+}
+
+/**
+A fallback is evaluated even when the dictionary holds the key.
+
+Rules:
+    ERR-6, EXPR-2
+
+Status:
+    agreed
+*/
+test dictionary_get_evaluates_the_fallback_for_a_present_key {
+    const fn quota(divisor: i64) -> i64 => 5 // divisor
+    let counts: dict<str, i64> = ["full": 10]
+    assert raises("numeric.division_by_zero") { let value = get(counts, "full", quota(0)) }
+}
+
+/**
+A supplied nullable expression gives its value, including null. Omission
+and written null select the fallible read and preserve held null as a
+success.
+
+Rules:
+    ERR-6, ERR-15
+
+Status:
+    agreed
+*/
+test dictionary_get_distinguishes_written_and_evaluated_null {
+    let samples: dict<str, i64?> = ["held": null]
+    let null_value: i64? = null
+    let fallback: i64? = 7
+    assert get(samples, "missing", null_value) == null
+    assert get(samples, "held", fallback) == null
+    assert get(samples, "missing", fallback) == 7
+    let held = get(samples, "held")
+    let written: result<i64?, error> = get<i64?>(samples, "held", null)
+    let omitted = get(samples, "missing")
+    let missing = get(samples, "missing", fallback: (null))
+    assert is_ok(held) && is_ok(written)
+    assert is_err(omitted) && is_err(missing)
+}

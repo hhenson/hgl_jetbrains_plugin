@@ -6,15 +6,29 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementResolveResult
 import com.intellij.psi.PsiPolyVariantReferenceBase
+import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.ResolveResult
 import com.intellij.psi.util.parentOfType
 import io.github.hhenson.hgl.HglLanguage
+import io.github.hhenson.hgl.psi.HglAnonymousParameter
+import io.github.hhenson.hgl.psi.HglCacheDecl
+import io.github.hhenson.hgl.psi.HglConfigurationParameter
+import io.github.hhenson.hgl.psi.HglConstantDecl
+import io.github.hhenson.hgl.psi.HglElementFactory
+import io.github.hhenson.hgl.psi.HglEnumDecl
+import io.github.hhenson.hgl.psi.HglFieldExpr
 import io.github.hhenson.hgl.psi.HglImportItem
+import io.github.hhenson.hgl.psi.HglInjectItem
 import io.github.hhenson.hgl.psi.HglLifecycleStmt
+import io.github.hhenson.hgl.psi.HglLocalDecl
+import io.github.hhenson.hgl.psi.HglMemberName
 import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglNamedElement
+import io.github.hhenson.hgl.psi.HglNativeTypeDecl
+import io.github.hhenson.hgl.psi.HglParameter
 import io.github.hhenson.hgl.psi.HglQualifiedName
 import io.github.hhenson.hgl.psi.HglReferenceExpr
+import io.github.hhenson.hgl.psi.HglStateDecl
 import io.github.hhenson.hgl.psi.HglUseDecl
 import io.github.hhenson.hgl.psi.HglWhenStmt
 import io.github.hhenson.hgl.structure.HglPresentation
@@ -32,6 +46,7 @@ class HglQualifiedNameReference(element: HglQualifiedName) :
         PsiElementResolveResult.createResults(declarations(includeImplementations = true))
 
     internal fun declarations(includeImplementations: Boolean): List<PsiElement> {
+        if (element.isDescriptorType()) return emptyList()
         val names = element.identList
         return when (names.size) {
             1 -> HglScope.resolve(element, names[0].text, includeImplementations)
@@ -53,7 +68,7 @@ class HglQualifiedNameReference(element: HglQualifiedName) :
     override fun getVariants(): Array<Any> {
         if (element.identList.size > 1) return emptyArray()
         val variants = HglScope.visibleDeclarations(element)
-            .filter { !it.name.isNullOrEmpty() }
+            .filter { !it.name.isNullOrEmpty() && !(it.name == "Type" && element.expectsDescriptorType()) }
             .distinctBy { it.name }
             .map { lookupFor(it) }
             .toMutableList()
@@ -105,4 +120,48 @@ class HglModulePathReference(element: HglModulePath) :
         val useDecl = element.parent as? HglUseDecl ?: return ResolveResult.EMPTY_ARRAY
         return PsiElementResolveResult.createResults(HglScope.targetFiles(useDecl))
     }
+}
+
+/** CAP-1. Injection binds the Core type even when a user declaration has the same name. */
+internal val HglInjectItem.capabilityType: String? get() = when (name) {
+    "clock" -> "Clock"
+    "logger" -> "Logger"
+    "scheduler" -> "Scheduler"
+    "run_config" -> "RunConfig"
+    else -> null
+}
+
+internal fun PsiElement.declaredValueType(): HglQualifiedName? = when (this) {
+    is HglParameter -> type
+    is HglConfigurationParameter -> type
+    is HglAnonymousParameter -> type
+    is HglLocalDecl -> type
+    is HglConstantDecl -> type
+    is HglStateDecl -> type
+    is HglCacheDecl -> type
+    else -> null
+}?.namedType?.qualifiedName
+
+internal fun fieldMemberReference(member: HglMemberName): PsiReferenceBase<HglMemberName>? {
+    val receiver = (member.parent as? HglFieldExpr)?.expr as? HglReferenceExpr ?: return null
+    val binding = receiver.qualifiedName.reference?.resolve() ?: return null
+    if (binding is HglEnumDecl) return HglFieldMemberReference(member, binding.enumMemberList)
+    val owner = if (binding is HglInjectItem) {
+        val type = binding.capabilityType ?: return null
+        HglModuleIndex.findFiles(member.project, "core").flatMap { HglScope.exportedDeclarations(it, type) }.singleOrNull()
+    } else binding.declaredValueType()?.reference?.resolve()
+    val body = (owner as? HglNativeTypeDecl)?.nativeTypeBody ?: return null
+    return HglFieldMemberReference(member, body.nativePropertyList)
+}
+
+private class HglFieldMemberReference(member: HglMemberName, private val members: List<HglNamedElement>) :
+    PsiReferenceBase<HglMemberName>(member, TextRange(0, member.textLength)) {
+
+    override fun resolve(): PsiElement? = members.singleOrNull { it.name == element.text }
+
+    override fun getVariants(): Array<LookupElement> =
+        members.map(HglQualifiedNameReference::lookupFor).toTypedArray()
+
+    override fun handleElementRename(newElementName: String): PsiElement =
+        element.replace(HglElementFactory.createMemberName(element.project, newElementName))
 }

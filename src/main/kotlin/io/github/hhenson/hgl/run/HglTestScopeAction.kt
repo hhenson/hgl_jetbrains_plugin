@@ -21,10 +21,10 @@ import java.nio.file.Path
 class HglRunTestsAction : HglTestScopeAction(false)
 class HglRunIntegrationTestsAction : HglTestScopeAction(true)
 
-abstract class HglTestScopeAction(private val integrationOnly: Boolean) : AnAction() {
+abstract class HglTestLocationAction : AnAction() {
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
-    private fun selection(event: AnActionEvent): VirtualFile? {
+    protected fun selection(event: AnActionEvent): VirtualFile? {
         if (event.place == ActionPlaces.EDITOR_TAB_POPUP) return event.getData(CommonDataKeys.VIRTUAL_FILE)
         val files = event.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY)
         return if (files == null) event.getData(CommonDataKeys.VIRTUAL_FILE) else files.singleOrNull()
@@ -40,7 +40,16 @@ abstract class HglTestScopeAction(private val integrationOnly: Boolean) : AnActi
         event.presentation.isVisible = visible
         event.presentation.isEnabled = visible && TrustedProjects.isProjectTrusted(project)
     }
+}
 
+class HglConfigureTestRootsAction : HglTestLocationAction() {
+    override fun actionPerformed(event: AnActionEvent) {
+        val project = event.project ?: return
+        HglTestRootsDialog.open(project, selection(event))
+    }
+}
+
+abstract class HglTestScopeAction(private val integrationOnly: Boolean) : HglTestLocationAction() {
     override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
         val file = selection(event) ?: return

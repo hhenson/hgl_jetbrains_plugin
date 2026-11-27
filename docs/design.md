@@ -54,6 +54,14 @@ Math and Mermaid fences display their source. A code span with a unique
 declaration in the comment’s scope links to it (SDOC-8). Parameter help reads the
 matching entry from the owner's `Args:` or `Type Args:` section.
 
+Completion and Go to Declaration on `Side.buy` use the enum named by the
+receiver, including `alias::Side.buy` (TYPE-7). Quick Documentation shows the
+member’s source comment or its compiler export when source is unavailable.
+For native properties, the receiver’s declared type supplies the owner.
+An injected capability denotes its Core type even if a local type has the same
+name. Property completion and navigation use indexed source. Quick Documentation
+also reads native property records in the version 1 export.
+
 Source comments can link to a public declaration or member through a visible
 file import (for example, `prices::Quote.bid`). A parameter that hides the
 alias leaves that span as plain code. Exported comments lack import metadata.
@@ -102,7 +110,7 @@ CLion and RustRover use the same directory project generator. It copies the
 bundled module and application into `src/`, creates `build/`, `bin/` and
 `docs/`, and opens the application. Tests live alongside the code they
 exercise. The project tracks `hgl.json`. Its `build` object holds
-`compiler`, `sourceRoots`, `buildDir`, `binDir` and `docsDir`. The IDE
+`compiler`, `sourceRoots`, `testRoots`, `buildDir`, `binDir` and `docsDir`. The IDE
 edits this file and preserves unrelated JSON fields. The private workspace
 keeps compiler and documentation overrides and the check-on-save switch.
 
@@ -119,6 +127,9 @@ fails, the action stops before writing the IDE’s JSON model.
 Build runs `hgl build --target cpp --compile-commands --out <buildDir> -- <roots>` in
 the project directory for Release. Debug adds `--debug` and writes to
 `<buildDir>/debug`. On success the plugin refreshes the generated files under `buildDir`.
+Clean and Rebuild (HGL 0.2.10+) passes `--clean` on the same compiler invocation for the
+selected profile. The compiler owns cleanup and the workspace lock. Both
+actions reuse the standard compilation database refresh on success.
 The optional CLion Compilation Database integration links that file to the current
 project and refreshes the model when the database changes. Moving the build directory
 repoints the database link created by HGL. RustRover reports the generated file path.
@@ -136,19 +147,26 @@ in an IDE Run configuration.
 
 The HGL Test configuration accepts the CLI’s documentation example identities,
 including module and part headers, members and numbered overloads. Each
-selector is passed to `--test` as one argument.
+selector is passed to `--test` as one argument. With configured roots, the
+gutter also passes the declaration file to `--test-path`.
 
 The Project and editor-tab menus offer separate ordinary and integration test
 actions. Each saves the selected file or recursive folder and its test kind
 in a rerunnable configuration. The compiler reads all configured roots for
-imports. `--test-path` selects cases by source location when the selection
+imports. `build.sourceRoots` supplies application and library inputs. Tests and
+check-on-save also load `build.testRoots`. When present, these roots select
+cases for project and module suites. `--test-path` selects cases by source location when the selection
 covers part of the program. A folder above multiple roots selects the roots
 it contains. `--integration-only` selects integration tests and their rejection
 cases. The IDE displays the compiler's outcomes in the same test tree as a gutter run.
 
+The Project and editor-tab menus open the roots dialog with their selection.
+Test Results options and test configuration editors open it without a selection.
+The dialog shares its fields and project file with the HGL build settings.
+
 A module part contributes to its enclosing module. Naming an integration
 test opts into that case. The compiler still checks declaration and import
-rejection cases in the supplied roots.
+rejection cases in the selected paths.
 
 Diagnostics and both run configurations share one compiler command builder.
 It uses the project’s executable setting and the IDE console environment.
@@ -165,6 +183,12 @@ skipped. Compiler invocation failures appear as runner errors. Applications
 keep their ordinary Run console.
 
 ## Grammar and PSI
+
+The parser distinguishes brace literals from statement blocks by a comma or
+colon after the first entry (EXPR-9). Nested delimiters and generic arguments
+keep their own separators. A keyed literal can represent a dictionary or a
+struct. The compiler owns contextual typing and GEN-5’s
+`operator.sequence_reading` warning.
 
 Newlines are explicit tokens. Whitespace and comments stay in the PSI.
 Contextual names are remapped only where the grammar consumes their spelling.
@@ -183,23 +207,38 @@ Calls to the core endpoint predicates `modified`, `valid` and `all_valid` use th
 contextual keyword colour. Temporal handlers offer all three in completion even
 when core sources are absent. A local binding keeps its own colour and completion.
 
+At a collection delta constructor, completion offers its unused TYPE-16
+property names. A nested constructor uses its own collection type.
+
 Named argument completion and Go to Declaration use the public signature of an
 unambiguous function or operator. At a callback call only names written in the
 parameter's function type are visible (FN-17). Completion omits slots already
 filled by positional or named arguments.
-When editing the proposed FN-8 form, a positional pack consumes the remaining
-positional arguments and later labels stay available.
+An operator candidate may add options (GEN-6). Completion shows each label once
+and Go to Declaration offers its declaring candidates. Shared labels navigate to
+the public signature. Candidate lookup uses the gutter’s implementation index
+and the caller’s test scope. The compiler selects candidates by type.
+Fixed parameters precede packs (FN-8). Named calls offer declared configuration
+parameters in braces, including Core’s `join{separator: "/"}("a", "b")`.
+Brace labels navigate to the public declaration. TYPE-18’s `type(e)` is an
+expression and accepts one operand. The descriptor spelling `Type` is contextual
+in annotations. A bare angle argument follows the declared parameter kind.
+When the call supplies the kind, a visible value takes precedence (GEN-14).
+The compiler diagnoses reserved type declarations and candidate result guarantees (GEN-6).
+In a control header, a symbol operator can carry its brace options directly.
+The parser applies CTRL-9 to named calls and to options on `eval` and `run`.
 
 ## Toolbar targets
 
-The IDE discovers application and module headers in the configured source
-roots. With no configured roots it uses indexed HGL sources under the project
-directory. Saving a source file updates its header. A path or source-root
+The IDE discovers applications in the source roots and test modules in the
+test roots (source roots by default). With no configured roots it uses indexed
+HGL sources under the project directory. Saving a source file updates its header. A path or source-root
 change rebuilds the catalog. Generated Run/Debug configurations live in the
 IDE workspace. Removing a declaration retires its generated entry.
 
 A module selection passes one `--test-path` per module part. A project
-selection passes all source roots without a path filter. Both use the same
+selection passes one filter per configured test root, or includes inline
+tests across the source roots when test roots are empty. Both use the same
 runner as file and folder selections, preserving dependency roots and test kind.
 
 ## Application and test debugging

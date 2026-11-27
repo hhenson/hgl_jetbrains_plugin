@@ -16,8 +16,9 @@ The outcome of a full comparison, `a <=> b`: less, equivalent, greater or unorde
 
 `compare_`, which `<=>` stands for, returns one; `<`, `<=`, `>`, `>=`,
 `==` and `!=` return a bool. Only a numeric comparison and a tenor's give
-`unordered`. An outcome converts to no bool and no number: it is compared
-with a member, `(a <=> b) == CmpResult.less`.
+`unordered`. An outcome has no implicit bool or numeric conversion.
+Compare it with a member, `(a <=> b) == CmpResult.less`. An explicit
+`convert<i64>` gives the member's number.
 
 Of two numbers, each comparison that gives a bool is true for these
 outcomes:
@@ -36,6 +37,7 @@ Examples:
     assert (1.0 <=> 2.0) == CmpResult.less
     assert ("b" <=> "a") == CmpResult.greater
     assert (0.0 <=> -0.0) == CmpResult.equivalent
+    assert convert<i64>(CmpResult.unordered) == 3
     ~~~
 
     A NaN has no order, and nor have two tenors of different forms.
@@ -46,7 +48,7 @@ Examples:
     ~~~
 
 Rules:
-    OPS-2, OPS-3, NUM-6, TEN-3
+    OPS-2, OPS-3, OPS-6, NUM-6, TEN-3, TYPE-7
 */
 export enum CmpResult {
     /**
@@ -841,6 +843,7 @@ Read the value under a key, of the run's store or of a dictionary, as a read tha
 | --- | --- | --- |
 | `GlobalState`, the run's store | A `str` fixed when the graph is built | `result<V, error>`, a failure with code `value.missing_key` where the key holds no value |
 | `dict<K, V>` | A `K` | `result<V, error>`, a failure with code `value.missing_key` where the dictionary has no such key |
+| `dict<K, V>` with a fallback | A `K` | The value at the key, or the fallback when the key is absent |
 
 The `result` takes its form from its place. Where a `result<V, error>`
 is expected it is given itself; where a `V`, the value, and a failure is
@@ -849,6 +852,11 @@ writes no type holds the result. Where `V` is itself nullable, a stored
 null is a success, told apart from an absent key. The strict read of a
 dictionary is `dictionary[key]`, which gives the value and fails with
 `value.missing_key` where the key is absent.
+
+A dictionary's fallback has exactly its value type `V` and is evaluated
+even where the key is present. A present zero or null is a value. A
+written `null` in the fallback position selects the two-argument read.
+An expression of nullable type that evaluates to null supplies that null.
 
 A key of the store keeps the type of its first use: a `get` of another
 type than an earlier use of the key is rejected with `store.key_type`
@@ -862,8 +870,9 @@ literals, enum members, constants, generic value parameters and the
 enclosing function's own `const` parameters. Reading the store wakes no node and is no temporal input: a node reads
 what was put before it is evaluated, and what it reads of a `put` by
 another node of the same rank in the same cycle is undefined. The key
-`"run.output"` is the run's: a program that names it is rejected when
-its graph is built, with `store.reserved_key`.
+`"run.output"` is the run's: a program that names it is rejected with
+`store.reserved_key`. Proposed, with the language's TIME-8: in source,
+when its graph is built, or as the call is evaluated.
 
 Type Args:
     V: The value's type. A call of the store's may write it,
@@ -876,9 +885,15 @@ Args:
     store: The run's store, `global_state`, or a dictionary.
     key: The key read.
 
+Options:
+    - `fallback`: the value used for a missing dictionary key. Omit it
+      for the two-argument read. Write it as the third argument or as
+      `fallback: value`.
+
 Returns:
-    The value under the key as a success, or a failure where the key
-    holds none.
+    With a fallback, the value under the key or the supplied fallback.
+    The two-argument read gives the value as a success or a failure where
+    the key holds none.
 
 Raises:
     - `value.missing_key`: where a `V` is taken of a read whose key is absent
@@ -888,14 +903,16 @@ Raises:
 
 Ticks:
     A dictionary's read, given connections in a graph, is lifted: its
-    result ticks each time the dictionary or the key ticks with both
-    valid, the same value again included. The store's read in a graph
+    result ticks on a publication of the dictionary, key, or supplied
+    fallback with all its inputs valid, the same value again included.
+    The store's read in a graph
     is made once, where the graph is built, and is given no connection
     (`connection.as_constant`): the value it reads is a constant, which
     ticks once, when the graph starts, and the read is not made again.
 
 Validity:
-    A lifted dictionary's read needs the dictionary and the key valid.
+    A lifted dictionary's read needs the dictionary, key, and any supplied
+    fallback valid.
 
 Examples:
     A graph puts a limit in the store as it is built, and its node reads it.
@@ -963,6 +980,18 @@ Examples:
     assert raises("value.missing_key") { let price: f64 = get(prices, "z") }
     ~~~
 
+    A fallback gives a value directly. A present zero is kept.
+
+    ~~~hgl
+    let counts: dict<str, i64> = ["full": 10, "empty": 0]
+    assert get(counts, "full", 7) == 10
+    assert get(counts, "missing", 7) == 7
+    assert get(counts, "empty", 7) == 0
+    let samples: dict<str, i64?> = ["seen": 1]
+    let fallback: i64? = null
+    assert get(samples, "missing", fallback) == null
+    ~~~
+
     A dictionary's read in a graph ticks with the dictionary.
 
     ~~~hgl
@@ -977,6 +1006,22 @@ Rules:
 export operator get<V, S, K>(store: S, key: K) -> result<V, error>
 
 /**
+Read a dictionary, giving the supplied value when the key is absent.
+
+The fallback is evaluated for every call and must have the dictionary's
+value type. The call gives that type directly, including a null value
+when the dictionary or fallback supplies one.
+
+Rules:
+    ERR-6
+*/
+impl const fn get<K, T>(store: dict<K, T>, key: K, fallback: T) -> T {
+    let found: result<T, error> = get<T>(store, key)
+    if is_ok(found) { return found.value }
+    return fallback
+}
+
+/**
 Whether a key of the run's store holds a value.
 
 A stored null is a value: `has` is true of a key that holds one. The
@@ -986,8 +1031,9 @@ before any node of that graph starts. The key is fixed when the graph is
 built: in a hook or a value function it is a constant expression, of
 literals, enum members, constants, generic value parameters and the
 enclosing function's own `const` parameters. Asking wakes no node and is no temporal input. The key `"run.output"` is
-the run's: a program that names it is rejected when its graph is built,
-with `store.reserved_key`.
+the run's: a program that names it is rejected with
+`store.reserved_key`. Proposed, with the language's TIME-8: in source,
+when its graph is built, or as the call is evaluated.
 
 Type Args:
     S: The type of `store`. It is inferred.
@@ -1044,8 +1090,9 @@ members, constants, generic value parameters and the enclosing
 function's own `const` parameters. A `put` wakes no node and is no
 temporal input: what another node of the same rank
 reads of it in the same cycle is undefined. The key `"run.output"` is the
-run's: a program that names it is rejected when its graph is built, with
-`store.reserved_key`.
+run's: a program that names it is rejected with `store.reserved_key`.
+Proposed, with the language's TIME-8: in source, when its graph is
+built, or as the call is evaluated.
 
 Type Args:
     S: The type of `store`. It is inferred.
@@ -2251,6 +2298,7 @@ NaN, or two tenors that are not ordered, make all four false.
 | --- | --- |
 | Two `i64`, two `f64`, or an `i64` and an `f64` | By number. The `i64` is not rounded to an `f64` first. `0.0` and `-0.0` are neither below the other; a NaN is unordered with everything |
 | Two of one type among `date`, `time`, `datetime`, `civil_datetime` and `duration`, two `str`, or two `bool` | Their type's order |
+| Two `bytes` | Lexicographically by unsigned octets |
 | Two `tenor` | Count by count: one is below another of its form where no count of it is greater and one is less. Two of different forms, or where one count is less and another greater, are unordered |
 
 Type Args:
@@ -2289,13 +2337,14 @@ Examples:
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan < 1.0) && !(1.0 < nan)
 
+    assert convert<bytes>("\u{7f}") < convert<bytes>("\u{80}")
     assert 1M < 2M1D && !(1M < 1B) && !(1M3D < 2M)
 
     assert eval below(left: [1, _, 5], right: [2, _, _]) == [true, _, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, EXPR-1, TYPE-2, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, EXPR-1, TYPE-1, TYPE-2, FN-6, FN-11
 */
 export operator lt_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2303,7 +2352,7 @@ export operator lt_<L, R>(lhs: L, rhs: R) -> bool
 Whether the left operand is below or equal to the right: `a <= b` is
 `le_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2345,19 +2394,20 @@ Examples:
     assert -0.0 <= 0.0
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan <= nan) && !(nan > nan)
+    assert convert<bytes>("\u{7f}") <= convert<bytes>("\u{80}")
     assert 1M <= 1M1D && !(1M <= 1B)
     assert eval at_most(left: [2, 3], right: [2, _]) == [true, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, TYPE-1, FN-6, FN-11
 */
 export operator le_<L, R>(lhs: L, rhs: R) -> bool
 
 /**
 Whether the left operand is above the right: `a > b` is `gt_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2396,12 +2446,13 @@ Examples:
     assert count > price && !(price > count)
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan > 1.0) && !(1.0 > nan)
+    assert convert<bytes>("\u{80}") > convert<bytes>("\u{7f}")
     assert 2M > 1M && !(1M > 1B)
     assert eval above(left: [3.0, 1.0], right: [2.0, _]) == [true, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, TYPE-1, FN-6, FN-11
 */
 export operator gt_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2409,7 +2460,7 @@ export operator gt_<L, R>(lhs: L, rhs: R) -> bool
 Whether the left operand is above or equal to the right: `a >= b` is
 `ge_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2450,12 +2501,13 @@ Examples:
     assert price >= count && !(count >= price)
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert !(nan >= 1.0) && !(nan < 1.0)
+    assert convert<bytes>("\u{80}") >= convert<bytes>("\u{7f}")
     assert 2M1D >= 1M && !(1M3D >= 2M)
     assert eval at_least(left: [2, 1], right: [2, _]) == [true, false]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, FN-6, FN-11
+    OPS-1, OPS-2, NUM-2, NUM-5, NUM-6, TEN-3, TYPE-1, FN-6, FN-11
 */
 export operator ge_<L, R>(lhs: L, rhs: R) -> bool
 
@@ -2463,7 +2515,7 @@ export operator ge_<L, R>(lhs: L, rhs: R) -> bool
 The full outcome of comparing two values, a `CmpResult`: `a <=> b` is
 `compare_(a, b)`.
 
-It compares two values of one ordered type, `i64`, `f64`, `str`,
+It compares two values of one ordered type, `i64`, `f64`, `str`, `bytes`,
 `bool`, `date`, `time`, `datetime`, `civil_datetime`, `duration` or
 `tenor`, or an `i64` and an `f64` in either order, ordered as `lt_`'s
 table says; tenors are only partly ordered. Any other
@@ -2519,13 +2571,18 @@ Examples:
     assert (0.0 <=> -0.0) == .equivalent
     let nan: f64 = 0.0 /{zero: .nan} 0.0
     assert (nan <=> nan) == .unordered
+    let low = convert<bytes>("\u{7f}")
+    let high = convert<bytes>("\u{80}")
+    assert (low <=> high) == .less
+    assert (high <=> high) == .equivalent
+    assert (high <=> low) == .greater
     assert (1M <=> 2M1D) == .less
     assert (1M <=> 1B) == .unordered
     assert eval order(left: [1.0, 3.0], right: [2.0, _]) == [CmpResult.less, .greater]
     ~~~
 
 Rules:
-    OPS-1, OPS-2, OPS-3, NUM-5, NUM-6, NUM-7, TEN-3, EXPR-11, FN-6, FN-11
+    OPS-1, OPS-2, OPS-3, NUM-5, NUM-6, NUM-7, TEN-3, EXPR-11, TYPE-1, FN-6, FN-11
 */
 export operator compare_<L, R>(lhs: L, rhs: R) -> CmpResult
 
@@ -2544,7 +2601,8 @@ is written.
 
 | From | To |
 | --- | --- |
-| `i64` | `f64`, `bool`, `str` |
+| `i64` | `f64`, `bool`, `str`, an enum |
+| An enum | `i64`, `str` |
 | `f64` | `i64`, `bool`, `str` |
 | `bool` | `i64`, `f64`, `str` |
 | `str` | `i64`, `f64`, `bool`, `bytes` |
@@ -2552,13 +2610,15 @@ is written.
 | `date` | `datetime` |
 | `datetime` | `date` |
 | `tenor` | `str` |
+| `Type` | `str` |
 | A list, a set, a dictionary, a tuple, a struct | `str` |
 | `list<A>`, of a struct `A` that inherits from the abstract struct `B` | `list<B>` |
 
 A conversion can fail where its value has no `T`: an `f64` that is a
 NaN, an infinity, or outside `i64` once rounded; a text that is not what
 the table under `Returns:` reads as the type asked for; bytes that are
-not well-formed UTF-8.
+not well-formed UTF-8. Proposed (OPS-7): an integer that is no member's
+number fails its conversion to an enum.
 
 Type Args:
     T: The type to convert to. The call writes it.
@@ -2593,6 +2653,9 @@ Returns:
     | Conversion | Gives |
     | --- | --- |
     | `i64` to `f64` | The nearest `f64` |
+    | An enum to `str` | The member's name |
+    | An enum to `i64` | The member's number |
+    | `i64` to an enum | The member of that number |
     | `f64` to `i64` | The integer `rounding` selects |
     | `i64` or `f64` to `bool` | False for zero, true otherwise; a NaN is true |
     | `bool` to `i64` or `f64` | 0 or 1 |
@@ -2606,7 +2669,9 @@ Returns:
     | `date` to `datetime` | The start of that date, in UTC |
     | `datetime` to `date` | The date of the instant, in UTC |
     | `tenor` to `str` | Its text, in its largest units, a unit whose count is zero not written, and `-` before the units of a count below zero: `1Y6M`, `2W`, `0D`, `1M-1D` |
+    | `Type` to `str` | Its canonical diagnostic spelling: `list<i64, 2>`, `dict<str, f64>`, `i64?`, a struct by its name (TYPE-18, FMT-5) |
     | A list, a set, a dictionary, a tuple or a struct to `str` | The value as a program writes it, a `str` among its parts in quotes: `[1, 2]`, `["a": 1]`, `(1, "a")`, `Point(x: 1.0, y: 2.0)` |
+    | A list, set or dictionary delta to `str` | Its TYPE-16 constructor, omitting empty or null properties (FMT-5) |
     | `list<A>` to `list<B>` | The same elements |
 
     A number's text is all of the text: nothing stands before or after
@@ -2638,6 +2703,8 @@ Examples:
     struct Circle : Shape {
         radius: f64
     }
+
+    enum Side { buy = -2, sell = 7 }
 
     fn whole(value: f64) -> i64 => convert<i64>(value, invalid: .fail)
 
@@ -2677,6 +2744,9 @@ Examples:
     assert convert<str>(18M) == "1Y6M"
     assert convert<str>(1M - 1D) == "1M-1D"
 
+    assert convert<str>(Side.buy) == "buy"
+    assert convert<i64>(Side.sell) == 7
+
     let circles: list<Circle> = [Circle(radius: 1.0)]
     let shapes: list<Shape> = convert<list<Shape>>(circles)
     assert shapes == [Circle(radius: 1.0)]
@@ -2684,9 +2754,24 @@ Examples:
     assert eval whole(value: [2.9, -2.9]) == [2, -2]
     ~~~
 
+    Proposed (OPS-7): an integer-to-enum conversion uses the checked
+    result or the `.fail` form. A number with no member follows the
+    selected policy.
+
+    ~~~hgl
+    enum Side { buy = -2, sell = 7 }
+    let checked = convert<Side>(-2)
+    assert is_ok(checked)
+    if is_ok(checked) { assert checked.value == Side.buy }
+    assert convert<Side>(7, invalid: .fail) == Side.sell
+
+    assert is_err(convert<Stream>(2))
+    assert raises("convert.invalid") { convert<Stream>(2, invalid: .fail) }
+    ~~~
+
 Rules:
     OPS-4, OPS-6, OPS-7, OPS-8, NUM-10, TEN-9, FMT-5, EXPR-5, EXPR-12, ERR-11,
-    ERR-15, TYPE-3, FN-6, FN-11
+    ERR-15, TYPE-3, TYPE-7, FN-6, FN-11
 */
 export operator convert<T, V, O>(value: V) -> O
     requires O in {T, result<T, error>}
@@ -2956,17 +3041,19 @@ Join strings in order with a separator between consecutive strings.
 | Input | Order |
 | --- | --- |
 | One `list<str>` | List order |
-| A positional pack of `str` (proposed trial) | Argument order |
+| A positional pack of `str` | Argument order |
 
-Pass `separator` by name in either form under the trial. With zero strings,
-the result is empty text. One string gives that string.
+With zero strings, the result is empty text. One string gives that string.
 
 Type Args:
     As: The fitted types of the pieces, inferred from the call.
 
 Args:
     pieces: A list of strings or the strings themselves.
-    separator: The text written between pieces.
+
+Options:
+    - `separator`: Text written between pieces. The default is one space.
+      Write `join{separator: ", "}(pieces)` to supply a separator.
 
 Returns:
     The joined string.
@@ -2980,17 +3067,17 @@ Validity:
 
 Examples:
     ~~~hgl
-    assert join(["a", "b"], separator: ", ") == "a, b"
-    assert join("one", "two", "three", separator: " ") == "one two three"
-    assert join(separator: "/") == ""
+    assert join{separator: ", "}(["a", "b"]) == "a, b"
+    assert join("one", "two", "three") == "one two three"
+    assert join{separator: "/"}() == ""
     ~~~
 
 Rules:
-    OPS-11, EXPR-2, FN-6, FN-8, GEN-6
+    OPS-11, EXPR-14, FN-6, FN-8, FN-18, GEN-6
 */
-export operator join<...As>(pieces: ...As, separator: str) -> str
+export operator join<...As>{separator: str = " "}(pieces: ...As) -> str
 
-impl const fn join(pieces: ...list<str>{1}, separator: str) -> str {
+impl const fn join{separator: str = " "}(pieces: ...list<str>{1}) -> str {
     var text = ""
     var prefix = ""
     for piece in pieces[0] {
@@ -3001,7 +3088,7 @@ impl const fn join(pieces: ...list<str>{1}, separator: str) -> str {
     return text
 }
 
-impl const fn join(pieces: ...str, separator: str) -> str {
+impl const fn join{separator: str = " "}(pieces: ...str) -> str {
     var text = ""
     var prefix = ""
     for piece in pieces {

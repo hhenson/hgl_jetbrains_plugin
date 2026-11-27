@@ -6,14 +6,17 @@ import com.intellij.psi.PsiReference
 import io.github.hhenson.hgl.psi.HglArgument
 import io.github.hhenson.hgl.psi.HglArguments
 import io.github.hhenson.hgl.psi.HglImportItem
+import io.github.hhenson.hgl.psi.HglMemberName
 import io.github.hhenson.hgl.psi.HglModulePath
 import io.github.hhenson.hgl.psi.HglNamedArgument
+import io.github.hhenson.hgl.psi.HglOperatorConfiguration
 import io.github.hhenson.hgl.psi.HglQualifiedName
 import io.github.hhenson.hgl.reference.HglCallLabelReference
 import io.github.hhenson.hgl.reference.HglImportItemReference
 import io.github.hhenson.hgl.reference.HglModulePathReference
 import io.github.hhenson.hgl.reference.HglQualifiedNameReference
-import io.github.hhenson.hgl.reference.callParameters
+import io.github.hhenson.hgl.reference.callArguments
+import io.github.hhenson.hgl.reference.fieldMemberReference
 
 abstract class HglQualifiedNameMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
     override fun getReference(): PsiReference = HglQualifiedNameReference(this as HglQualifiedName)
@@ -30,8 +33,15 @@ abstract class HglImportItemMixin(node: ASTNode) : HglNamedElementImpl(node) {
 
 abstract class HglNamedArgumentMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
     override fun getReference(): PsiReference? {
-        val argument = parent as? HglArgument ?: return null
-        val parameters = (argument.parent as? HglArguments)?.callParameters() ?: return null
-        return HglCallLabelReference(this as HglNamedArgument, parameters)
+        val arguments = when (val owner = parent) {
+            is HglOperatorConfiguration -> owner.callArguments() ?: return null
+            is HglArgument -> owner.parent as? HglArguments ?: return null
+            else -> return null
+        }
+        return HglCallLabelReference(this as HglNamedArgument, arguments, parent is HglOperatorConfiguration)
     }
+}
+
+abstract class HglMemberNameMixin(node: ASTNode) : ASTWrapperPsiElement(node) {
+    override fun getReference(): PsiReference? = fieldMemberReference(this as HglMemberName)
 }

@@ -14,7 +14,8 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.LabeledComponent
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.openapi.util.NotNullLazyValue
 import io.github.hhenson.hgl.HglIcons
 import java.nio.file.Path
@@ -66,7 +67,10 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
 
     override fun getConfigurationEditor() = object : SettingsEditor<HglRunConfiguration>() {
         private val selectorField = JTextField()
-        override fun createEditor() = LabeledComponent.create(selectorField, runType.selectorLabel)
+        override fun createEditor() = panel {
+            row(runType.selectorLabel) { cell(selectorField).align(AlignX.FILL) }
+            if (runType is HglTestType) row { link("Configure HGL Test Roots…") { HglTestRootsDialog.open(project) } }
+        }
         override fun resetEditorFrom(configuration: HglRunConfiguration) { selectorField.text = configuration.selector }
         override fun applyEditorTo(configuration: HglRunConfiguration) { configuration.selector = selectorField.text.trim() }
     }
@@ -77,7 +81,8 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
             throw RuntimeConfigurationError(error.localizedMessage)
         }
         if (settings.compiler.isBlank()) throw RuntimeConfigurationError("Set the HGL executable in Settings | Build, Execution, Deployment | HGL.")
-        if (sourcePath.isBlank() && settings.sourceRoots.isEmpty()) {
+        val roots = if (runType is HglTestType) settings.programRootsForTests else settings.sourceRoots
+        if (sourcePath.isBlank() && roots.isEmpty()) {
             throw RuntimeConfigurationError("Run from a declaration or set source roots in Settings | Build, Execution, Deployment | HGL.")
         }
     }
@@ -85,11 +90,16 @@ class HglRunConfiguration(project: Project, private val runType: HglRunType) :
     internal fun commandLine(debugBuild: Path? = null): GeneralCommandLine {
         checkConfiguration()
         val settings = project.buildSettings()
-        val roots = settings.sourceRoots
+        val roots = if (runType is HglTestType) settings.testInputs(Path.of(requireNotNull(project.basePath)), sourcePath)
+            else settings.sourceRoots
         val command = hglCommandLine(settings.compiler)
             .withParameters(runType.command)
             .withParameters(selector, "--target", "cpp")
             .withWorkDirectory(project.basePath)
+        if (runType is HglTestType && settings.programRootsForTests.isNotEmpty()) {
+            val scopes = if (sourcePath.isNotBlank()) listOf(sourcePath) else settings.testRoots
+            for (path in scopes) command.addParameters("--test-path", path)
+        }
         if (debugBuild != null) command.addParameters("--debug-build", debugBuild.toString())
         else if (settings.buildDir.isNotBlank()) command.addParameters("--keep", settings.buildDir)
         command.addParameter("--")

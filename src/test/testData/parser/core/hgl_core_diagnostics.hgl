@@ -1,0 +1,56 @@
+module core part diagnostics
+
+/**
+Write a formatted diagnostic line to the process's standard output.
+
+In a value function or a node's handler the line is written and flushed
+where the call is executed. The text has a newline and goes to the
+process stream, outside the run's record. The format string follows
+`format`'s rules for value code, including `{wall_time}` and a marked place
+whose argument is a `Marked`.
+
+Type Args:
+    As: The types of the positional arguments.
+    Ks: The types of the arguments under their source names.
+
+Args:
+    fmt_str: The constant format string.
+    args: The values that fill positional places, in argument order.
+    kwargs: The values that fill places of the same names.
+
+Raises:
+    - `format.syntax`: a brace belongs to no place.
+    - `format.argument`: a place has no argument, or asks for `{engine_time}`.
+    - `format.unused`: no place takes an argument.
+    - `format.specifier`: the argument does not admit a specifier or mark.
+
+Examples:
+    ~~~hgl
+    debug_print("quote {:.2f} at {venue}", 101.25, venue: "test")
+    ~~~
+
+Notes:
+    See the [formatting reference](https://github.com/hhenson/hgl_core/blob/main/spec/formatting.md#reference).
+
+Rules:
+    DBG-1, DBG-3, DBG-9, FMT-1, FMT-2, FMT-3, FMT-9
+*/
+export operator debug_print<...As, ...Ks>(
+    const fmt_str: str, args: ...As, kwargs: ...{Ks})
+
+/**
+Write the line at the point of execution in a value function or handler.
+
+Examples:
+    ~~~hgl
+    debug_print("{*}", Marked<i64>(value: 7, ticked: true))
+    ~~~
+
+Rules:
+    DBG-1, DBG-3, DBG-9, FMT-9, OUT-2
+*/
+impl const fn debug_print<...As, ...Ks>(
+    const fmt_str: str, args: ...As, kwargs: ...{Ks})
+{
+    write(format(fmt_str, ...args, ...kwargs) + "\n", flush: true)
+}

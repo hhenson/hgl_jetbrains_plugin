@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hhenson/hgl-compiler
-          ref: e0ce76ef7f8c77c558e0f6c9c67d9f53d1cc0c33
+          ref: e408353274d2ac3fc11944e91ef0291d4e0b67e9
           path: build/test-compiler
           submodules: recursive
           persist-credentials: false

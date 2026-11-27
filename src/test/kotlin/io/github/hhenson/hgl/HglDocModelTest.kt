@@ -88,6 +88,59 @@ class HglDocModelTest : HglEditorFixture() {
         assertNull(HglDocumentation.attached(members.single { it.name == "limit" }))
     }
 
+    fun testInjectedCapabilityPropertyUsesItsCoreDeclaration() {
+        myFixture.addFileToProject("capabilities.hgl", File("src/test/testData/parser/core/hgl_native_capabilities.hgl").readText())
+        // The injection has Core's type even when a declaration shadows the type name.
+        val prefix = "module consumer\nstruct Clock { now: i64 }\n"
+        for ((name, property, text) in listOf(
+            Triple("clock", "now", "estimate of wall-clock time"),
+            Triple("logger", "level", "lowest level"),
+            Triple("scheduler", "next_scheduled_time", "earliest pending wake"),
+            Triple("run_config", "start", "inclusive start"),
+        )) {
+            val code = prefix + "fn read() {\n inject $name\n when { return $name.<caret>$property }\n}"
+            val hint = targets(code).single().computeDocumentationHint()!!
+            assertTrue(hint, text in hint)
+            val declaration = myFixture.elementAtCaret as HglNativeProperty
+            assertEquals(property, declaration.name)
+            assertEquals("capabilities.hgl", declaration.containingFile.name)
+        }
+        myFixture.configureByText("use.hgl", prefix + "fn read() {\n inject clock\n when { return clock.<caret> }\n}")
+        myFixture.completeBasic()
+        assertContainsElements(myFixture.lookupElementStrings.orEmpty(), "now", "cycle_time")
+        assertDoesntContain(myFixture.lookupElementStrings.orEmpty(), "level")
+        assertEmpty(targets(prefix + "fn read(clock: Clock) => clock.n<caret>ow"))
+    }
+
+    fun testNativePropertyHoverUsesTheBindingsDeclaredTypeOrCoreExport() {
+        myFixture.addFileToProject("documentation.json", model)
+        val imports = "module consumer\nuse examples.properties as api\n"
+        val typed = imports + "const fn read(m: api::Meter) => m.i<caret>f"
+        assertTrue(targets(typed).single().computeDocumentationHint()!!.contains("Current <strong>level</strong>"))
+        assertEmpty(targets(imports + "const fn read(m: i64) => m.i<caret>f"))
+        val injected = "module consumer\nfn read() {\n inject clock\n when { return clock.n<caret>ow }\n}"
+        assertTrue(targets(injected).single().computeDocumentationHint()!!.contains("now: datetime"))
+        assertEmpty(targets(injected.replace("inject clock", "let clock = 1")))
+        myFixture.addFileToProject("meter.hgl", "module examples.properties\nexport native type Meter { other: i64 }")
+        assertEmpty(targets(typed))
+        val source = targets(typed.replace("i<caret>f", "ot<caret>her")).single()
+        assertTrue(source.computeDocumentationHint()!!.contains("other: i64"))
+    }
+
+    fun testEnumMemberHoverFromExportRespectsImportsAndShadowing() {
+        myFixture.addFileToProject("documentation.json", model)
+        val imports = "module consumer\nuse examples.apidoc as api\nuse examples.apidoc::{Side}\n"
+        for (name in listOf("api::Side", "Side")) {
+            val target = targets(imports + "const fn show() -> str => convert<str>($name.b<caret>uy)").single()
+            assertTrue(target.computeDocumentationHint()!!.contains("buy"))
+            assertEquals(target.computeDocumentationHint(), target.createPointer().dereference()?.computeDocumentationHint())
+        }
+        assertEmpty(targets(imports + "const fn f(Side: i64) => Side.b<caret>uy"))
+        assertEmpty(targets(imports + "const fn f() => api::Box.va<caret>lue"))
+        myFixture.addFileToProject("local.hgl", "module examples.apidoc\nexport enum Side { other }")
+        assertEmpty(targets(imports + "const fn f() => Side.b<caret>uy"))
+    }
+
     fun testSelectiveImportAndSourcePriority() {
         myFixture.addFileToProject("documentation.json", model)
         val code = "module consumer\nuse examples.apidoc::{identity}\nfn g() => ide<caret>ntity(2)"

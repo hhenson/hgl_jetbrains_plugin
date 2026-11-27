@@ -1,0 +1,15 @@
+module conformance.rejections part join_configuration
+
+/**
+A join separator is fixed when a graph is built.
+
+Rules:
+    OPS-11, EXPR-14, FN-18
+
+Status:
+    agreed
+*/
+fn join_with_a_connection_as_separator(separator: str, piece: str) -> str {
+    # expect-error(phase, "connection.as_constant")
+    return join{separator: separator}(piece, "b")
+}
