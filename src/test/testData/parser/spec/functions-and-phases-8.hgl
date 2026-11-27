@@ -1,11 +1,1 @@
-module examples.routes
-
-fn route<T>(idx: i64, items: list<T, 3>) -> ref T {
-    when modified(idx) { return items[idx] }
-}
-
-fn follow(value: f64) -> f64 {
-    when { return value }
-}
-
-fn routed(idx: i64, items: list<f64, 3>) -> f64 => follow(route(idx, items))
+const fn indexed(const items: list<str>, index: i64) -> str => take(items[index])

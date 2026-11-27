@@ -147,3 +147,9 @@ export struct Marked<T> {
     */
     ticked: bool
 }
+
+# The graph supplies its clock and borrows its inputs for this call (FMT-8).
+native const fn _format<...As, ...Ks>{
+    const not_valid: str = "<not valid>",
+    const ticked: str = "*",
+}(const fmt_str: str, engine_time: Clock, args: ...endpoint<As>, kwargs: ...{endpoint<Ks>}) -> str

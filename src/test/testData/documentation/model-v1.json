@@ -94,6 +94,17 @@
           "documentation": null
         },
         {
+          "name": "graph_formatting",
+          "source": {
+            "module": "core",
+            "part": "graph_formatting",
+            "file": "<core>/core/formatting.hgl",
+            "line": 1,
+            "column": 8
+          },
+          "documentation": null
+        },
+        {
           "name": "key_sets",
           "source": {
             "module": "core",
@@ -882,6 +893,223 @@
                 "reference": false
               },
               "requires": null,
+              "properties": [],
+              "parents": [],
+              "type": null,
+              "default": null,
+              "value": null,
+              "abstractStruct": false,
+              "members": [],
+              "candidates": []
+            },
+            {
+              "kind": "candidate",
+              "name": "format",
+              "canonicalName": "core::format",
+              "role": "temporal",
+              "exported": false,
+              "source": {
+                "module": "core",
+                "part": "graph_formatting",
+                "file": "<core>/core/formatting.hgl",
+                "line": 48,
+                "column": 9
+              },
+              "documentation": {
+                "text": "Format the current scalar inputs when one of them publishes.\n\nSupply `require_valid` explicitly to select this graph candidate. It takes\nat least one positional or named input of type `i64`, `f64`, `bool` or\n`str`. In a marked place, a retained input keeps its value and a newly\npublished input gets the tick prefix.\n\nType Args:\n    As: The positional input payload types, in order.\n    Ks: The named input payload types, under their supplied names.\n\nArgs:\n    fmt_str: The constant format string.\n    args: Inputs for positional places.\n    kwargs: Inputs for named places.\n\nOptions:\n    - `require_valid`: Write `format{require_valid: true}` to wait for\n      every input, or `format{require_valid: false}` to show missing values.\n    - `not_valid`: Text for an invalid input. Defaults to `\"<not valid>\"`.\n    - `ticked`: Prefix for a modified input in a marked place. Defaults to `\"*\"`.\n\nReturns:\n    The formatted string for the current evaluation.\n\nTicks:\n    A publication on any input can produce a string. A quiet cycle emits nothing.\n\nValidity:\n    With `require_valid: true`, all inputs must be valid for an emission.\n    With `false`, a missing input uses `not_valid` even in a numeric place.\n\nExamples:\n    ~~~hgl\n    fn quote(bid: i64, ask: i64) -> str =>\n        format{require_valid: false}(\"{*} / {*ask}\", bid, ask: ask)\n    assert eval quote(bid: [3, _, _], ask: [_, 5, _]) == [\n        \"*3 / <not valid>\", \"3 / *5\", _,\n    ]\n    ~~~\n\nRules:\n    FMT-7, FMT-8, FMT-9",
+                "summary": "Format the current scalar inputs when one of them publishes.",
+                "sections": [
+                  {
+                    "heading": null,
+                    "recognized": false,
+                    "text": "Supply `require_valid` explicitly to select this graph candidate. It takes\nat least one positional or named input of type `i64`, `f64`, `bool` or\n`str`. In a marked place, a retained input keeps its value and a newly\npublished input gets the tick prefix.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Type Args:",
+                    "recognized": true,
+                    "text": "As: The positional input payload types, in order.\nKs: The named input payload types, under their supplied names.",
+                    "entries": [
+                      {
+                        "key": "As",
+                        "text": "The positional input payload types, in order."
+                      },
+                      {
+                        "key": "Ks",
+                        "text": "The named input payload types, under their supplied names."
+                      }
+                    ]
+                  },
+                  {
+                    "heading": "Args:",
+                    "recognized": true,
+                    "text": "fmt_str: The constant format string.\nargs: Inputs for positional places.\nkwargs: Inputs for named places.",
+                    "entries": [
+                      {
+                        "key": "fmt_str",
+                        "text": "The constant format string."
+                      },
+                      {
+                        "key": "args",
+                        "text": "Inputs for positional places."
+                      },
+                      {
+                        "key": "kwargs",
+                        "text": "Inputs for named places."
+                      }
+                    ]
+                  },
+                  {
+                    "heading": "Options:",
+                    "recognized": true,
+                    "text": "- `require_valid`: Write `format{require_valid: true}` to wait for\n  every input, or `format{require_valid: false}` to show missing values.\n- `not_valid`: Text for an invalid input. Defaults to `\"<not valid>\"`.\n- `ticked`: Prefix for a modified input in a marked place. Defaults to `\"*\"`.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Returns:",
+                    "recognized": true,
+                    "text": "The formatted string for the current evaluation.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Ticks:",
+                    "recognized": true,
+                    "text": "A publication on any input can produce a string. A quiet cycle emits nothing.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Validity:",
+                    "recognized": true,
+                    "text": "With `require_valid: true`, all inputs must be valid for an emission.\nWith `false`, a missing input uses `not_valid` even in a numeric place.",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Examples:",
+                    "recognized": true,
+                    "text": "~~~hgl\nfn quote(bid: i64, ask: i64) -> str =>\n    format{require_valid: false}(\"{*} / {*ask}\", bid, ask: ask)\nassert eval quote(bid: [3, _, _], ask: [_, 5, _]) == [\n    \"*3 / <not valid>\", \"3 / *5\", _,\n]\n~~~",
+                    "entries": []
+                  },
+                  {
+                    "heading": "Rules:",
+                    "recognized": true,
+                    "text": "FMT-7, FMT-8, FMT-9",
+                    "entries": []
+                  }
+                ],
+                "examples": [
+                  {
+                    "code": "fn quote(bid: i64, ask: i64) -> str =>\n    format{require_valid: false}(\"{*} / {*ask}\", bid, ask: ask)\nassert eval quote(bid: [3, _, _], ask: [_, 5, _]) == [\n    \"*3 / <not valid>\", \"3 / *5\", _,\n]\n",
+                    "position": 1,
+                    "runnable": true
+                  }
+                ]
+              },
+              "genericParameters": [
+                {
+                  "name": "As",
+                  "kind": "pack",
+                  "type": null,
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "written": "...As",
+                  "default": null
+                },
+                {
+                  "name": "Ks",
+                  "kind": "pack",
+                  "type": null,
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "written": "...Ks",
+                  "default": null
+                }
+              ],
+              "configurationParameters": [
+                {
+                  "name": "require_valid",
+                  "type": "bool",
+                  "written": "const require_valid: bool",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                },
+                {
+                  "name": "not_valid",
+                  "type": "str",
+                  "written": "const not_valid: str = \"<not valid>\"",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": "\"<not valid>\""
+                },
+                {
+                  "name": "ticked",
+                  "type": "str",
+                  "written": "const ticked: str = \"*\"",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": "\"*\""
+                }
+              ],
+              "parameters": [
+                {
+                  "name": "fmt_str",
+                  "type": "str",
+                  "written": "const fmt_str: str",
+                  "constant": true,
+                  "var": false,
+                  "reference": false,
+                  "pack": null,
+                  "bounds": null,
+                  "default": null
+                },
+                {
+                  "name": "args",
+                  "type": "As",
+                  "written": "args: ...As",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": "positional",
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "default": null
+                },
+                {
+                  "name": "kwargs",
+                  "type": "Ks",
+                  "written": "kwargs: ...{Ks}",
+                  "constant": false,
+                  "var": false,
+                  "reference": false,
+                  "pack": "named",
+                  "bounds": {
+                    "minimum": 0,
+                    "maximum": null
+                  },
+                  "default": null
+                }
+              ],
+              "result": {
+                "type": "str",
+                "written": "-> str",
+                "reference": false
+              },
+              "requires": "requires each k in arg_keys(As) { As[k] in {i64, f64, bool, str} }\n          && each k in arg_keys(Ks) { Ks[k] in {i64, f64, bool, str} }\n          && (any k in arg_keys(As) { k == k } || any k in arg_keys(Ks) { k == k })",
               "properties": [],
               "parents": [],
               "type": null,

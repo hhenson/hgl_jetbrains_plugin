@@ -1,0 +1,65 @@
+module core part graph_formatting
+
+/**
+Format the current scalar inputs when one of them publishes.
+
+Supply `require_valid` explicitly to select this graph candidate. It takes
+at least one positional or named input of type `i64`, `f64`, `bool` or
+`str`. In a marked place, a retained input keeps its value and a newly
+published input gets the tick prefix.
+
+Type Args:
+    As: The positional input payload types, in order.
+    Ks: The named input payload types, under their supplied names.
+
+Args:
+    fmt_str: The constant format string.
+    args: Inputs for positional places.
+    kwargs: Inputs for named places.
+
+Options:
+    - `require_valid`: Write `format{require_valid: true}` to wait for
+      every input, or `format{require_valid: false}` to show missing values.
+    - `not_valid`: Text for an invalid input. Defaults to `"<not valid>"`.
+    - `ticked`: Prefix for a modified input in a marked place. Defaults to `"*"`.
+
+Returns:
+    The formatted string for the current evaluation.
+
+Ticks:
+    A publication on any input can produce a string. A quiet cycle emits nothing.
+
+Validity:
+    With `require_valid: true`, all inputs must be valid for an emission.
+    With `false`, a missing input uses `not_valid` even in a numeric place.
+
+Examples:
+    ~~~hgl
+    fn quote(bid: i64, ask: i64) -> str =>
+        format{require_valid: false}("{*} / {*ask}", bid, ask: ask)
+    assert eval quote(bid: [3, _, _], ask: [_, 5, _]) == [
+        "*3 / <not valid>", "3 / *5", _,
+    ]
+    ~~~
+
+Rules:
+    FMT-7, FMT-8, FMT-9
+*/
+impl fn format<...As, ...Ks>{
+    const require_valid: bool,
+    const not_valid: str = "<not valid>",
+    const ticked: str = "*",
+}(const fmt_str: str, args: ...As, kwargs: ...{Ks}) -> str
+    requires each k in arg_keys(As) { As[k] in {i64, f64, bool, str} }
+          && each k in arg_keys(Ks) { Ks[k] in {i64, f64, bool, str} }
+          && (any k in arg_keys(As) { k == k } || any k in arg_keys(Ks) { k == k })
+{
+    inject clock
+    when valid([]) {
+        # modified([]) is true when no input published in this cycle.
+        if !modified([]) && (!require_valid || valid()) {
+            return _format{not_valid: not_valid, ticked: ticked}(
+                fmt_str, clock, ...args, ...kwargs)
+        }
+    }
+}

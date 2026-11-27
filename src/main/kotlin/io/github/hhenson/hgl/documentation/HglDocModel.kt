@@ -103,7 +103,12 @@ private fun record(item: JsonObject, includeChildren: Boolean = true): ExportedD
     val genericParameters = item.objects("genericParameters")
     val generics = genericParameters.map { it.string("written") ?: it.required("name") }
     val options = item.objects("configurationParameters").associate(::parameter)
-    val parameters = item.objects("parameters").associate(::parameter)
+    val parameters = item.objects("parameters")
+    val writtenParameters = parameters.associate(::parameter)
+    val fixedArguments = parameters.takeWhile { it.string("pack") == null }.associate {
+        val (key, written) = parameter(it)
+        key to DocArgument(written, descriptions[key])
+    }
     val prefix = when (kind) {
         "function", "candidate", "nativeCandidate", "nativeFunction", "nativeImplementation", "nativeCandidateImplementation" -> buildString {
             if (kind.startsWith("native")) append("native ")
@@ -122,7 +127,7 @@ private fun record(item: JsonObject, includeChildren: Boolean = true): ExportedD
         append(prefix).append(name)
         if (generics.isNotEmpty()) append(generics.joinToString(", ", "<", ">"))
         if (options.isNotEmpty()) append(options.values.joinToString(", ", "{", "}"))
-        if (prefix.endsWith("fn ") || kind == "operator") append(parameters.values.joinToString(", ", "(", ")"))
+        if (prefix.endsWith("fn ") || kind == "operator") append(writtenParameters.values.joinToString(", ", "(", ")"))
         item.get("result")?.takeUnless { it.isJsonNull }?.asJsonObject?.let {
             append(' ').append(it.string("written") ?: "-> " + it.required("type"))
         }
@@ -130,10 +135,10 @@ private fun record(item: JsonObject, includeChildren: Boolean = true): ExportedD
         item.string("requires")?.let { append(' ').append(it) }
     }
     return ExportedDoc(item.required("canonicalName"), kind, signature, location, item.required("exported") == "true",
-        sections, parameters.mapValues { (key, written) -> DocArgument(written, descriptions[key]) },
+        sections, fixedArguments,
         if (includeChildren) item.objects("members").map { record(it, false) } else emptyList(),
         if (includeChildren) item.objects("candidates").map { record(it, false) } else emptyList(),
-        parameters.keys + options.keys + genericParameters.map { it.required("name") })
+        writtenParameters.keys + options.keys + genericParameters.map { it.required("name") })
 }
 
 private fun parameter(value: JsonObject): Pair<String, String> {

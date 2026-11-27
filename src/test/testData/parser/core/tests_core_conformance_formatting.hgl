@@ -382,3 +382,53 @@ test format_pads_chrono_text {
     assert format("{:<23}", @2026-11-22T09:30:00Z) == "2026-11-22T09:30:00Z   "
     assert format("{:8}", -1h30m) == "-1h30m  "
 }
+
+/**
+Format two independently ticking quote inputs with the cycle's evaluation time.
+
+Rules:
+    FMT-6, FMT-7, FMT-8, FMT-9
+
+Status:
+    agreed
+*/
+test graph_quote_ticks {
+    fn quote{const both: bool}(bid: f64, ask: f64) -> str =>
+        format{require_valid: both, not_valid: "missing", ticked: "!"}(
+            "{engine_time:%S.6} bid={*:.2f} ask={*ask:.2f}", bid, ask: ask)
+    fn clock_field(value: i64) -> str => format{require_valid: false}(
+        "{engine_time:%S.6} {clock} {cycle_time} {engine_time:%S.6}", clock: value, cycle_time: "quote")
+    assert eval clock_field(value: [7, 8]) == [
+        "00.000001 7 quote 00.000001",
+        "00.000002 8 quote 00.000002",
+    ]
+    assert eval quote{both: false}(bid: [101.25, _, 101.75, _], ask: [_, 102.50, _, _]) == [
+        "00.000001 bid=!101.25 ask=missing",
+        "00.000002 bid=101.25 ask=!102.50",
+        "00.000003 bid=!101.75 ask=102.50",
+        _,
+    ]
+    assert eval quote{both: true}(bid: [101.25, _, 101.75], ask: [_, 102.50, _]) == [
+        _,
+        "00.000002 bid=101.25 ask=!102.50",
+        "00.000003 bid=!101.75 ask=102.50",
+    ]
+}
+
+/**
+A literal wired to the graph publishes once. An absent price uses the
+configured text until it publishes, including in a place with a numeric specifier.
+
+Rules:
+    FMT-4, FMT-6, FMT-8, FMT-9
+
+Status:
+    agreed
+*/
+test graph_format_borrows_mixed_inputs {
+    fn line(px: f64) -> str => format{require_valid: false, not_valid: "missing", ticked: "!"}(
+        "{*label}={*:.1f}", px, label: "bid")
+    assert eval line(px: [_, 7.0, _, 9.0]) == [
+        "!bid=missing", "bid=!7.0", _, "bid=!9.0",
+    ]
+}
