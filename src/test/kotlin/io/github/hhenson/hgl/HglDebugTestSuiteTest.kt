@@ -4,6 +4,7 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.ui.RunnerLayoutUi
 import com.intellij.execution.ui.RunContentManager
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationType
@@ -267,7 +268,12 @@ class HglDebugTestSuiteTest : HglEditorFixture() {
 
     private fun assertGraphNavigation(session: XDebugSession, line: Int) {
         val stop = session.suspendContext
-        val ui = checkNotNull(session.ui)
+        var layout: RunnerLayoutUi? = null
+        session.runWhenUiReady { layout = it }
+        PlatformTestUtil.waitWithEventsDispatching("Waiting for the HGL Graph tab", {
+            layout?.findContent(HglGraphTab.ID) != null
+        }, 30)
+        val ui = checkNotNull(layout)
         val tab = checkNotNull(ui.findContent(HglGraphTab.ID))
         // The headless IDE builds the session layout without mounting a native window.
         val root = generateSequence<Component>(ui.component) { it.parent }.last()
