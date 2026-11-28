@@ -36,6 +36,21 @@ class HglCurrentSyntaxTest : ParsingTestCase("parser", "hgl", HglParserDefinitio
         assertEquals("Side", PsiTreeUtil.findChildOfType(file, HglEnumDecl::class.java)?.name)
     }
 
+    fun testStrIsATypeAndMemberNameAndConvertIsTheTextConversion() {
+        accepted("""
+            module text
+            struct Row { str: str }
+            const fn render(x: i64) -> str => convert<str>(x)
+            const fn field(row: Row) -> str => row.str
+            const fn make(x: str) -> Row => Row(str: x)
+            const fn wrap(x: i64) -> any => any(x)
+            const fn encode(x: str) -> bytes => bytes(x)
+            const fn fail(x: str) -> error => error(message: x)
+        """)
+        rejected("const fn render(x: i64) -> str => str(x)")
+        rejected("const fn render(x: i64) -> str { return str(x) }")
+    }
+
     fun testConstIsAnOrdinaryCallableName() {
         val file = accepted("""
             module current

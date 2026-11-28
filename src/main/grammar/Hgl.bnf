@@ -470,7 +470,7 @@ field_expr ::= expr field_suffix
 private field_suffix ::= nls DOT member_name {pin=2}
 implied_member_expr ::= DOT member_name {pin=1}
 type_of_expr ::= &(IDENTIFIER LPAREN) <<kw "TYPE_KW">> <<adjacent>> LPAREN nls grouped_expr nls RPAREN {pin=4}
-type_call_expr ::= (STR_KW | BYTES_KW | ANY_KW | ERROR_KW) arguments {pin=1}
+type_call_expr ::= (BYTES_KW | ANY_KW | ERROR_KW) arguments {pin=1}
 
 literal_expr ::= INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPORAL_LITERAL
                | TRUE_KW | FALSE_KW | NULL_KW | PLACEHOLDER

@@ -513,10 +513,22 @@ class HglPlatformTest : HglEditorFixture() {
             fn helper(x: str) -> str => x
             fn render(value: str) -> str => <caret>
         """.trimIndent())
-        assertContainsElements(names, "if", "fn", "true", "false", "null", "delta", "str", "bytes", "any", "error",
+        assertContainsElements(names, "if", "fn", "true", "false", "null", "delta", "bytes", "any", "error",
             "value", "helper")
         assertDoesntContain(names, "module", "integration_test", "operator", "native", "export", "struct", "requires",
-            "const", "eval", "run", "list", "i64", "let", "return")
+            "const", "eval", "run", "str", "list", "i64", "let", "return")
+    }
+
+    fun testTextConversionCompletion() {
+        val operand = completionsInModule("const fn text(x: i64) -> str { return <caret> }")
+        assertContainsElements(operand, "bytes", "any", "error", "x")
+        assertDoesntContain(operand, "str")
+        assertDoesntContain(completionsInModule("test text { <caret> }"), "str")
+        val call = "const fn text(x: i64) -> str => convert<<caret>>(x)"
+        assertContainsElements(completionsInModule(call), "str")
+        myFixture.addFileToProject("core.hgl", java.io.File("src/test/testData/parser/core/hgl_core_core.hgl").readText())
+        assertContainsElements(completionsInModule(call), "str")
+        assertContainsElements(completionsInModule("const fn text(x: i64) -> str => <caret>"), "convert")
     }
 
     fun testArrowCompletionWithTypedPrefix() {

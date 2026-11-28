@@ -25,10 +25,12 @@ import io.github.hhenson.hgl.psi.HglConstraintRelation
 import io.github.hhenson.hgl.psi.HglConstraintTerm
 import io.github.hhenson.hgl.psi.HglDeltaExpr
 import io.github.hhenson.hgl.psi.HglExpr
+import io.github.hhenson.hgl.psi.HglExpressionStmt
 import io.github.hhenson.hgl.psi.HglFile
 import io.github.hhenson.hgl.psi.HglFnExpr
 import io.github.hhenson.hgl.psi.HglFunctionDecl
 import io.github.hhenson.hgl.psi.HglFunctionType
+import io.github.hhenson.hgl.psi.HglGenericArgument
 import io.github.hhenson.hgl.psi.HglNamedArgument
 import io.github.hhenson.hgl.psi.HglNamedElement
 import io.github.hhenson.hgl.psi.HglOperatorConfiguration
@@ -192,13 +194,17 @@ class HglCompletionContributor : CompletionContributor() {
 
         private fun contextKeywords(position: PsiElement, previous: IElementType?): List<String> {
             val name = position.parentOfType<HglQualifiedName>()
-            when (name?.angleParameterKind()) {
+            // Without a resolved signature a bare angle argument can still be a type.
+            val angleKind = name?.angleParameterKind()
+            if (angleKind == null && name?.parent?.parent is HglGenericArgument)
+                return EXPRESSION_STARTERS + TYPE_KEYWORDS
+            when (angleKind) {
                 HglGenericKind.TYPE -> return TYPE_KEYWORDS
-                HglGenericKind.VALUE -> return ARROW_EXPRESSION_KEYWORDS
+                HglGenericKind.VALUE -> return EXPRESSION_STARTERS
                 HglGenericKind.CALL -> {
                     val types = if (HglScope.resolve(name, "Type", includeImplementations = false).isEmpty())
                         TYPE_KEYWORDS else TYPE_KEYWORDS - "Type"
-                    return ARROW_EXPRESSION_KEYWORDS + types
+                    return EXPRESSION_STARTERS + types
                 }
                 null -> Unit
             }
@@ -215,9 +221,9 @@ class HglCompletionContributor : CompletionContributor() {
             if (inArrowExpression(position)) {
                 val test = position.parentOfType<HglTestDecl>()
                 return when {
-                    test == null -> ARROW_EXPRESSION_KEYWORDS
-                    test.testKw != null -> ARROW_EXPRESSION_KEYWORDS + "eval"
-                    else -> ARROW_EXPRESSION_KEYWORDS + listOf("eval", "run")
+                    test == null -> EXPRESSION_STARTERS
+                    test.testKw != null -> EXPRESSION_STARTERS + "eval"
+                    else -> EXPRESSION_STARTERS + listOf("eval", "run")
                 }
             }
             val inBlock = position.parentOfType<HglBlock>() != null
@@ -233,10 +239,13 @@ class HglCompletionContributor : CompletionContributor() {
                     }
                     val expression = position.parentOfType<HglReferenceExpr>()
                     val assertion = expression?.parent as? HglAssertStmt
-                    if (assertion != null && assertion.expr == expression) {
-                        ARROW_EXPRESSION_KEYWORDS + "const" + harness + "raises"
-                    } else {
-                        STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS + harness
+                    when {
+                        assertion != null && assertion.expr == expression ->
+                            EXPRESSION_STARTERS + "const" + harness + "raises"
+                        expression?.parent is HglExpressionStmt ->
+                            STATEMENT_KEYWORDS + EXPRESSION_STARTERS + "const" + harness
+                        expression != null -> EXPRESSION_STARTERS + harness
+                        else -> STATEMENT_KEYWORDS + EXPRESSION_KEYWORDS + TYPE_KEYWORDS + harness
                     }
                 }
                 inStruct -> TYPE_KEYWORDS
@@ -257,7 +266,7 @@ class HglCompletionContributor : CompletionContributor() {
             "for", "while", "yield", "in", "assert", "switch", "case", "default",
         )
         private val PRIMARY_KEYWORDS = listOf("fn", "true", "false", "null", "delta", "type")
-        private val ARROW_EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + listOf("if", "str", "bytes", "any", "error")
+        private val EXPRESSION_STARTERS = PRIMARY_KEYWORDS + listOf("if", "bytes", "any", "error")
         val EXPRESSION_KEYWORDS = PRIMARY_KEYWORDS + "const"
         val TYPE_KEYWORDS = listOf(
             "bool", "i64", "f64", "str", "date", "time", "datetime", "duration", "civil_datetime",
