@@ -22,7 +22,7 @@ export fn counter(const every: duration = 1s, const limit: i64 = 3) -> i64 {
         count += 1
         yield every: count
     }
-    stop { log_info(logger, str(count)) }
+    stop { log_info(logger, convert<str>(count)) }
 }
 
 export fn replay(const values: list<f64>, const every: duration = 1s) -> f64 {

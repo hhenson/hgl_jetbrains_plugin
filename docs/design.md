@@ -202,9 +202,11 @@ Named declarations implement HglNamedElement. Typed PSI views support folding,
 structure, documentation and references. Generated sources live under
 `src/main/gen` and are rebuilt from the grammar.
 
-Keyword completion in a named or anonymous function's `=>` body
-offers expression starters at operands. A nested block resumes statement
-completion. Test bodies also admit `eval`, and integration tests admit `run`.
+Completion offers expression starters at operands and statement keywords at the
+start of a block statement. Text conversion uses the Core operator
+`convert<str>(value)`. Type slots offer `str`, including a bare generic
+argument whose declaration is unavailable. Test bodies also admit `eval`,
+and integration tests admit `run`.
 Names in scope are supplied independently by reference completion.
 Calls to the core endpoint predicates `modified`, `valid` and `all_valid` use the
 contextual keyword colour. Temporal handlers offer all three in completion even
